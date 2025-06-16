@@ -638,6 +638,7 @@ enable-lora: True
 #   --enable-chunked-prefill, --no-enable-chunked-prefill
 #                         If True, prefill requests can be chunked based on the
 #                         remaining max_num_batched_tokens. (default: None)
+enable-chunked-prefill: True
 #   --long-prefill-token-threshold LONG_PREFILL_TOKEN_THRESHOLD
 #                         For chunked prefill, a request is considered long if
 #                         the prompt is longer than this number of tokens.
@@ -656,6 +657,7 @@ enable-lora: True
 #                         by the user, it will be set in
 #                         `EngineArgs.create_engine_config` based on the usage
 #                         context. (default: None)
+# max-num-batched-tokens: 1048576 # 512 * 2048
 #   --max-num-partial-prefills MAX_NUM_PARTIAL_PREFILLS
 #                         For chunked prefill, the maximum number of sequences
 #                         that can be partially prefilled concurrently.
@@ -665,7 +667,7 @@ enable-lora: True
 #                         single iteration.
 #                         This config has no static default. If left unspecified
 #                         by the user, it will be set in
-max-num-seqs: 64
+max-num-seqs: 512
 #                         `EngineArgs.create_engine_config` based on the usage
 #                         context. (default: None)
 #   --multi-step-stream-outputs, --no-multi-step-stream-outputs
