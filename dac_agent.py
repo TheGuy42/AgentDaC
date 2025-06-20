@@ -35,8 +35,8 @@ class DACAgent:
         self.max_depth = max_depth
 
         self.system_message = {
-            # "role": "system",
-            "role": "user",
+            "role": "system",
+            # "role": "user",
             "content": model_system_message + "\n" + dac_sys_prompt,
         }
         self.sub_agents: list[DACAgent] = []
@@ -85,7 +85,7 @@ class DACAgent:
             self.client,
             self.model,
             self.model_system_message,
-            dac_sys_prompt=self.dac_sys_prompt if self.max_depth > 0 else "",
+            dac_sys_prompt=self.dac_sys_prompt if (self.max_depth - 1) > 0 else "",
             max_depth=self.max_depth - 1,
         )
         trajectory = await sub_agent.chat(message)

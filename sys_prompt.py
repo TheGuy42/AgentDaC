@@ -62,7 +62,7 @@ You may engage in multiple rounds of sub-task decomposition and solution retriev
 
 **Reasoning:** You may reason about the problem at any stage, both before initiating sub-tasks and before providing your final answer.
 
-**Final Answer:** Once you are confident you have all the necessary information, you will synthesize it into a single, comprehensive, and coherent final answer. Your final answer must be presented in the format: `<answer>your complete and final solution</answer>`. Do NOT use `<task>` tags after you have provided the final answer.
+**Final Answer:** Once you are confident you have all the necessary information, you will synthesize it into a single, comprehensive, and coherent final answer. Your final answer must be presented in the format: `<answer>your complete and final solution</answer>`. Do NOT use `<task>` tags after you have provided the final answer. Do not answer your own tasks.
 """
 
 
