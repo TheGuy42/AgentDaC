@@ -27,12 +27,14 @@ class DACAgent:
         model_system_message: Optional[str] = "",
         dac_sys_prompt: str = "",
         max_depth: int = 10,
+        max_length: int = 20,
     ):
         self.client = client
         self.model = model
         self.model_system_message = model_system_message
         self.dac_sys_prompt = dac_sys_prompt
         self.max_depth = max_depth
+        self.max_length = max_length
 
         self.system_message = {
             "role": "system",
@@ -47,36 +49,49 @@ class DACAgent:
         self.id = DACAgent.counter
         DACAgent.counter += 1  # Increment the counter for each new instance
 
-        # initialize the trajectory with the system message
-        # self.trajectory.messages_and_choices.append(self.system_message)
-
     async def chat(self, message: ChatMessage) -> Trajectory:
+        counter = 0
+
         self.trajectory.messages_and_choices.append(message)
-        # pad = " " * (self.max_depth * 2)
-        # print(f"Chat from agent {self.id} at depth {self.max_depth}:")
         while True:
+            counter += 1
+
             messages = self.trajectory.messages()
-            # print(f"{pad}- {messages[-1]['role']}:: {messages[-1]['content']}")
+            if counter > self.max_length:
+                messages[-1]["content"] += "\n[Please provide your final answer to the original question.]"
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
-                # max_completion_tokens=128,
                 logprobs=True,
             )
             self.trajectory.messages_and_choices.append(response.choices[0])
-            # print(f"{pad}- {self.trajectory.messages()[-1]['content']}")
 
-            if self.max_depth <= 0:
+            # If max_depth is 0, or if we reached the max length, we do not delegate to sub-agents
+            if self.max_depth <= 0 or counter > self.max_length:
                 break
-            # If max_depth is 0, we do not delegate to sub-agents
+            
+            # Parse the response to extract sub-tasks
             tasks = self.parse_response(response)
             if len(tasks) == 0:
                 break
-
+            
+            # delegate tasks to sub-agents
+            task_responses = []
             for task in tasks:
                 # TODO: Implement the logic to handle aggregation of multiple sub-tasks
                 sub_agent_response = await self.call_sub_agent(task)
-                self.trajectory.messages_and_choices.append(sub_agent_response)
+                task_responses.append(sub_agent_response)
+            
+            # Add all sub-agent responses to the trajectory
+            if len(task_responses) > 0:
+                # concatenate all sub-agent responses into a single message
+                combined_response = {
+                    "role": "user",
+                    "content": "".join(
+                        [f"{resp['content']}" for resp in task_responses]
+                    ),
+                }
+                self.trajectory.messages_and_choices.append(combined_response)
 
         return self.trajectory
 
@@ -87,10 +102,9 @@ class DACAgent:
             self.model_system_message,
             dac_sys_prompt=self.dac_sys_prompt if (self.max_depth - 1) > 0 else "",
             max_depth=self.max_depth - 1,
+            max_length=self.max_length,
         )
         trajectory = await sub_agent.chat(message)
-        # print(f"Sub-agent trajectory for depth {self.max_depth - 1}:")
-        # print_trajectory(trajectory)
         response = trajectory.messages()[-1]
         # Extract the answer from the sub-agent response
         answer = extract_text_between_markers(
@@ -103,6 +117,7 @@ class DACAgent:
         else:
             # combine all answers if there are multiple
             answer = " ".join(answer)
+
         response["role"] = "user"
         response["content"] = f"<answer> {answer} </answer>"
         return response

@@ -458,6 +458,7 @@ return-tokens-as-token-ids: True
 #                         models. (default: None)
 #   --pipeline-parallel-size PIPELINE_PARALLEL_SIZE, -pp PIPELINE_PARALLEL_SIZE
 #                         Number of pipeline parallel groups. (default: 1)
+# pipeline-parallel-size: 2
 #   --ray-workers-use-nsight, --no-ray-workers-use-nsight
 #                         Whether to profile Ray workers with nsight, see
 #                         https://docs.ray.io/en/latest/ray-observability/user-
@@ -465,6 +466,7 @@ return-tokens-as-token-ids: True
 #                         (default: False)
 #   --tensor-parallel-size TENSOR_PARALLEL_SIZE, -tp TENSOR_PARALLEL_SIZE
 #                         Number of tensor parallel groups. (default: 1)
+# tensor-parallel-size: 2
 
 # CacheConfig:
 #   Configuration for the KV cache.
@@ -511,6 +513,7 @@ return-tokens-as-token-ids: True
 #                         example, if you have two vLLM instances running on the
 #                         same GPU, you can set the GPU memory utilization to
 #                         0.5 for each instance. (default: 0.9)
+gpu-memory-utilization: 0.7
 #   --kv-cache-dtype {auto,fp8,fp8_e4m3,fp8_e5m2}
 #                         Data type for kv cache storage. If "auto", will use
 #                         model data type. CUDA 11.8+ supports fp8 (=fp8_e4m3)
@@ -638,7 +641,7 @@ enable-lora: True
 #   --enable-chunked-prefill, --no-enable-chunked-prefill
 #                         If True, prefill requests can be chunked based on the
 #                         remaining max_num_batched_tokens. (default: None)
-enable-chunked-prefill: True
+# enable-chunked-prefill: True
 #   --long-prefill-token-threshold LONG_PREFILL_TOKEN_THRESHOLD
 #                         For chunked prefill, a request is considered long if
 #                         the prompt is longer than this number of tokens.
@@ -667,9 +670,9 @@ enable-chunked-prefill: True
 #                         single iteration.
 #                         This config has no static default. If left unspecified
 #                         by the user, it will be set in
-max-num-seqs: 512
 #                         `EngineArgs.create_engine_config` based on the usage
 #                         context. (default: None)
+max-num-seqs: 512 #NOTE: uncomment
 #   --multi-step-stream-outputs, --no-multi-step-stream-outputs
 #                         If False, then multi-step will stream outputs at the
 #                         end of all steps (default: True)

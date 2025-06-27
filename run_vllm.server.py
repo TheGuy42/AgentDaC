@@ -18,9 +18,9 @@ def main():
     )
     parser.add_argument(
         "--gpu",
-        type=int,
-        default=0,
-        help="The ID of the GPU to use (e.g., 0)."
+        type=str,
+        default="0",
+        help="The ID of the GPU(s) to use (e.g., 0 or '0,1')."
     )
 
     parser.add_argument(
@@ -28,6 +28,13 @@ def main():
         type=str,
         default="vllm_config.yaml",
         help="Path to the vLLM configuration file (default: vllm_config.yaml)."
+    )
+
+    parser.add_argument(
+        "--kwargs",
+        type=str,
+        default="",
+        help="Additional keyword arguments to pass to the vLLM server."
     )
 
 
@@ -40,7 +47,7 @@ def main():
         f"vllm serve "
         f" \"{args.model}\" "
         f"--config {args.config} "
-        
+        f"{args.kwargs} "
     )
     # ensure dynamic lora updates are enabled
     print(f"🚀 Running command: {command}")
