@@ -76,7 +76,7 @@ class DACAgent:
                 self.trajectory.reward += self.format_reward(response.choices[0].message.content)
             except BadRequestError as e:
                 print(f"BadRequestError: {e}")
-                break
+                raise e  # Re-raise the error to handle it upstream
             # If max_depth is 0, or if we reached the max length, we do not delegate to sub-agents
             if self.max_depth <= 0 or counter > self.max_length:
                 break
@@ -98,7 +98,7 @@ class DACAgent:
                 # concatenate all sub-agent responses into a single message
                 combined_response = {
                     "role": "user",
-                    "content": "".join(
+                    "content": "\n".join(
                         [f"{resp['content']}" for resp in task_responses]
                     ),
                 }
@@ -128,7 +128,7 @@ class DACAgent:
             answer = response["content"]
         else:
             # combine all answers if there are multiple
-            answer = " ".join(answer)
+            answer = "\n".join(answer)
 
         response["role"] = "user"
         response["content"] = f"<answer> {answer} </answer>"
