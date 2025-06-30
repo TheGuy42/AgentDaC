@@ -1,9 +1,10 @@
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, BadRequestError
 from typing import Any, Dict, Optional, NewType, TypedDict
 from openai.types.chat.chat_completion import ChatCompletion, Choice
 from art import Trajectory
 import re
 from debug_utils import print_trajectory
+import math
 
 # define ChatMessage type
 # ChatMessage = NewType("ChatMessage", Dict[str, str])
@@ -26,6 +27,7 @@ class DACAgent:
         model: str,
         model_system_message: Optional[str] = "",
         dac_sys_prompt: str = "",
+        leaf_sys_prompt: str = "",
         max_depth: int = 10,
         max_length: int = 20,
     ):
@@ -33,13 +35,15 @@ class DACAgent:
         self.model = model
         self.model_system_message = model_system_message
         self.dac_sys_prompt = dac_sys_prompt
+        self.leaf_sys_prompt = leaf_sys_prompt
         self.max_depth = max_depth
         self.max_length = max_length
 
+        sys_prompt = model_system_message + "\n" + (dac_sys_prompt if self.max_depth > 0 else leaf_sys_prompt)
         self.system_message = {
             "role": "system",
             # "role": "user",
-            "content": model_system_message + "\n" + dac_sys_prompt,
+            "content": sys_prompt,
         }
         self.sub_agents: list[DACAgent] = []
         self.trajectory: Trajectory = Trajectory(
@@ -49,7 +53,7 @@ class DACAgent:
         self.id = DACAgent.counter
         DACAgent.counter += 1  # Increment the counter for each new instance
 
-    async def chat(self, message: ChatMessage) -> Trajectory:
+    async def chat(self, message: ChatMessage, **kwargs) -> Trajectory:
         counter = 0
 
         self.trajectory.messages_and_choices.append(message)
@@ -59,13 +63,20 @@ class DACAgent:
             messages = self.trajectory.messages()
             if counter > self.max_length:
                 messages[-1]["content"] += "\n[Please provide your final answer to the original question.]"
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                logprobs=True,
-            )
-            self.trajectory.messages_and_choices.append(response.choices[0])
-
+            try:
+                response = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    logprobs=True,
+                    # stop="</task>",  # Stop at the end of a task
+                    **kwargs,  # Additional keyword arguments for the chat completion
+                    # max_completion_tokens=9900,  # Set a high limit to allow for long responses
+                )
+                self.trajectory.messages_and_choices.append(response.choices[0])
+                self.trajectory.reward += self.format_reward(response.choices[0].message.content)
+            except BadRequestError as e:
+                print(f"BadRequestError: {e}")
+                break
             # If max_depth is 0, or if we reached the max length, we do not delegate to sub-agents
             if self.max_depth <= 0 or counter > self.max_length:
                 break
@@ -100,7 +111,8 @@ class DACAgent:
             self.client,
             self.model,
             self.model_system_message,
-            dac_sys_prompt=self.dac_sys_prompt if (self.max_depth - 1) > 0 else "",
+            dac_sys_prompt=self.dac_sys_prompt,
+            leaf_sys_prompt=self.leaf_sys_prompt,
             max_depth=self.max_depth - 1,
             max_length=self.max_length,
         )
@@ -111,8 +123,8 @@ class DACAgent:
             response["content"], "<answer>", "</answer>"
         )
         if len(answer) == 0:
-            if self.max_depth > 0:
-                self.trajectory.reward -= 0.1  # Penalize for no answer formatting
+            # if self.max_depth > 0:
+            #     self.trajectory.reward -= 0.1  # Penalize for no answer formatting
             answer = response["content"]
         else:
             # combine all answers if there are multiple
@@ -141,6 +153,30 @@ class DACAgent:
             tasks_messages.append(ChatMessage({"role": "user", "content": task}))
 
         return tasks_messages
+    
+    def format_reward(self, response: str) -> float:
+        reward = 0.0
+
+        tasks = extract_text_between_markers(response, "<task>", "</task>")
+        answers = extract_text_between_markers(response, "<answer>", "</answer>")
+        
+        if len(tasks) == 0 and len(answers) == 0:
+            reward -= 0.1  # Penalize for no tasks or answers
+        elif len(tasks) > 0 and len(answers) == 0:
+            reward += 0.2 #** len(tasks)  # Reward for tasks without answers
+        elif len(tasks) == 0 and len(answers) > 0:
+            reward += 0.2 ** len(answers)  # Reward for answers without tasks, diminishing with more answers
+        else:
+            reward -= 0.1 ** (1 / min(len(tasks), len(answers)))  # Penalize for each task that was also answered by the agent
+        
+        tasks_diff = abs(response.count("<task>") - response.count("</task>"))
+        answers_diff = abs(response.count("<answer>") - response.count("</answer>"))
+        if tasks_diff > 0:
+            reward -= 0.1 ** (1 / tasks_diff)
+        if answers_diff > 0:
+            reward -= 0.1 ** (1 / answers_diff)
+
+        return reward
 
 
 def extract_text_between_markers(

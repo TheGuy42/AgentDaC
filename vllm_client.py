@@ -10,10 +10,14 @@ class VLLMClient:
         self,
         inference_base_url: str = "http://localhost",
         port: int = 8000,
+        base_model: Optional[str] = None,
         **kwargs: Any,
     ):
         self.inference_base_url = inference_base_url + f":{port}/v1"
         self.port = port
+        self.base_model = base_model
+        self.inference_name = base_model
+
         self.client = AsyncOpenAI(
             base_url=self.inference_base_url,
             api_key="default",  # Assuming no API key is needed for local server
@@ -21,12 +25,20 @@ class VLLMClient:
         )
         self.client = patch_openai(self.client)
 
+    def get_inference_name(self) -> str:
+        return self.inference_name
+
     async def chat(
         self,
         message: Dict[str, str],
-        model: str,
+        model: str = None,
         **kwargs,
     ) -> dict:
+        if model is None:
+            model = self.get_inference_name()
+            if not model:
+                raise ValueError("Model name must be specified or set in the client.")
+            
         response = await self.client.chat.completions.create(
             model=model,
             messages=message,
@@ -46,6 +58,7 @@ class VLLMClient:
         try:
             response = requests.post(url, headers=headers, json=payload)
             response.raise_for_status()  # Raise an exception for HTTP errors (4xx or 5xx)
+            self.inference_name = lora_name  # Update the inference name to the loaded LORA
 
             print("Request successful!")
             print("Status Code:", response.status_code)
@@ -69,6 +82,7 @@ class VLLMClient:
         try:
             response = requests.post(url, headers=headers, json=payload)
             response.raise_for_status()  # Raise an exception for HTTP errors (4xx or 5xx)
+            self.inference_name = self.base_model  # Reset inference name to base model
 
             print("Request successful!")
             print("Status Code:", response.status_code)
