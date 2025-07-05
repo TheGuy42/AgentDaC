@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any
+from collections import defaultdict
 
 
 @dataclass
@@ -15,6 +16,12 @@ class VLLMModelConfig:
         metadata={"help": "Additional keyword arguments for the vLLM server."}
     )
 
+    def parse_kwargs(self) -> str:
+        """
+        Converts the kwargs dictionary to a string format suitable for command line arguments.
+        """
+        return " ".join(f"--{k} {v}" for k, v in self.kwargs.items())
+
     def run_server(self, port: int = 8200, gpu: str = "1"):
         """
         Constructs the command to run the vLLM server with this model configuration.
@@ -24,11 +31,12 @@ class VLLMModelConfig:
             f"--model {self.model_name} "
             f"--gpu {gpu} "
             f"--port {port} "
-            f"kwargs \"" + f"--{k} {v} " for k,v in self.kwargs.items() + "\" "
+            f"kwargs \"" + self.parse_kwargs() + "\" "
         )
         
         return command
 
+### Add model configurations below
 
 Qwen2_5_32B = VLLMModelConfig(
     model_name="Qwen/Qwen2.5-32B-Instruct",
@@ -40,7 +48,9 @@ Qwen2_5_32B = VLLMModelConfig(
 )
 
 
-
+model_configs:Dict[str, VLLMModelConfig] = {
+    Qwen2_5_32B.model_name: Qwen2_5_32B,
+}
 
 
 

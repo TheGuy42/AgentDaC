@@ -1,9 +1,9 @@
 from art.dev.model import InitArgs, EngineArgs, PeftArgs, TrainerArgs, InternalModelConfig
+from typing import Dict
 
-
-generic_32B = InternalModelConfig(
+Qwen2_5_32B = InternalModelConfig(
     init_args=InitArgs(
-        model_name="",
+        model_name="Qwen/Qwen2.5-32B-Instruct",
         max_seq_length=10000,
         load_in_4bit=False,  # False for LoRA 16bit
         fast_inference=True,  # Enable vLLM fast inference
@@ -16,8 +16,9 @@ generic_32B = InternalModelConfig(
     )
 )
 
-configs:list[InternalModelConfig] = {
-    "32B": generic_32B,
+configs:Dict[str, InternalModelConfig] = {
+    "32B": Qwen2_5_32B,
+    Qwen2_5_32B["init_args"]["model_name"]: Qwen2_5_32B,
 }
 
 

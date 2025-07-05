@@ -1,5 +1,6 @@
 import argparse
 import os
+from vllm_model_config import model_configs
 
 def main():
     """
@@ -28,7 +29,6 @@ def main():
         default="0",
         help="The ID of the GPU(s) to use (e.g., 0 or '0,1')."
     )
-
     parser.add_argument(
         "--config",
         type=str,
@@ -46,6 +46,9 @@ def main():
 
     args = parser.parse_args()
 
+    model_config = model_configs.get(args.model, None)
+    model_kwargs = model_config.parse_kwargs() if model_config else ""
+
     # --- Construct and run the vLLM command ---
     command = (
         "export VLLM_ALLOW_RUNTIME_LORA_UPDATING=True && "
@@ -54,7 +57,7 @@ def main():
         f" \"{args.model}\" "
         f"--port {args.port} "
         f"--config {args.config} "
-        f"{args.kwargs} "
+        f"{args.kwargs} {model_kwargs} "
     )
     # ensure dynamic lora updates are enabled
     print(f"🚀 Running command: {command}")

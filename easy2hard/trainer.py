@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import random
 import re
 from datasets import Dataset, load_dataset
+import regex
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -57,13 +58,15 @@ class Easy2HardTrainer(Trainer):
         
 
     async def _train(self, epoch, n_rollouts, n_groups, vllm_router):
+        # Split the dataset into n_groups
+        # Each group will have n_rollouts samples
+        # each group will have a greater difficulty level
         epoch_data_groups:list[Dataset] = []
+        epoch_data = self.train_data.shuffle(seed=42)
+        epoch_data = epoch_data.take(n_rollouts*n_groups)  # Take the first n_rollouts samples for training
+        epoch_data = epoch_data.sort("item_difficulty", reverse=False)
         for i in range(n_groups):
-            # Shuffle the training data for each group
-            epoch_data = self.train_data.shuffle(seed=42+i)
-            epoch_data = epoch_data.take(n_rollouts)  # Take the first n_rollouts samples for training
-            epoch_data = epoch_data.sort("item_difficulty", reverse=False)
-            epoch_data_groups.append(epoch_data)
+            epoch_data_groups.append(epoch_data.shard(num_shards=n_groups, index=i, contiguous=True))
 
         train_groups = await art.gather_trajectory_groups(
             (
@@ -71,7 +74,7 @@ class Easy2HardTrainer(Trainer):
                     rollout(
                         vllm_client=vllm_router.__next__(),
                         question=sample['problem'][0],
-                        answer=sample['answer'][0].strip('{}'), 
+                        answer=sample['answer'][0], 
                     ) for i, sample in enumerate(epoch_data.iter(batch_size=1)) # Number of rollouts per group
                 ) for epoch_data in epoch_data_groups # Number of groups to gather
             ),
@@ -82,7 +85,7 @@ class Easy2HardTrainer(Trainer):
         await self.model.train(train_groups, config=art.TrainConfig(learning_rate=2e-5))
 
 
-@art.retry(exceptions=(openai.LengthFinishReasonError,))
+# @art.retry(exceptions=(openai.LengthFinishReasonError,))
 async def rollout(
     vllm_client: VllmClient,
     question: str,
@@ -117,7 +120,8 @@ async def rollout(
         return e
 
     content = trajectory.messages()[-1]["content"]
-    agent_answer = extract_text_between_markers(content, "boxed{", "}")
+    agent_answer = extract_boxed_content(content)
+    answer = extract_boxed_content(answer)
     if len(agent_answer) == 0:
         trajectory.reward -= 1
     else:
@@ -134,6 +138,26 @@ async def rollout(
     return trajectory
 
 
+def extract_boxed_content(text:str) -> list[str]:
+    # Pattern explanation (same as before, but the DOTALL flag makes '.' match newlines):
+    # \/boxed\{           - Matches the literal '/boxed{'
+    # (                    - Start capturing group 1 (this is what we want to extract)
+    #   (?:                - Start non-capturing group (for alternation)
+    #     [^{}]            - Match any character that is NOT '{' or '}'
+    #     |                - OR
+    #     \{ (?R) \}       - Recursively match '{' followed by the entire pattern (including outer '/boxed{...}'), followed by '}'
+    #   )* - Match the non-capturing group zero or more times (allowing empty content)
+    # )                    - End capturing group 1
+    # \}                   - Matches the literal '}'
+    #
+    # regex.DOTALL flag: Makes '.' match newlines, allowing the content to span multiple lines.
+    # regex.MULTILINE flag: Not strictly necessary for this pattern, but good for patterns with ^ and $ anchors.
+    # regex.IGNORECASE flag: Not needed here.
+    pattern = r"\/boxed\{((?:[^{}]|(?R))*)\}"
+    
+    # Use regex.findall with the DOTALL flag
+    matches = regex.findall(pattern, text, regex.DOTALL)
+    return matches
 
 
 

@@ -19,12 +19,12 @@ def parse_args():
         help="The name of the model to use for training.",
         required=True,
     )
-    parser.add_argument(
-        "--model_config",
-        type=str,
-        default="32B",
-        help="The name of the model configuration to use."
-    )
+    # parser.add_argument(
+    #     "--model_config",
+    #     type=str,
+    #     default="32B",
+    #     help="The name of the model configuration to use."
+    # )
     parser.add_argument(
         "--epochs",
         type=int,
@@ -70,9 +70,7 @@ async def main():
     print("Running training with the following arguments:")
     print(args)
     
-    model_config:InternalModelConfig = configs[args.model_config]
-    if model_config.get("init_args", InitArgs) is not None:
-        model_config.get("init_args", InitArgs)['model_name'] = args.model_name
+    model_config:InternalModelConfig = configs.get(args.model_name, None)
 
     # Initialize the trainer
     trainer = Easy2HardTrainer(

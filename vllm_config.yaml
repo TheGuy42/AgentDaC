@@ -240,7 +240,7 @@ generation_config: 'vllm'
 #                         e.g. ``{"pooling_type": "mean", "normalize": false}``.
 #                         (default: None)
 #   --port PORT           Port number. (default: 8000)
-port: 8200
+# port: 8200
 #   --prompt-adapters PROMPT_ADAPTERS [PROMPT_ADAPTERS ...]
 #                         Prompt adapter configurations in the format name=path.
 #                         Multiple adapters can be specified. (default: None)
@@ -513,7 +513,7 @@ return-tokens-as-token-ids: True
 #                         example, if you have two vLLM instances running on the
 #                         same GPU, you can set the GPU memory utilization to
 #                         0.5 for each instance. (default: 0.9)
-gpu-memory-utilization: 0.85
+# gpu-memory-utilization: 0.85
 #   --kv-cache-dtype {auto,fp8,fp8_e4m3,fp8_e5m2}
 #                         Data type for kv cache storage. If "auto", will use
 #                         model data type. CUDA 11.8+ supports fp8 (=fp8_e4m3)
@@ -672,7 +672,7 @@ enable-lora: True
 #                         by the user, it will be set in
 #                         `EngineArgs.create_engine_config` based on the usage
 #                         context. (default: None)
-max-num-seqs: 128 #NOTE: uncomment
+# max-num-seqs: 128 #NOTE: uncomment
 #   --multi-step-stream-outputs, --no-multi-step-stream-outputs
 #                         If False, then multi-step will stream outputs at the
 #                         end of all steps (default: True)
