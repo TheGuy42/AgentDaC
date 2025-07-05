@@ -17,6 +17,12 @@ def main():
         help="The name or path of the model to serve (e.g., 'meta-llama/Meta-Llama-3-8B-Instruct')."
     )
     parser.add_argument(
+        "--port",
+        type=int,
+        default=8200,
+        help="The port on which the vLLM server will run (e.g., '8000')."
+    )
+    parser.add_argument(
         "--gpu",
         type=str,
         default="0",
@@ -46,6 +52,7 @@ def main():
         f"CUDA_VISIBLE_DEVICES={args.gpu} "
         f"vllm serve "
         f" \"{args.model}\" "
+        f"--port {args.port} "
         f"--config {args.config} "
         f"{args.kwargs} "
     )

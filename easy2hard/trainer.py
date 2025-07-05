@@ -1,0 +1,143 @@
+import torch
+import numpy as np
+import os
+import sys
+from dotenv import load_dotenv
+import random
+import re
+from datasets import Dataset, load_dataset
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+import art
+from art import Trajectory
+from art.dev.model import InternalModelConfig
+from art.local import LocalBackend
+import openai
+from openai import AsyncOpenAI
+
+from training import Trainer
+from sys_prompt import SystemPrompt, DaCSystemPrompt
+from dac_agent import DACAgent, extract_text_between_markers
+from vllm_client import VllmClient, VllmRouter
+
+
+class Easy2HardTrainer(Trainer):
+    def __init__(
+        self,
+        model_name: str,
+        model_config: InternalModelConfig,
+        project_name: str = "easy2hard-dac_agent",
+        backend: LocalBackend = LocalBackend(path="./.art"),
+        WANDB_API_KEY: str = "",
+        OPENPIPE_API_KEY: str = "",
+        seed: int = 42,
+        gpu: int = 0,
+        vllm_server_ports: list[int] = []
+    ):
+        super().__init__(
+            model_name=model_name,
+            model_config=model_config,
+            project_name=project_name,
+            backend=backend,
+            WANDB_API_KEY=WANDB_API_KEY,
+            OPENPIPE_API_KEY=OPENPIPE_API_KEY,
+            seed=seed,
+            gpu=gpu,
+            vllm_server_ports=vllm_server_ports
+        )
+
+        print(f"Easy2HardTrainer:: Loading the dataset..")
+        self.easy2hard_dataset = load_dataset("furonghuang-lab/Easy2Hard-Bench", "E2H-AMC")
+
+        # The dataset is usually split into 'train' and 'test'
+        self.train_data:Dataset = self.easy2hard_dataset['train']
+        self.test_data:Dataset = self.easy2hard_dataset['eval']
+        
+        
+
+    async def _train(self, epoch, n_rollouts, n_groups, vllm_router):
+        epoch_data_groups:list[Dataset] = []
+        for i in range(n_groups):
+            # Shuffle the training data for each group
+            epoch_data = self.train_data.shuffle(seed=42+i)
+            epoch_data = epoch_data.take(n_rollouts)  # Take the first n_rollouts samples for training
+            epoch_data = epoch_data.sort("item_difficulty", reverse=False)
+            epoch_data_groups.append(epoch_data)
+
+        train_groups = await art.gather_trajectory_groups(
+            (
+                art.TrajectoryGroup(
+                    rollout(
+                        vllm_client=vllm_router.__next__(),
+                        question=sample['problem'][0],
+                        answer=sample['answer'][0].strip('{}'), 
+                    ) for i, sample in enumerate(epoch_data.iter(batch_size=1)) # Number of rollouts per group
+                ) for epoch_data in epoch_data_groups # Number of groups to gather
+            ),
+            pbar_desc="gather",
+        )
+
+        await self.model.delete_checkpoints()
+        await self.model.train(train_groups, config=art.TrainConfig(learning_rate=2e-5))
+
+
+@art.retry(exceptions=(openai.LengthFinishReasonError,))
+async def rollout(
+    vllm_client: VllmClient,
+    question: str,
+    answer: str,
+    
+) -> art.Trajectory:
+
+    agent = DACAgent(
+        client=vllm_client.client,
+        model=vllm_client.get_inference_name(),
+        # model_system_message=SystemPrompt.Qwen,
+        dac_sys_prompt=DaCSystemPrompt.dac_sys_prompt_v2_3,
+        leaf_sys_prompt=DaCSystemPrompt.dac_sys_prompt_v2_3_leaf,
+        # dac_sys_prompt=prompt,
+        max_depth=1,
+        max_length=4,  # Limit the number of messages in a single chat
+    )
+
+    prompt = "Please answer the following question, write the final answer in \\boxed\{\}."
+    message = {
+        "role": "user",
+        "content": f"{prompt} \n\"{question}\"",
+    }
+    try:
+        trajectory = await agent.chat(message)
+    except Exception as e:
+        print("caught exception generating chat completion")
+        print(e)
+        # global failing_trajectory
+        # failing_trajectory = trajectory
+        return Trajectory(messages_and_choices=[],reward=0)
+        return e
+
+    content = trajectory.messages()[-1]["content"]
+    agent_answer = extract_text_between_markers(content, "boxed{", "}")
+    if len(agent_answer) == 0:
+        trajectory.reward -= 1
+    else:
+        agent_answer = agent_answer[-1]#.strip()  # Get the last answer
+        if agent_answer == answer:
+            trajectory.reward += 1
+            trajectory.metrics["correct_answer"] = 1
+        else:
+            trajectory.metrics["correct_answer"] = 0
+    # Add the answer and agent_answer to the trajectory metrics
+    trajectory.metadata["answer"] = answer
+    trajectory.metadata["agent_answer"] = agent_answer
+
+    return trajectory
+
+
+
+
+
+
+
+
+
