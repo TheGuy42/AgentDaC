@@ -61,16 +61,15 @@ class DACAgent:
             counter += 1
 
             messages = self.trajectory.messages()
-            if counter > self.max_length:
-                messages[-1]["content"] += "\n[Please provide your final answer to the original question.]"
+            #TODO: this message keeps popping up in the trajectory somehow, need to fix it
+            # if counter > self.max_length:
+            #     messages[-1]["content"] += "\n[Please provide your final answer to the original question.]"
             try:
                 response = await self.client.chat.completions.create(
                     model=self.model,
                     messages=messages,
                     logprobs=True,
-                    # stop="</task>",  # Stop at the end of a task
                     **kwargs,  # Additional keyword arguments for the chat completion
-                    # max_completion_tokens=9900,  # Set a high limit to allow for long responses
                 )
                 self.trajectory.messages_and_choices.append(response.choices[0])
                 self.trajectory.reward += self.format_reward(response.choices[0].message.content)
@@ -89,7 +88,6 @@ class DACAgent:
             # delegate tasks to sub-agents
             task_responses = []
             for task in tasks:
-                # TODO: Implement the logic to handle aggregation of multiple sub-tasks
                 sub_agent_response = await self.call_sub_agent(task)
                 task_responses.append(sub_agent_response)
             
@@ -123,8 +121,6 @@ class DACAgent:
             response["content"], "<answer>", "</answer>"
         )
         if len(answer) == 0:
-            # if self.max_depth > 0:
-            #     self.trajectory.reward -= 0.1  # Penalize for no answer formatting
             answer = response["content"]
         else:
             # combine all answers if there are multiple
