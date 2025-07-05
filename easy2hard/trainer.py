@@ -104,7 +104,7 @@ async def rollout(
         max_length=4,  # Limit the number of messages in a single chat
     )
 
-    prompt = "Please answer the following question, write the final answer in \\boxed\{\}."
+    prompt = "Please answer the following question, write the final answer in the format <answer> final answer </answer>."
     message = {
         "role": "user",
         "content": f"{prompt} \n\"{question}\"",
@@ -120,16 +120,18 @@ async def rollout(
         return e
 
     content = trajectory.messages()[-1]["content"]
-    agent_answer = extract_boxed_content(content)
-    answer = extract_boxed_content(answer)
+    agent_answer = extract_text_between_markers(content, "<answer>", "</answer>")
+    # answer = extract_boxed_content(answer)[-1]
     if len(agent_answer) == 0:
         trajectory.reward -= 1
+        agent_answer = ""
     else:
-        agent_answer = agent_answer[-1]#.strip()  # Get the last answer
+        agent_answer = agent_answer[-1].strip()  # Get the last answer
         if agent_answer == answer:
-            trajectory.reward += 1
+            trajectory.reward += 1  # Reward for correct answer
             trajectory.metrics["correct_answer"] = 1
         else:
+            trajectory.reward -= 0.5  # Penalize for incorrect answer
             trajectory.metrics["correct_answer"] = 0
     # Add the answer and agent_answer to the trajectory metrics
     trajectory.metadata["answer"] = answer
