@@ -1,3 +1,4 @@
+import copy # Import the copy module for deep copying
 from openai import AsyncOpenAI, BadRequestError
 from typing import Any, Dict, Optional, NewType, TypedDict
 from openai.types.chat.chat_completion import ChatCompletion, Choice
@@ -71,8 +72,12 @@ class DACAgent:
                     logprobs=True,
                     **kwargs,  # Additional keyword arguments for the chat completion
                 )
-                self.trajectory.messages_and_choices.append(response.choices[0])
-                self.trajectory.reward += self.format_reward(response.choices[0].message.content)
+                # Deep copy the choice object before appending to the trajectory
+                # This is to ensure its integrity against potential in-place modifications by other processes
+                # or side-effects from methods like trajectory.messages().
+                copied_choice = copy.deepcopy(response.choices[0])
+                self.trajectory.messages_and_choices.append(copied_choice)
+                self.trajectory.reward += self.format_reward(copied_choice.message.content) # Use copied_choice here too
             except BadRequestError as e:
                 print(f"BadRequestError: {e}")
                 raise e  # Re-raise the error to handle it upstream
@@ -126,8 +131,11 @@ class DACAgent:
             # combine all answers if there are multiple
             answer = "\n".join(answer)
 
+        # Clean up the extracted answer before wrapping
+        processed_answer = answer.strip()
+
         response["role"] = "user"
-        response["content"] = f"<answer> {answer} </answer>"
+        response["content"] = f"<answer>{processed_answer}</answer>" # Removed spaces around {processed_answer} for cleaner output
         return response
 
     def parse_response(self, response: ChatCompletion) -> list[ChatMessage]:
