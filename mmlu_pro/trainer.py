@@ -73,7 +73,6 @@ class MMLU_ProTrainer(Trainer):
         epoch_data_groups:list[Dataset] = []
         epoch_data = self.train_data.shuffle(seed=42)
         epoch_data = epoch_data.take(n_rollouts*n_groups)  # Take the first n_rollouts samples for training
-        epoch_data = epoch_data.sort("item_difficulty", reverse=False)
         for i in range(n_groups):
             epoch_data_groups.append(epoch_data.shard(num_shards=n_groups, index=i, contiguous=True))
 
