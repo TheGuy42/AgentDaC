@@ -58,7 +58,7 @@ def parse_args():
     )
     parser.add_argument(
         "--run_name",
-        type=str|None,
+        type=str,
         default=None,
         help="Name of the run. If provided, it will be used to resume the training from the given run name."
     )
