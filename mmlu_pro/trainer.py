@@ -114,7 +114,7 @@ async def rollout(
         max_length=4,  # Limit the number of messages in a single chat
     )
 
-    prompt = "Please answer the following question, write the final answer in the format <answer> final answer </answer>."
+    prompt = "Please answer the following question. Put the respective letter of the correct answer in the <answer> tag, e.g. <answer>A</answer>."
     message = {
         "role": "user",
         "content": f"{prompt} \n\"{question}\"",
