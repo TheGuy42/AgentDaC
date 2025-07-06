@@ -60,6 +60,27 @@ Qwen2_5_14B_unsloth = InternalModelConfig(
         max_model_len= 32768,  # Ensure this matches the model's max sequence length
     ),
 )
+Qwen2_5_14B_unsloth_bnb_4bit = InternalModelConfig(
+    init_args=InitArgs(
+        model_name="unsloth/Qwen2.5-14B-Instruct-bnb-4bit",
+        max_seq_length=32768,
+        load_in_4bit=True,  # False for LoRA 16bit
+        fast_inference=True,  # Enable vLLM fast inference
+        # vLLM args
+        disable_log_stats=False,
+        enable_prefix_caching=True,
+        gpu_memory_utilization=(0.6),  # Reduce if out of memory
+        max_lora_rank=8,
+        use_async=True,
+    ),
+    # trainer_args=TrainerArgs(
+    #     vllm_gpu_memory_utilization=(0.7),  # Reduce if out of memory
+    # ),
+    # engine_args=EngineArgs(
+    #     gpu_memory_utilization=(0.7),  # Reduce if out of memory
+    #     max_model_len= 32768,  # Ensure this matches the model's max sequence length
+    # ),
+)
 
 
 ######################### Llama-4-Scout 17B 16E Instruct #########################
@@ -85,6 +106,7 @@ configs:Dict[str, InternalModelConfig] = {
     Qwen2_5_32B["init_args"]["model_name"]: Qwen2_5_32B,
     Qwen2_5_32B_unsloth["init_args"]["model_name"]: Qwen2_5_32B_unsloth,
     Qwen2_5_14B_unsloth["init_args"]["model_name"]: Qwen2_5_14B_unsloth,
+    Qwen2_5_14B_unsloth_bnb_4bit["init_args"]["model_name"]: Qwen2_5_14B_unsloth_bnb_4bit,
     Llama4_Scout_17B_16E_Instruct_bnb_4bit["init_args"]["model_name"]: Llama4_Scout_17B_16E_Instruct_bnb_4bit,
 }
 
