@@ -65,8 +65,8 @@ Qwen2_5_14B_unsloth = VLLMModelConfig(
     model_name="unsloth/Qwen2.5-14B-Instruct",
     kwargs={
         "max-num-seqs": 128,
-        "max_model_len": 10000,
-        "gpu-memory-utilization": 0.7,
+        # "max_model_len": 32768,
+        # "gpu-memory-utilization": 0.7,
         }
 )
 
