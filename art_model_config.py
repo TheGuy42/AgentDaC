@@ -37,6 +37,7 @@ Qwen2_5_32B_unsloth = InternalModelConfig(
         vllm_gpu_memory_utilization=(0.8),  # Reduce if out of memory
     )
 )
+
 ######################### Qwen2.5-14B Instruct #########################
 Qwen2_5_14B_unsloth = InternalModelConfig(
     init_args=InitArgs(
@@ -47,17 +48,17 @@ Qwen2_5_14B_unsloth = InternalModelConfig(
         # vLLM args
         disable_log_stats=False,
         enable_prefix_caching=True,
-        gpu_memory_utilization=(0.9),  # Reduce if out of memory
+        gpu_memory_utilization=(0.7),  # Reduce if out of memory
         max_lora_rank=8,
         use_async=True,
     ),
-    # trainer_args=TrainerArgs(
-    #     vllm_gpu_memory_utilization=(0.7),  # Reduce if out of memory
-    # ),
-    # engine_args=EngineArgs(
-    #     gpu_memory_utilization=(0.7),  # Reduce if out of memory
-    #     max_model_len= 32768,  # Ensure this matches the model's max sequence length
-    # ),
+    trainer_args=TrainerArgs(
+        vllm_gpu_memory_utilization=(0.7),  # Reduce if out of memory
+    ),
+    engine_args=EngineArgs(
+        gpu_memory_utilization=(0.7),  # Reduce if out of memory
+        max_model_len= 32768,  # Ensure this matches the model's max sequence length
+    ),
 )
 
 
