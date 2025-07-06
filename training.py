@@ -81,16 +81,16 @@ class Trainer:
             base_model=self.model_name,
             _internal_config=self.model_config,
         )
-        counter = 0
-        sucess = False
-        while not sucess and counter < 5:
-            try:
-                await self.model.register(self.backend)
-                sucess = True
-            except TimeoutError as e:
-                print(f"TimeoutError:\n Retrying({counter}) to register the model {self.model_name}...")
-                counter += 1
-                
+        # counter = 0
+        # sucess = False
+        # while not sucess and counter < 5:
+        #     try:
+        #         await self.model.register(self.backend)
+        #         sucess = True
+        #     except TimeoutError as e:
+        #         print(f"TimeoutError:\n Retrying({counter}) to register the model {self.model_name}...")
+        #         counter += 1
+        await self.model.register(self.backend)
         self.model.inference_base_url = self.model.inference_base_url.replace(":8000", f":{art_port}")
 
     def _generate_run_name(self) -> str:
@@ -125,7 +125,6 @@ class Trainer:
             epochs (int): The number of epochs to train the model.
             n_rollouts (int): The number of rollouts to perform per epoch.
             n_groups (int): The number of groups to use for training.
-            vllm_router (VllmRouter): The router to manage VLLM clients
         """
         self.vllm_router.add_client(ArtVLLMClient(self.model))
 

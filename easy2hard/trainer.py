@@ -75,6 +75,7 @@ class Easy2HardTrainer(Trainer):
                         vllm_client=vllm_router.__next__(),
                         question=sample['problem'][0],
                         answer=sample['answer'][0], 
+                        model_config=self.model_config,
                     ) for i, sample in enumerate(epoch_data.iter(batch_size=1)) # Number of rollouts per group
                 ) for epoch_data in epoch_data_groups # Number of groups to gather
             ),
@@ -90,6 +91,7 @@ async def rollout(
     vllm_client: VllmClient,
     question: str,
     answer: str,
+    model_config: InternalModelConfig = None,
     
 ) -> art.Trajectory:
 
@@ -110,7 +112,8 @@ async def rollout(
         "content": f"{prompt} \n\"{question}\"",
     }
     try:
-        trajectory = await agent.chat(message)
+        max_tokens = model_config['max_seq_length'] if model_config and 'max_seq_length' in model_config else None
+        trajectory = await agent.chat(message, max_tokens=max_tokens)
     except Exception as e:
         print("caught exception generating chat completion")
         print(e)

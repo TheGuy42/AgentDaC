@@ -36,7 +36,11 @@ class VLLMModelConfig:
         
         return command
 
-### Add model configurations below
+########################################################################
+######################### Model Configurations #########################
+########################################################################
+
+######################### Qwen2.5-32B Instruct #########################
 
 Qwen2_5_32B = VLLMModelConfig(
     model_name="Qwen/Qwen2.5-32B-Instruct",
@@ -46,10 +50,34 @@ Qwen2_5_32B = VLLMModelConfig(
         "gpu-memory-utilization": 0.85,
         }
 )
+Qwen2_5_32B_unsloth = VLLMModelConfig(
+    model_name="unsloth/Qwen2.5-32B-Instruct",
+    kwargs={
+        "max-num-seqs": 128,
+        "max_model_len": 10000,
+        "gpu-memory-utilization": 0.85,
+        }
+)
 
+######################### Llama-4-Scout 17B 16E Instruct #########################
+
+Llama4_Scout_17B_16E_Instruct_bnb_4bit = VLLMModelConfig(
+    model_name="unsloth/Llama-4-Scout-17B-16E-Instruct-unsloth-dynamic-bnb-4bit",
+    kwargs={
+        "max-num-seqs": 128,
+        "max_model_len": 10000,
+        "gpu-memory-utilization": 0.85,
+        "load-format": "bitsandbytes",
+        }
+)
+
+
+######################### Configurations Dictionary #########################
 
 model_configs:Dict[str, VLLMModelConfig] = {
     Qwen2_5_32B.model_name: Qwen2_5_32B,
+    Qwen2_5_32B_unsloth.model_name: Qwen2_5_32B_unsloth,
+    Llama4_Scout_17B_16E_Instruct_bnb_4bit.model_name: Llama4_Scout_17B_16E_Instruct_bnb_4bit,
 }
 
 
