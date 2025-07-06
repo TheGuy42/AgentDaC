@@ -59,6 +59,17 @@ Qwen2_5_32B_unsloth = VLLMModelConfig(
         }
 )
 
+######################### Qwen2.5-14B Instruct #########################
+
+Qwen2_5_14B_unsloth = VLLMModelConfig(
+    model_name="unsloth/Qwen2.5-14B-Instruct",
+    kwargs={
+        "max-num-seqs": 128,
+        "max_model_len": 10000,
+        "gpu-memory-utilization": 0.7,
+        }
+)
+
 ######################### Llama-4-Scout 17B 16E Instruct #########################
 
 Llama4_Scout_17B_16E_Instruct_bnb_4bit = VLLMModelConfig(
@@ -77,6 +88,7 @@ Llama4_Scout_17B_16E_Instruct_bnb_4bit = VLLMModelConfig(
 model_configs:Dict[str, VLLMModelConfig] = {
     Qwen2_5_32B.model_name: Qwen2_5_32B,
     Qwen2_5_32B_unsloth.model_name: Qwen2_5_32B_unsloth,
+    Qwen2_5_14B_unsloth.model_name: Qwen2_5_14B_unsloth,
     Llama4_Scout_17B_16E_Instruct_bnb_4bit.model_name: Llama4_Scout_17B_16E_Instruct_bnb_4bit,
 }
 

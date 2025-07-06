@@ -29,6 +29,7 @@ class Easy2HardTrainer(Trainer):
         model_name: str,
         model_config: InternalModelConfig,
         project_name: str = "easy2hard-dac_agent",
+        run_name: str | None = None,
         backend: LocalBackend = LocalBackend(path="./.art"),
         WANDB_API_KEY: str = "",
         OPENPIPE_API_KEY: str = "",
@@ -40,6 +41,7 @@ class Easy2HardTrainer(Trainer):
             model_name=model_name,
             model_config=model_config,
             project_name=project_name,
+            run_name=run_name,
             backend=backend,
             WANDB_API_KEY=WANDB_API_KEY,
             OPENPIPE_API_KEY=OPENPIPE_API_KEY,
@@ -83,7 +85,7 @@ class Easy2HardTrainer(Trainer):
         )
 
         await self.model.delete_checkpoints()
-        await self.model.train(train_groups, config=art.TrainConfig(learning_rate=2e-5))
+        await self.model.train(train_groups, config=art.TrainConfig(learning_rate=1e-5))
 
 
 # @art.retry(exceptions=(openai.LengthFinishReasonError,))
@@ -119,7 +121,7 @@ async def rollout(
         print(e)
         # global failing_trajectory
         # failing_trajectory = trajectory
-        return Trajectory(messages_and_choices=[],reward=0)
+        return Trajectory(messages_and_choices=[message],reward=0)
         return e
 
     content = trajectory.messages()[-1]["content"]
@@ -131,7 +133,7 @@ async def rollout(
     else:
         agent_answer = agent_answer[-1].strip()  # Get the last answer
         if agent_answer == answer:
-            trajectory.reward += 1  # Reward for correct answer
+            trajectory.reward += 1.5  # Reward for correct answer
             trajectory.metrics["correct_answer"] = 1
         else:
             trajectory.reward -= 0.5  # Penalize for incorrect answer

@@ -32,6 +32,7 @@ class Trainer:
         model_name: str,
         model_config: InternalModelConfig,
         project_name: str,
+        run_name: str | None = None,
         backend: LocalBackend = LocalBackend(path="./.art"),
         WANDB_API_KEY: str = "",
         OPENPIPE_API_KEY: str = "",
@@ -52,7 +53,7 @@ class Trainer:
         random.seed(seed)
         self.backend = backend
 
-        self.run_name = self._generate_run_name()
+        self.run_name = run_name if run_name is not None else self._generate_run_name()
         self.output_dir = get_output_dir_from_model_properties(
             self.project_name, name=self.run_name, art_path=backend._path
         )
@@ -73,7 +74,7 @@ class Trainer:
                 ) for port in vllm_server_ports] 
         )
         
-    async def load_model(self, art_port) -> None:
+    async def load_model(self, art_port:int=8000) -> None:
         print(f"Loading model {self.model_name} with config {self.model_config}")
         self.model = art.TrainableModel(
             name=self.run_name,
@@ -91,7 +92,7 @@ class Trainer:
         #         print(f"TimeoutError:\n Retrying({counter}) to register the model {self.model_name}...")
         #         counter += 1
         await self.model.register(self.backend)
-        self.model.inference_base_url = self.model.inference_base_url.replace(":8000", f":{art_port}")
+        # self.model.inference_base_url = self.model.inference_base_url.replace(":8000", f":{art_port}")
 
     def _generate_run_name(self) -> str:
         """
@@ -126,11 +127,11 @@ class Trainer:
             n_rollouts (int): The number of rollouts to perform per epoch.
             n_groups (int): The number of groups to use for training.
         """
+        self.vllm_router.unload_all_loras()  # Unload all lora adapters before starting the training
         self.vllm_router.add_client(ArtVLLMClient(self.model))
 
         prev_step_checkpoint_dir = None
         step_checkpoint_dir = None
-        inference_name = self.model_name
 
         for i in range(await self.model.get_step(), epochs):
             print(f"Starting step {i} for model {self.model.name}")

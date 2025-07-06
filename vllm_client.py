@@ -108,7 +108,35 @@ class VllmClient:
                 print("Response Text:", e.response.text)
             return {"success": False, "error": str(e)}
 
-
+    def _get_vllm_model_list(self) -> list[str]:
+        """
+        Get the list of models available on the VLLM server.
+        Returns a list of model names.
+        """
+        try:
+            response = requests.get(f"{self.inference_base_url}/models")
+            response.raise_for_status()  # Raise an exception for HTTP errors (4xx or 5xx)
+            return response.json().get("data", [])
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching model list: {e}")
+            return []
+        
+    def unload_all_loras(self):
+        """
+        Unload all LORA adapters from the VLLM server.
+        This method is a placeholder and should be implemented based on the server's capabilities.
+        """
+        # This method is not implemented in the base class
+        models = self._get_vllm_model_list()
+        for model in models:
+            model_name = model.get("id", "")
+            if model_name:
+                try:
+                    result = self.unload_lora(model_name)
+                    print(f"Unloaded LORA adapter {model_name}: {result}")
+                except Exception as e:
+                    continue  # Skip models that cannot be unloaded
+                
 
 class ArtVLLMClient(VllmClient):
     def __init__(
@@ -117,12 +145,11 @@ class ArtVLLMClient(VllmClient):
         **kwargs: Any,
     ):
         self.model = model
+        self.client = model.openai_client()
         self.inference_base_url = model.inference_base_url
         # self.port = port
         self.base_model = model.base_model
         self.inference_name = model.get_inference_name()
-
-        self.client = model.openai_client()
 
     def get_inference_name(self) -> str:
         return self.model.get_inference_name()
@@ -132,6 +159,17 @@ class ArtVLLMClient(VllmClient):
     
     def unload_lora(self, lora_name: str):
         return {"success": True, "status_code": "art"}
+    
+    def _get_vllm_model_list(self) -> list[str]:
+        return [] # are manages their own things
+    
+    def unload_all_loras(self):
+        """
+        Unload all LORA adapters from the Art VLLM client.
+        This method is a placeholder and should be implemented based on the server's capabilities.
+        """
+        # This method is not implemented in the base class
+        pass
 
 
 
@@ -188,6 +226,13 @@ class VllmRouter:
             result = client.unload_lora(lora_name)
             results.append(result)
         return all(result["success"] for result in results)
+    
+    def unload_all_loras(self) -> None:
+        """
+        Unload all LORA adapters from all clients.
+        """
+        for client in self.vllm_clients:
+            client.unload_all_loras()
 
 
 

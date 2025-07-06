@@ -56,6 +56,12 @@ def parse_args():
         default=[],  # Default port for vLLM server
         help="List of ports for the vLLM servers."
     )
+    parser.add_argument(
+        "--run_name",
+        type=str|None,
+        default=None,
+        help="Name of the run. If provided, it will be used to resume the training from the given run name."
+    )
     
     args = parser.parse_args()
     return args
@@ -76,6 +82,7 @@ async def main():
     trainer = Easy2HardTrainer(
         model_name=args.model_name,
         model_config=model_config,
+        run_name=args.run_name,
         WANDB_API_KEY=WANDB_API_KEY,
         seed=42,
         gpu=args.gpu,
@@ -83,7 +90,7 @@ async def main():
     )
 
     # Load the model
-    await trainer.load_model(art_port=8002)  # Example port, adjust as necessary
+    await trainer.load_model()  # Example port, adjust as necessary
 
     # Start training
     await trainer.train(

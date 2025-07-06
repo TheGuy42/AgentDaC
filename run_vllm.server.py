@@ -47,17 +47,17 @@ def main():
     args = parser.parse_args()
 
     model_config = model_configs.get(args.model, None)
-    model_kwargs = model_config.parse_kwargs() if model_config else ""
+    model_kwargs = "" if model_config is None else model_config.parse_kwargs()
 
     # --- Construct and run the vLLM command ---
     command = (
         "export VLLM_ALLOW_RUNTIME_LORA_UPDATING=True && "
         f"CUDA_VISIBLE_DEVICES={args.gpu} "
         f"vllm serve "
-        f" \"{args.model}\" "
+        f"\"{args.model}\" "
         f"--port {args.port} "
         f"--config {args.config} "
-        f"{args.kwargs} {model_kwargs} "
+        f"{model_kwargs} {args.kwargs} "
     )
     # ensure dynamic lora updates are enabled
     print(f"🚀 Running command: {command}")
