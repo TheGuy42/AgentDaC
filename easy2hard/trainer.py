@@ -104,7 +104,7 @@ async def rollout(
         dac_sys_prompt=DaCSystemPrompt.dac_sys_prompt_v2_3,
         leaf_sys_prompt=DaCSystemPrompt.dac_sys_prompt_v2_3_leaf,
         # dac_sys_prompt=prompt,
-        max_depth=1,
+        max_depth=2,  # Set the maximum depth for the agent
         max_length=4,  # Limit the number of messages in a single chat
     )
 

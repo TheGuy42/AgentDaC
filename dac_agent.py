@@ -144,7 +144,7 @@ class DACAgent:
 
         # Update the trajectory metrics
         self.trajectory.metrics["sub_agent_calls"] += 1
-        self.trajectory.metrics['total_agent_calls'] += trajectory.metrics["sub_agent_calls"]
+        self.trajectory.metrics['total_agent_calls'] += 1 + trajectory.metrics["sub_agent_calls"]
 
         return response
 
