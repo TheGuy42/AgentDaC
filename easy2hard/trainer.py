@@ -74,9 +74,8 @@ class Easy2HardTrainer(Trainer):
             (
                 art.TrajectoryGroup(
                     rollout(
+                        sample=sample, 
                         vllm_client=vllm_router.__next__(),
-                        question=sample['problem'][0],
-                        answer=sample['answer'][0], 
                         model_config=self.model_config,
                     ) for i, sample in enumerate(epoch_data.iter(batch_size=1)) # Number of rollouts per group
                 ) for epoch_data in epoch_data_groups # Number of groups to gather
@@ -90,12 +89,13 @@ class Easy2HardTrainer(Trainer):
 
 # @art.retry(exceptions=(openai.LengthFinishReasonError,))
 async def rollout(
+    sample,
     vllm_client: VllmClient,
-    question: str,
-    answer: str,
     model_config: InternalModelConfig = None,
     
 ) -> art.Trajectory:
+    question = sample['problem']
+    answer = sample['answer']
 
     agent = DACAgent(
         client=vllm_client.client,
@@ -136,11 +136,14 @@ async def rollout(
             trajectory.reward += 1.5  # Reward for correct answer
             trajectory.metrics["correct_answer"] = 1
         else:
-            trajectory.reward -= 0.5  # Penalize for incorrect answer
+            trajectory.reward -= 1  # Penalize for incorrect answer
             trajectory.metrics["correct_answer"] = 0
+    
     # Add the answer and agent_answer to the trajectory metrics
     trajectory.metadata["answer"] = answer
     trajectory.metadata["agent_answer"] = agent_answer
+    trajectory.metadata['item_difficulty'] = sample['item_difficulty']
+    trajectory.metadata['contest'] = sample['contest']
 
     return trajectory
 

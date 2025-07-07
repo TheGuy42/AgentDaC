@@ -50,6 +50,11 @@ class DACAgent:
         self.trajectory: Trajectory = Trajectory(
             messages_and_choices=[self.system_message], reward=0
         )
+        self.trajectory.metadata['max_depth'] = max_depth
+        self.trajectory.metadata['max_length'] = max_length
+        self.trajectory.metrics['length'] = 0  # Initialize length metric
+        self.trajectory.metrics["sub_agent_calls"] = 0  # Initialize sub-agent calls metric
+        self.trajectory.metrics['total_agent_calls'] = 0  # Initialize total agents metric
 
         self.id = DACAgent.counter
         DACAgent.counter += 1  # Increment the counter for each new instance
@@ -107,6 +112,7 @@ class DACAgent:
                 }
                 self.trajectory.messages_and_choices.append(combined_response)
 
+        self.trajectory.metrics['length'] = counter
         return self.trajectory
 
     async def call_sub_agent(self, message: ChatMessage) -> ChatMessage:
@@ -133,9 +139,13 @@ class DACAgent:
 
         # Clean up the extracted answer before wrapping
         processed_answer = answer.strip()
-
         response["role"] = "user"
         response["content"] = f"<answer>{processed_answer}</answer>" # Removed spaces around {processed_answer} for cleaner output
+
+        # Update the trajectory metrics
+        self.trajectory.metrics["sub_agent_calls"] += 1
+        self.trajectory.metrics['total_agent_calls'] += trajectory.metrics["sub_agent_calls"]
+
         return response
 
     def parse_response(self, response: ChatCompletion) -> list[ChatMessage]:
