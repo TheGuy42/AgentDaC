@@ -74,7 +74,7 @@ class Easy2HardTrainer(Trainer):
             (
                 art.TrajectoryGroup(
                     rollout(
-                        sample=sample, 
+                        sample=sample[0], 
                         vllm_client=vllm_router.__next__(),
                         model_config=self.model_config,
                     ) for i, sample in enumerate(epoch_data.iter(batch_size=1)) # Number of rollouts per group
@@ -104,7 +104,7 @@ async def rollout(
         dac_sys_prompt=DaCSystemPrompt.dac_sys_prompt_v2_3,
         leaf_sys_prompt=DaCSystemPrompt.dac_sys_prompt_v2_3_leaf,
         # dac_sys_prompt=prompt,
-        max_depth=2,  # Set the maximum depth for the agent
+        max_depth=1,  # Set the maximum depth for the agent
         max_length=4,  # Limit the number of messages in a single chat
     )
 
