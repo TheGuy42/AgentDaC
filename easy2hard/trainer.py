@@ -74,7 +74,7 @@ class Easy2HardTrainer(Trainer):
             (
                 art.TrajectoryGroup(
                     rollout(
-                        sample=sample[0], 
+                        sample=sample, 
                         vllm_client=vllm_router.__next__(),
                         model_config=self.model_config,
                     ) for i, sample in enumerate(epoch_data.iter(batch_size=1)) # Number of rollouts per group
@@ -94,8 +94,8 @@ async def rollout(
     model_config: InternalModelConfig = None,
     
 ) -> art.Trajectory:
-    question = sample['problem']
-    answer = sample['answer']
+    question = sample['problem'][0]
+    answer = sample['answer'][0]
 
     agent = DACAgent(
         client=vllm_client.client,
@@ -128,9 +128,11 @@ async def rollout(
     agent_answer = extract_text_between_markers(content, "<answer>", "</answer>")
     # answer = extract_boxed_content(answer)[-1]
     if len(agent_answer) == 0:
+        trajectory.metadata["answer_given"] = 0
         trajectory.reward -= 1
         agent_answer = ""
     else:
+        trajectory.metadata["answer_given"] = 1
         agent_answer = agent_answer[-1].strip()  # Get the last answer
         if agent_answer == answer:
             trajectory.reward += 1.5  # Reward for correct answer
