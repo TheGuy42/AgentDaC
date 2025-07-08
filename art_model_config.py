@@ -69,7 +69,7 @@ Qwen2_5_14B_unsloth_bnb_4bit = InternalModelConfig(
         # vLLM args
         disable_log_stats=False,
         enable_prefix_caching=True,
-        gpu_memory_utilization=(0.6),  # Reduce if out of memory
+        gpu_memory_utilization=(0.5),  # Reduce if out of memory
         max_lora_rank=8,
         use_async=True,
     ),
