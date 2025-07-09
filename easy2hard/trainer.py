@@ -129,7 +129,7 @@ async def rollout(
     # answer = extract_boxed_content(answer)[-1]
     if len(agent_answer) == 0:
         trajectory.metadata["answer_given"] = 0
-        trajectory.reward -= 1
+        trajectory.reward -= 3 # Penalize for no answer
         agent_answer = ""
     else:
         trajectory.metadata["answer_given"] = 1

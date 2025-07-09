@@ -23,6 +23,7 @@ from art.utils.output_dirs import (
     get_step_checkpoint_dir,
 )
 from vllm_client import VllmClient, ArtVLLMClient, VllmRouter
+from wandb.sdk.wandb_run import Run
 
 
 
@@ -111,6 +112,32 @@ class Trainer:
                 f"Output directory {output_dir} already exists. try again in a minute."
             )
         return run_name
+    
+    def get_wandb_run(self) -> Run | None:
+        """
+        Get the wandb run associated with this trainer. If not existent then start one.
+        This will return None if the model has not been loded yet or if wandb key not provided.
+        Returns:
+            Run: The wandb run object if it exists, otherwise None.
+        """
+        if self.model is None:
+            print("Model is not loaded yet. Cannot get wandb run.")
+            return None
+        return self.backend._get_wandb_run(self.model)
+    
+    def update_wandb_config(self, config: dict) -> None:
+        """
+        Update the wandb configuration for the current run.
+        Args:
+            config (dict): The configuration dictionary to update.
+        """
+        wandb_run = self.get_wandb_run()
+        if wandb_run is not None:
+            wandb_config = wandb_run.config.as_dict()
+            wandb_config.update(config)
+            wandb_run._set_config_wandb(wandb_config)
+        else:
+            print("Wandb run is not available. Cannot update config.")
 
     async def train(
         self,

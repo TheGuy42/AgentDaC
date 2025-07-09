@@ -3,9 +3,11 @@ from art.dev.model import InitArgs, EngineArgs, PeftArgs, TrainerArgs, InternalM
 import argparse
 import os
 import art
+from wandb.sdk.wandb_run import Run
 
 from trainer import Easy2HardTrainer
 from art_model_config import configs
+
 
 def parse_args():
     """
@@ -91,6 +93,11 @@ async def main():
 
     # Load the model
     await trainer.load_model()  # Example port, adjust as necessary
+
+    wandb = trainer.get_wandb_run()
+    if wandb is not None:
+        wandb.log_code()
+        trainer.update_wandb_config(args.__dict__)
 
     # Start training
     await trainer.train(
