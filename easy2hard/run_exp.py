@@ -4,6 +4,7 @@ import argparse
 import os
 import art
 from wandb.sdk.wandb_run import Run
+import re
 
 from trainer import Easy2HardTrainer
 from art_model_config import configs
@@ -96,8 +97,20 @@ async def main():
 
     wandb = trainer.get_wandb_run()
     if wandb is not None:
-        wandb.log_code()
-        trainer.update_wandb_config(args.__dict__)
+       files_to_log = [
+              "easy2hard/trainer.py",
+              "easy2hard/run_exp.py",
+              "art_model_config.py",
+              "vllm_model_config.py",
+              "dac_agent.py",
+              "sys_prompt.py",
+              "vllm_client.py",
+              "training.py",
+       ]
+       wandb.log_code(
+           include_fn=lambda path: any(re.search(file, path) for file in files_to_log),
+       )
+       trainer.update_wandb_config(args.__dict__)
 
     # Start training
     await trainer.train(

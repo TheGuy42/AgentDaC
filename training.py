@@ -135,7 +135,8 @@ class Trainer:
         if wandb_run is not None:
             wandb_config = wandb_run.config.as_dict()
             wandb_config.update(config)
-            wandb_run._set_config_wandb(wandb_config)
+            for key, value in wandb_config.items():
+                wandb_run._set_config_wandb(key, value)
         else:
             print("Wandb run is not available. Cannot update config.")
 
