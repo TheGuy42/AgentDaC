@@ -38,7 +38,7 @@ class Trainer:
         WANDB_API_KEY: str = "",
         OPENPIPE_API_KEY: str = "",
         seed: int = 42,
-        gpu: int = 0,
+        gpu: list[int] = [0],
         vllm_server_ports: list[int] = []
     ):
         load_dotenv()
@@ -62,7 +62,7 @@ class Trainer:
         self.gpu = gpu
 
         ## gpu configuration
-        os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu}"
+        os.environ["CUDA_VISIBLE_DEVICES"] = f"{" ".join(gpu)}"
         
 
         self.model:art.TrainableModel = None

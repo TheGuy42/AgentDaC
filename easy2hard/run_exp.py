@@ -49,7 +49,8 @@ def parse_args():
     parser.add_argument(
         "--gpu",
         type=int,
-        default=0,
+        nargs='+',
+        default=[0], # Default to GPU 0
         help="GPU ID to use for training."
     )
     parser.add_argument(
