@@ -81,13 +81,24 @@ Qwen2_5_14B_unsloth_bnb_4bit = VLLMModelConfig(
         }
 )
 
+######################### Qwen3-14B Instruct #########################
+Qwen3_14B_unsloth_bnb_4bit = VLLMModelConfig(
+    model_name="unsloth/Qwen3-14B-bnb-4bit",
+    kwargs={
+        "max-num-seqs": 128,
+        # "max_model_len": 32768,
+        "gpu-memory-utilization": 0.7,
+        "load-format": "bitsandbytes",
+        }
+)
+
 ######################### Llama-4-Scout 17B 16E Instruct #########################
 
 Llama4_Scout_17B_16E_Instruct_bnb_4bit = VLLMModelConfig(
     model_name="unsloth/Llama-4-Scout-17B-16E-Instruct-unsloth-dynamic-bnb-4bit",
     kwargs={
         "max-num-seqs": 128,
-        "max_model_len": 10000,
+        # "max_model_len": 10000,
         "gpu-memory-utilization": 0.85,
         "load-format": "bitsandbytes",
         }
@@ -101,6 +112,7 @@ model_configs:Dict[str, VLLMModelConfig] = {
     Qwen2_5_32B_unsloth.model_name: Qwen2_5_32B_unsloth,
     Qwen2_5_14B_unsloth.model_name: Qwen2_5_14B_unsloth,
     Qwen2_5_14B_unsloth_bnb_4bit.model_name: Qwen2_5_14B_unsloth_bnb_4bit,
+    Qwen3_14B_unsloth_bnb_4bit.model_name: Qwen3_14B_unsloth_bnb_4bit,
     Llama4_Scout_17B_16E_Instruct_bnb_4bit.model_name: Llama4_Scout_17B_16E_Instruct_bnb_4bit,
 }
 

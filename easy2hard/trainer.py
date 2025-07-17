@@ -101,6 +101,7 @@ async def rollout(
         client=vllm_client.client,
         model=vllm_client.get_inference_name(),
         # model_system_message=SystemPrompt.Qwen,
+        # model_system_message="/no_think", #TODO: only relevant for Qwen3, remove if not using Qwen3
         dac_sys_prompt=DaCSystemPrompt.dac_sys_prompt_v2_3,
         leaf_sys_prompt=DaCSystemPrompt.dac_sys_prompt_v2_3_leaf,
         # dac_sys_prompt=prompt,
@@ -128,11 +129,11 @@ async def rollout(
     agent_answer = extract_text_between_markers(content, "<answer>", "</answer>")
     # answer = extract_boxed_content(answer)[-1]
     if len(agent_answer) == 0:
-        trajectory.metadata["answer_given"] = 0
+        trajectory.metrics["answer_given"] = 0
         trajectory.reward -= 3 # Penalize for no answer
         agent_answer = ""
     else:
-        trajectory.metadata["answer_given"] = 1
+        trajectory.metrics["answer_given"] = 1
         agent_answer = agent_answer[-1].strip()  # Get the last answer
         if agent_answer == answer:
             trajectory.reward += 1.5  # Reward for correct answer
@@ -145,7 +146,7 @@ async def rollout(
     trajectory.metadata["answer"] = answer
     trajectory.metadata["agent_answer"] = agent_answer
     trajectory.metadata['item_difficulty'] = sample['item_difficulty']
-    trajectory.metadata['contest'] = sample['contest']
+    trajectory.metadata['content'] = sample['content']
 
     return trajectory
 

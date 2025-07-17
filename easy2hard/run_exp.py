@@ -1,8 +1,8 @@
 # import unsloth
+import art
 from art.dev.model import InitArgs, EngineArgs, PeftArgs, TrainerArgs, InternalModelConfig
 import argparse
 import os
-import art
 from wandb.sdk.wandb_run import Run
 import re
 
@@ -75,6 +75,7 @@ async def main():
     """
     Main function to run the training process.
     """
+    os.environ["TORCHINDUCTOR_MAX_AUTOTUNE"] = "1"  
     WANDB_API_KEY = "308e1be7938bf7a7c366afc0522fb9fc0d8cf1ad"
     args = parse_args()
     print("Running training with the following arguments:")
