@@ -44,6 +44,8 @@ class Trainer:
         load_dotenv()
         os.environ["WANDB_API_KEY"] = WANDB_API_KEY
         os.environ["OPENPIPE_API_KEY"] = OPENPIPE_API_KEY
+        os.environ["OMP_NUM_THREADS"] = "1"  # Set OMP_NUM_THREADS to 1 to avoid multithreading issues with vLLM
+        os.environ["NCCL_CUMEM_ENABLE"] = "1"  # Enable NCCL cumulative memory management
 
         self.model_name = model_name
         self.model_config = model_config
@@ -62,7 +64,7 @@ class Trainer:
         self.gpu = gpu
 
         ## gpu configuration
-        os.environ["CUDA_VISIBLE_DEVICES"] = f"{" ".join(gpu)}"
+        os.environ["CUDA_VISIBLE_DEVICES"] = ", ".join(map(str, self.gpu))
         
 
         self.model:art.TrainableModel = None

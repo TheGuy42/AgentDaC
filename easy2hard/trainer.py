@@ -146,7 +146,7 @@ async def rollout(
     trajectory.metadata["answer"] = answer
     trajectory.metadata["agent_answer"] = agent_answer
     trajectory.metadata['item_difficulty'] = sample['item_difficulty']
-    trajectory.metadata['content'] = sample['content']
+    trajectory.metadata['contest'] = sample['contest']
 
     return trajectory
 
