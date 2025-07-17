@@ -44,6 +44,7 @@ dependencies = [
     { name = "openpipe" },
     { name = "openpipe-art" },
     { name = "torch" },
+    { name = "torchtune" },
 ]
 
 [package.metadata]
@@ -55,6 +56,7 @@ requires-dist = [
     { name = "openpipe" },
     { name = "openpipe-art", specifier = "==0.3.13" },
     { name = "torch" },
+    { name = "torchtune", git = "https://github.com/pytorch/torchtune.git?rev=2344509cf83bd886538fe3e8263e5145d1afb5c2" },
 ]
 
 [[package]]
@@ -3925,8 +3927,8 @@ wheels = [
 
 [[package]]
 name = "torchtune"
-version = "0.6.1"
-source = { registry = "https://pypi.org/simple" }
+version = "0.0.0"
+source = { git = "https://github.com/pytorch/torchtune.git?rev=2344509cf83bd886538fe3e8263e5145d1afb5c2#2344509cf83bd886538fe3e8263e5145d1afb5c2" }
 dependencies = [
     { name = "blobfile" },
     { name = "datasets" },
@@ -3942,9 +3944,6 @@ dependencies = [
     { name = "tokenizers" },
     { name = "torchdata" },
     { name = "tqdm" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/eb/de/da079f77188a5e3c53163c4488fad2a23733bab25a895e9a2dfc9aa5bbe6/torchtune-0.6.1-py3-none-any.whl", hash = "sha256:bcbc4ee9774b5c5829a5ff13df851e0b0e32416c018af8db53faa3472ac256e7", size = 910674, upload_time = "2025-04-07T21:07:28.26Z" },
 ]
 
 [[package]]

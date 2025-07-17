@@ -12,4 +12,8 @@ dependencies = [
     "openpipe-art==0.3.13",
     "datasets",
     "torch",
+    "torchtune",
 ]
+
+[tool.uv.sources]
+torchtune = { git = "https://github.com/pytorch/torchtune.git", rev = "2344509cf83bd886538fe3e8263e5145d1afb5c2" }
