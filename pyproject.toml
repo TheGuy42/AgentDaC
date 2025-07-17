@@ -9,11 +9,11 @@ dependencies = [
     "ipywidgets",
     "numpy<2.0",
     "openpipe",
-    "openpipe-art==0.3.13",
     "datasets",
     "torch",
     "torchtune",
+    "openpipe-art",
 ]
 
 [tool.uv.sources]
-torchtune = { git = "https://github.com/pytorch/torchtune.git", rev = "2344509cf83bd886538fe3e8263e5145d1afb5c2" }
+openpipe-art = { git = "https://github.com/OpenPipe/ART.git", rev = "c84c141d86e91725ea2fe8faebb3bc6566c5ad1a" }
