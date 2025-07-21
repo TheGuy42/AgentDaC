@@ -1,5 +1,3 @@
-
-
 class SystemPrompt:
     Qwen = """You are Qwen, created by Alibaba Cloud. You are a helpful assistant."""
     llama_3_1 = """
@@ -7,8 +5,6 @@ Cutting Knowledge Date: December 2023
 Today Date: 26 Jul 2024
 
 """
-
-
 
 
 class DaCSystemPrompt:
@@ -89,7 +85,7 @@ Important:
 - Do NOT use `<task>` tags when writing the final answer. 
 - Do NOT answer tasks you create.
 """
-    
+
     dac_sys_prompt_v2_2 = """
 You are a highly capable and truthful AI assistant that excels at logical reasoning.
 
@@ -155,16 +151,3 @@ Important:
 - Your final answer must be presented in the format: `<answer>your final answer</answer>`.
 - The final answer should contain all, and only the information needed to answer the original question.
 """
-
-
-
-
-
-
-
-
-
-
-
-
-

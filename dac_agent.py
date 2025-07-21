@@ -1,4 +1,4 @@
-import copy # Import the copy module for deep copying
+import copy  # Import the copy module for deep copying
 from openai import AsyncOpenAI, BadRequestError
 from typing import Any, Dict, Optional, NewType, TypedDict
 from openai.types.chat.chat_completion import ChatCompletion, Choice
@@ -22,6 +22,7 @@ ChatMessage = TypedDict(
 
 class DACAgent:
     counter = 0  # Static counter to keep track of agent instances
+
     def __init__(
         self,
         client: AsyncOpenAI,
@@ -47,14 +48,12 @@ class DACAgent:
             "content": sys_prompt,
         }
         self.sub_agents: list[DACAgent] = []
-        self.trajectory: Trajectory = Trajectory(
-            messages_and_choices=[self.system_message], reward=0
-        )
-        self.trajectory.metadata['max_depth'] = max_depth
-        self.trajectory.metadata['max_length'] = max_length
-        self.trajectory.metrics['length'] = 0  # Initialize length metric
+        self.trajectory: Trajectory = Trajectory(messages_and_choices=[self.system_message], reward=0)
+        self.trajectory.metadata["max_depth"] = max_depth
+        self.trajectory.metadata["max_length"] = max_length
+        self.trajectory.metrics["length"] = 0  # Initialize length metric
         self.trajectory.metrics["sub_agent_calls"] = 0  # Initialize sub-agent calls metric
-        self.trajectory.metrics['total_agent_calls'] = 0  # Initialize total agents metric
+        self.trajectory.metrics["total_agent_calls"] = 0  # Initialize total agents metric
 
         self.id = DACAgent.counter
         DACAgent.counter += 1  # Increment the counter for each new instance
@@ -67,7 +66,7 @@ class DACAgent:
             counter += 1
 
             messages = self.trajectory.messages()
-            #TODO: this message keeps popping up in the trajectory somehow, need to fix it
+            # TODO: this message keeps popping up in the trajectory somehow, need to fix it
             # if counter > self.max_length:
             #     messages[-1]["content"] += "\n[Please provide your final answer to the original question.]"
             try:
@@ -82,37 +81,37 @@ class DACAgent:
                 # or side-effects from methods like trajectory.messages().
                 copied_choice = copy.deepcopy(response.choices[0])
                 self.trajectory.messages_and_choices.append(copied_choice)
-                self.trajectory.reward += self.format_reward(copied_choice.message.content) # Use copied_choice here too
+                self.trajectory.reward += self.format_reward(
+                    copied_choice.message.content
+                )  # Use copied_choice here too
             except BadRequestError as e:
                 print(f"BadRequestError: {e}")
                 raise e  # Re-raise the error to handle it upstream
             # If max_depth is 0, or if we reached the max length, we do not delegate to sub-agents
             if self.max_depth <= 0 or counter > self.max_length:
                 break
-            
+
             # Parse the response to extract sub-tasks
             tasks = self.parse_response(response)
             if len(tasks) == 0:
                 break
-            
+
             # delegate tasks to sub-agents
             task_responses = []
             for task in tasks:
                 sub_agent_response = await self.call_sub_agent(task)
                 task_responses.append(sub_agent_response)
-            
+
             # Add all sub-agent responses to the trajectory
             if len(task_responses) > 0:
                 # concatenate all sub-agent responses into a single message
                 combined_response = {
                     "role": "user",
-                    "content": "\n".join(
-                        [f"{resp['content']}" for resp in task_responses]
-                    ),
+                    "content": "\n".join([f"{resp['content']}" for resp in task_responses]),
                 }
                 self.trajectory.messages_and_choices.append(combined_response)
 
-        self.trajectory.metrics['length'] = counter
+        self.trajectory.metrics["length"] = counter
         return self.trajectory
 
     async def call_sub_agent(self, message: ChatMessage) -> ChatMessage:
@@ -128,9 +127,7 @@ class DACAgent:
         trajectory = await sub_agent.chat(message)
         response = trajectory.messages()[-1]
         # Extract the answer from the sub-agent response
-        answer = extract_text_between_markers(
-            response["content"], "<answer>", "</answer>"
-        )
+        answer = extract_text_between_markers(response["content"], "<answer>", "</answer>")
         if len(answer) == 0:
             answer = response["content"]
         else:
@@ -140,11 +137,13 @@ class DACAgent:
         # Clean up the extracted answer before wrapping
         processed_answer = answer.strip()
         response["role"] = "user"
-        response["content"] = f"<answer>{processed_answer}</answer>" # Removed spaces around {processed_answer} for cleaner output
+        response["content"] = (
+            f"<answer>{processed_answer}</answer>"  # Removed spaces around {processed_answer} for cleaner output
+        )
 
         # Update the trajectory metrics
         self.trajectory.metrics["sub_agent_calls"] += 1
-        self.trajectory.metrics['total_agent_calls'] += 1 + trajectory.metrics["total_agent_calls"]
+        self.trajectory.metrics["total_agent_calls"] += 1 + trajectory.metrics["total_agent_calls"]
 
         return response
 
@@ -167,22 +166,24 @@ class DACAgent:
             tasks_messages.append(ChatMessage({"role": "user", "content": task}))
 
         return tasks_messages
-    
+
     def format_reward(self, response: str) -> float:
         reward = 0.0
 
         tasks = extract_text_between_markers(response, "<task>", "</task>")
         answers = extract_text_between_markers(response, "<answer>", "</answer>")
-        
+
         if len(tasks) == 0 and len(answers) == 0:
             reward -= 0.1  # Penalize for no tasks or answers
         elif len(tasks) > 0 and len(answers) == 0:
-            reward += 0.2 #** len(tasks)  # Reward for tasks without answers
+            reward += 0.2  # ** len(tasks)  # Reward for tasks without answers
         elif len(tasks) == 0 and len(answers) > 0:
             reward += 0.2 ** len(answers)  # Reward for answers without tasks, diminishing with more answers
         else:
-            reward -= 0.1 ** (1 / min(len(tasks), len(answers)))  # Penalize for each task that was also answered by the agent
-        
+            reward -= 0.1 ** (
+                1 / min(len(tasks), len(answers))
+            )  # Penalize for each task that was also answered by the agent
+
         tasks_diff = abs(response.count("<task>") - response.count("</task>"))
         answers_diff = abs(response.count("<answer>") - response.count("</answer>"))
         if tasks_diff > 0:
@@ -193,9 +194,7 @@ class DACAgent:
         return reward
 
 
-def extract_text_between_markers(
-    text: str, start_marker: str, end_marker: str
-) -> list[str]:
+def extract_text_between_markers(text: str, start_marker: str, end_marker: str) -> list[str]:
     """
     Extracts all instances of text between two specific markers in a string.
 

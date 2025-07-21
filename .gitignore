@@ -6,6 +6,7 @@ dist/
 wheels/
 *.egg-info
 wandb/*
+api_keys/
 
 # Virtual environments
 .venv

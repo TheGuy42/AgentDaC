@@ -8,7 +8,7 @@ import re
 from datasets import Dataset, load_dataset
 import regex
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import art
 from art import Trajectory
@@ -35,7 +35,7 @@ class MMLU_ProTrainer(Trainer):
         OPENPIPE_API_KEY: str = "",
         seed: int = 42,
         gpu: int = 0,
-        vllm_server_ports: list[int] = []
+        vllm_server_ports: list[int] = [],
     ):
         super().__init__(
             model_name=model_name,
@@ -47,7 +47,7 @@ class MMLU_ProTrainer(Trainer):
             OPENPIPE_API_KEY=OPENPIPE_API_KEY,
             seed=seed,
             gpu=gpu,
-            vllm_server_ports=vllm_server_ports
+            vllm_server_ports=vllm_server_ports,
         )
 
         print(f"Easy2HardTrainer:: Loading the dataset..")
@@ -55,24 +55,24 @@ class MMLU_ProTrainer(Trainer):
         self.dataset = self.dataset.map(self.generate_question_with_options)
 
         # The dataset is usually split into 'train' and 'test'
-        self.train_data:Dataset = self.dataset['test']
-        self.test_data:Dataset = self.dataset['validation']
-        
+        self.train_data: Dataset = self.dataset["test"]
+        self.test_data: Dataset = self.dataset["validation"]
+
     @staticmethod
     def generate_question_with_options(sample):
         question = sample["question"]
         options = sample["options"]
         options_str = "\n".join([f"{chr(65 + i)}. {opt}" for i, opt in enumerate(options)])
-        sample['question_with_options'] = f"{question}\n{options_str}"
+        sample["question_with_options"] = f"{question}\n{options_str}"
         return sample
 
     async def _train(self, epoch, n_rollouts, n_groups, vllm_router):
         # Split the dataset into n_groups
         # Each group will have n_rollouts samples
         # each group will have a greater difficulty level
-        epoch_data_groups:list[Dataset] = []
+        epoch_data_groups: list[Dataset] = []
         epoch_data = self.train_data.shuffle(seed=42)
-        epoch_data = epoch_data.take(n_rollouts*n_groups)  # Take the first n_rollouts samples for training
+        epoch_data = epoch_data.take(n_rollouts * n_groups)  # Take the first n_rollouts samples for training
         for i in range(n_groups):
             epoch_data_groups.append(epoch_data.shard(num_shards=n_groups, index=i, contiguous=True))
 
@@ -81,11 +81,13 @@ class MMLU_ProTrainer(Trainer):
                 art.TrajectoryGroup(
                     rollout(
                         vllm_client=vllm_router.__next__(),
-                        question=sample['question_with_options'][0],
-                        answer=sample['answer'][0], 
+                        question=sample["question_with_options"][0],
+                        answer=sample["answer"][0],
                         model_config=self.model_config,
-                    ) for i, sample in enumerate(epoch_data.iter(batch_size=1)) # Number of rollouts per group
-                ) for epoch_data in epoch_data_groups # Number of groups to gather
+                    )
+                    for i, sample in enumerate(epoch_data.iter(batch_size=1))  # Number of rollouts per group
+                )
+                for epoch_data in epoch_data_groups  # Number of groups to gather
             ),
             pbar_desc="gather",
         )
@@ -100,9 +102,7 @@ async def rollout(
     question: str,
     answer: str,
     model_config: InternalModelConfig = None,
-    
 ) -> art.Trajectory:
-
     agent = DACAgent(
         client=vllm_client.client,
         model=vllm_client.get_inference_name(),
@@ -117,17 +117,17 @@ async def rollout(
     prompt = "Please answer the following question. Put the respective letter of the correct answer in the <answer> tag, e.g. <answer>A</answer>."
     message = {
         "role": "user",
-        "content": f"{prompt} \n\"{question}\"",
+        "content": f'{prompt} \n"{question}"',
     }
     try:
-        max_tokens = model_config['max_seq_length'] if model_config and 'max_seq_length' in model_config else None
+        max_tokens = model_config["max_seq_length"] if model_config and "max_seq_length" in model_config else None
         trajectory = await agent.chat(message, max_tokens=max_tokens)
     except Exception as e:
         print("caught exception generating chat completion")
         print(e)
         # global failing_trajectory
         # failing_trajectory = trajectory
-        return Trajectory(messages_and_choices=[message],reward=0)
+        return Trajectory(messages_and_choices=[message], reward=0)
         return e
 
     content = trajectory.messages()[-1]["content"]
@@ -149,12 +149,3 @@ async def rollout(
     trajectory.metadata["agent_answer"] = agent_answer
 
     return trajectory
-
-
-
-
-
-
-
-
-

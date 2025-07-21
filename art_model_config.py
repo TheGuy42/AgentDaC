@@ -70,7 +70,6 @@ Qwen2_5_32B_unsloth = InternalModelConfig(
     trainer_args=TrainerArgs(
         vllm_gpu_memory_utilization=(0.8),  # Reduce if out of memory
     ),
-    
 )
 
 ######################### Qwen2.5-14B Instruct #########################
@@ -235,7 +234,7 @@ Llama4_Scout_17B_16E_Instruct = InternalModelConfig(
 
 
 ######################### Configurations Dictionary #########################
-configs:Dict[str, InternalModelConfig] = {
+configs: Dict[str, InternalModelConfig] = {
     "32B": Qwen2_5_32B,
     Qwen2_5_32B["init_args"]["model_name"]: Qwen2_5_32B,
     Qwen2_5_32B_unsloth["init_args"]["model_name"]: Qwen2_5_32B_unsloth,
@@ -246,5 +245,3 @@ configs:Dict[str, InternalModelConfig] = {
     Llama4_Scout_17B_16E_Instruct_bnb_4bit["init_args"]["model_name"]: Llama4_Scout_17B_16E_Instruct_bnb_4bit,
     Llama4_Scout_17B_16E_Instruct["init_args"]["model_name"]: Llama4_Scout_17B_16E_Instruct,
 }
-
-

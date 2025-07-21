@@ -8,7 +8,7 @@ import re
 from datasets import Dataset, load_dataset
 import regex
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import art
 from art import Trajectory
@@ -35,7 +35,7 @@ class Easy2HardTrainer(Trainer):
         OPENPIPE_API_KEY: str = "",
         seed: int = 42,
         gpu: int = 0,
-        vllm_server_ports: list[int] = []
+        vllm_server_ports: list[int] = [],
     ):
         super().__init__(
             model_name=model_name,
@@ -47,25 +47,23 @@ class Easy2HardTrainer(Trainer):
             OPENPIPE_API_KEY=OPENPIPE_API_KEY,
             seed=seed,
             gpu=gpu,
-            vllm_server_ports=vllm_server_ports
+            vllm_server_ports=vllm_server_ports,
         )
 
         print(f"Easy2HardTrainer:: Loading the dataset..")
         self.easy2hard_dataset = load_dataset("furonghuang-lab/Easy2Hard-Bench", "E2H-AMC")
 
         # The dataset is usually split into 'train' and 'test'
-        self.train_data:Dataset = self.easy2hard_dataset['train']
-        self.test_data:Dataset = self.easy2hard_dataset['eval']
-        
-        
+        self.train_data: Dataset = self.easy2hard_dataset["train"]
+        self.test_data: Dataset = self.easy2hard_dataset["eval"]
 
     async def _train(self, epoch, n_rollouts, n_groups, vllm_router):
         # Split the dataset into n_groups
         # Each group will have n_rollouts samples
         # each group will have a greater difficulty level
-        epoch_data_groups:list[Dataset] = []
+        epoch_data_groups: list[Dataset] = []
         epoch_data = self.train_data.shuffle(seed=42)
-        epoch_data = epoch_data.take(n_rollouts*n_groups)  # Take the first n_rollouts samples for training
+        epoch_data = epoch_data.take(n_rollouts * n_groups)  # Take the first n_rollouts samples for training
         epoch_data = epoch_data.sort("item_difficulty", reverse=False)
         for i in range(n_groups):
             epoch_data_groups.append(epoch_data.shard(num_shards=n_groups, index=i, contiguous=True))
@@ -74,11 +72,13 @@ class Easy2HardTrainer(Trainer):
             (
                 art.TrajectoryGroup(
                     rollout(
-                        sample=sample, 
+                        sample=sample,
                         vllm_client=vllm_router.__next__(),
                         model_config=self.model_config,
-                    ) for i, sample in enumerate(epoch_data.iter(batch_size=1)) # Number of rollouts per group
-                ) for epoch_data in epoch_data_groups # Number of groups to gather
+                    )
+                    for i, sample in enumerate(epoch_data.iter(batch_size=1))  # Number of rollouts per group
+                )
+                for epoch_data in epoch_data_groups  # Number of groups to gather
             ),
             pbar_desc="gather",
         )
@@ -92,10 +92,9 @@ async def rollout(
     sample,
     vllm_client: VllmClient,
     model_config: InternalModelConfig = None,
-    
 ) -> art.Trajectory:
-    question = sample['problem'][0]
-    answer = sample['answer'][0]
+    question = sample["problem"][0]
+    answer = sample["answer"][0]
 
     agent = DACAgent(
         client=vllm_client.client,
@@ -109,20 +108,22 @@ async def rollout(
         max_length=4,  # Limit the number of messages in a single chat
     )
 
-    prompt = "Please answer the following question, write the final answer in the format <answer> final answer </answer>."
+    prompt = (
+        "Please answer the following question, write the final answer in the format <answer> final answer </answer>."
+    )
     message = {
         "role": "user",
-        "content": f"{prompt} \n\"{question}\"",
+        "content": f'{prompt} \n"{question}"',
     }
     try:
-        max_tokens = model_config['max_seq_length'] if model_config and 'max_seq_length' in model_config else None
+        max_tokens = model_config["max_seq_length"] if model_config and "max_seq_length" in model_config else None
         trajectory = await agent.chat(message, max_tokens=max_tokens)
     except Exception as e:
         print("caught exception generating chat completion")
         print(e)
         # global failing_trajectory
         # failing_trajectory = trajectory
-        return Trajectory(messages_and_choices=[message],reward=0)
+        return Trajectory(messages_and_choices=[message], reward=0)
         return e
 
     content = trajectory.messages()[-1]["content"]
@@ -130,7 +131,7 @@ async def rollout(
     # answer = extract_boxed_content(answer)[-1]
     if len(agent_answer) == 0:
         trajectory.metrics["answer_given"] = 0
-        trajectory.reward -= 3 # Penalize for no answer
+        trajectory.reward -= 3  # Penalize for no answer
         agent_answer = ""
     else:
         trajectory.metrics["answer_given"] = 1
@@ -141,17 +142,17 @@ async def rollout(
         else:
             trajectory.reward -= 1  # Penalize for incorrect answer
             trajectory.metrics["correct_answer"] = 0
-    
+
     # Add the answer and agent_answer to the trajectory metrics
     trajectory.metadata["answer"] = answer
     trajectory.metadata["agent_answer"] = agent_answer
-    trajectory.metadata['item_difficulty'] = sample['item_difficulty']
-    trajectory.metadata['contest'] = sample['contest']
+    trajectory.metadata["item_difficulty"] = sample["item_difficulty"]
+    trajectory.metadata["contest"] = sample["contest"]
 
     return trajectory
 
 
-def extract_boxed_content(text:str) -> list[str]:
+def extract_boxed_content(text: str) -> list[str]:
     # Pattern explanation (same as before, but the DOTALL flag makes '.' match newlines):
     # \/boxed\{           - Matches the literal '/boxed{'
     # (                    - Start capturing group 1 (this is what we want to extract)
@@ -167,14 +168,7 @@ def extract_boxed_content(text:str) -> list[str]:
     # regex.MULTILINE flag: Not strictly necessary for this pattern, but good for patterns with ^ and $ anchors.
     # regex.IGNORECASE flag: Not needed here.
     pattern = r"\/boxed\{((?:[^{}]|(?R))*)\}"
-    
+
     # Use regex.findall with the DOTALL flag
     matches = regex.findall(pattern, text, regex.DOTALL)
     return matches
-
-
-
-
-
-
-

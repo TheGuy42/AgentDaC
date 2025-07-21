@@ -28,7 +28,7 @@ class VllmClient:
 
     def get_inference_name(self) -> str:
         return self.inference_name
-    
+
     def verify_connection(self) -> bool:
         """
         Verify if the VLLM server is running and accessible.
@@ -52,7 +52,7 @@ class VllmClient:
             model = self.get_inference_name()
             if not model:
                 raise ValueError("Model name must be specified or set in the client.")
-            
+
         response = await self.client.chat.completions.create(
             model=model,
             messages=message,
@@ -83,7 +83,6 @@ class VllmClient:
                 print("Response Status Code:", e.response.status_code)
                 print("Response Text:", e.response.text)
             return {"success": False, "error": str(e)}
-
 
     def unload_lora(self, lora_name: str):
         url = f"{self.inference_base_url}/unload_lora_adapter"
@@ -120,7 +119,7 @@ class VllmClient:
         except requests.exceptions.RequestException as e:
             print(f"Error fetching model list: {e}")
             return []
-        
+
     def unload_all_loras(self):
         """
         Unload all LORA adapters from the VLLM server.
@@ -136,7 +135,7 @@ class VllmClient:
                     print(f"Unloaded LORA adapter {model_name}: {result}")
                 except Exception as e:
                     continue  # Skip models that cannot be unloaded
-                
+
 
 class ArtVLLMClient(VllmClient):
     def __init__(
@@ -156,13 +155,13 @@ class ArtVLLMClient(VllmClient):
 
     def load_lora(self, lora_name: str, lora_path: str):
         return {"success": True, "status_code": "art"}
-    
+
     def unload_lora(self, lora_name: str):
         return {"success": True, "status_code": "art"}
-    
+
     def _get_vllm_model_list(self) -> list[str]:
-        return [] # are manages their own things
-    
+        return []  # are manages their own things
+
     def unload_all_loras(self):
         """
         Unload all LORA adapters from the Art VLLM client.
@@ -172,16 +171,16 @@ class ArtVLLMClient(VllmClient):
         pass
 
 
-
 class VllmRouter:
     """
     A router class to manage multiple VLLMClient instances.
     It distributes the load by returning a different client each time `get_client` is called.
     the class can be used as in iterator to get clients in a round-robin fashion.
     """
-    def __init__(self, vllm_clients: list[VllmClient]=[]):
-        self.vllm_clients:list[VllmClient] = vllm_clients
-        self.num_clients:KeyboardInterrupt = len(vllm_clients)
+
+    def __init__(self, vllm_clients: list[VllmClient] = []):
+        self.vllm_clients: list[VllmClient] = vllm_clients
+        self.num_clients: KeyboardInterrupt = len(vllm_clients)
 
     def add_client(self, client: VllmClient):
         """
@@ -194,14 +193,14 @@ class VllmRouter:
     def __iter__(self):
         self.current_index = 0
         return self
-    
+
     def __next__(self):
         self.current_index = (self.current_index + 1) % self.num_clients
         client = self.vllm_clients[self.current_index]
         return client
-    
+
     def get_client(self) -> VllmClient:
-        """        
+        """
         Get the current client in the round-robin rotation.
         """
         client = self.vllm_clients[self.current_index]
@@ -216,7 +215,7 @@ class VllmRouter:
             result = client.load_lora(lora_name, lora_path)
             results.append(result)
         return all(result["success"] for result in results)
-    
+
     def unload_lora(self, lora_name: str) -> bool:
         """
         Unload a LORA adapter on all clients.
@@ -226,15 +225,10 @@ class VllmRouter:
             result = client.unload_lora(lora_name)
             results.append(result)
         return all(result["success"] for result in results)
-    
+
     def unload_all_loras(self) -> None:
         """
         Unload all LORA adapters from all clients.
         """
         for client in self.vllm_clients:
             client.unload_all_loras()
-
-
-
-
-

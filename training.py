@@ -26,7 +26,6 @@ from vllm_client import VllmClient, ArtVLLMClient, VllmRouter
 from wandb.sdk.wandb_run import Run
 
 
-
 class Trainer:
     def __init__(
         self,
@@ -39,7 +38,7 @@ class Trainer:
         OPENPIPE_API_KEY: str = "",
         seed: int = 42,
         gpu: list[int] = [0],
-        vllm_server_ports: list[int] = []
+        vllm_server_ports: list[int] = [],
     ):
         load_dotenv()
         os.environ["WANDB_API_KEY"] = WANDB_API_KEY
@@ -65,19 +64,20 @@ class Trainer:
 
         ## gpu configuration
         os.environ["CUDA_VISIBLE_DEVICES"] = ", ".join(map(str, self.gpu))
-        
 
-        self.model:art.TrainableModel = None
+        self.model: art.TrainableModel = None
         ## Initialize the vllm router with the provided VLLM server ports
         self.vllm_router: VllmRouter = VllmRouter(
             vllm_clients=[
                 VllmClient(
                     port=port,
                     base_model=model_name,
-                ) for port in vllm_server_ports] 
+                )
+                for port in vllm_server_ports
+            ]
         )
-        
-    async def load_model(self, art_port:int=8000) -> None:
+
+    async def load_model(self, art_port: int = 8000) -> None:
         print(f"Loading model {self.model_name} with config {self.model_config}")
         self.model = art.TrainableModel(
             name=self.run_name,
@@ -106,15 +106,11 @@ class Trainer:
         date_str = datetime.now().strftime("%m_%d_%H_%M")
         # Combine model name and date to create a unique run name
         run_name = f"{model_name}_{date_str}"
-        output_dir = get_output_dir_from_model_properties(
-            self.project_name, name=run_name, art_path=self.backend._path
-        )
+        output_dir = get_output_dir_from_model_properties(self.project_name, name=run_name, art_path=self.backend._path)
         if os.path.exists(output_dir):
-            raise ValueError(
-                f"Output directory {output_dir} already exists. try again in a minute."
-            )
+            raise ValueError(f"Output directory {output_dir} already exists. try again in a minute.")
         return run_name
-    
+
     def get_wandb_run(self) -> Run | None:
         """
         Get the wandb run associated with this trainer. If not existent then start one.
@@ -126,7 +122,7 @@ class Trainer:
             print("Model is not loaded yet. Cannot get wandb run.")
             return None
         return self.backend._get_wandb_run(self.model)
-    
+
     def update_wandb_config(self, config: dict) -> None:
         """
         Update the wandb configuration for the current run.
@@ -147,7 +143,7 @@ class Trainer:
         epochs: int = 1,
         n_rollouts: int = 1,
         n_groups: int = 1,
-        ):
+    ):
         """
         Train the model for a specified number of epochs. This method handles the vllm client management,
         loading and unloading of lora adapters, and the training process itself.
@@ -168,7 +164,9 @@ class Trainer:
             # Load and unload lora adapters if needed
             prev_step_checkpoint_dir = step_checkpoint_dir
             step_checkpoint_dir = get_step_checkpoint_dir(self.output_dir, i) if i > 0 else None
-            step_checkpoint_dir = (step_checkpoint_dir.replace("./art/", ".art/") if step_checkpoint_dir is not None else None)
+            step_checkpoint_dir = (
+                step_checkpoint_dir.replace("./art/", ".art/") if step_checkpoint_dir is not None else None
+            )
 
             if prev_step_checkpoint_dir is not None:
                 print(f"Unloading lora")
@@ -185,15 +183,16 @@ class Trainer:
                 epoch=i,
                 n_rollouts=n_rollouts,
                 n_groups=n_groups,
-                vllm_router=self.vllm_router, # can be accessed from the class instance but passing for explicity
+                vllm_router=self.vllm_router,  # can be accessed from the class instance but passing for explicity
             )
 
-    async def _train(self, 
-               epoch: int,
-               n_rollouts: int,
-               n_groups: int,
-               vllm_router: VllmRouter,
-               ):
+    async def _train(
+        self,
+        epoch: int,
+        n_rollouts: int,
+        n_groups: int,
+        vllm_router: VllmRouter,
+    ):
         """
         Placeholder for the training logic.
         This method should be implemented to handle the training process,
@@ -205,4 +204,3 @@ class Trainer:
             vllm_router (VllmRouter): The router to manage VLLM clients
         """
         raise NotImplementedError("_train is not implemented yet.")
-    
