@@ -6,7 +6,7 @@ import art
 
 import utils
 from trainer import MMLU_ProTrainer
-from art_model_config import configs
+from configs.art_model_config import configs
 
 
 def parse_args():

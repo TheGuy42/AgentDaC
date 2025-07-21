@@ -1,6 +1,6 @@
 import argparse
 import os
-from vllm_model_config import model_configs
+from configs.vllm_model_config import model_configs
 
 
 def main():
@@ -24,8 +24,8 @@ def main():
     parser.add_argument(
         "--config",
         type=str,
-        default="vllm_config.yaml",
-        help="Path to the vLLM configuration file (default: vllm_config.yaml).",
+        default="configs/vllm_config.yaml",
+        help="Path to the vLLM configuration file (default: configs/vllm_config.yaml).",
     )
 
     parser.add_argument(

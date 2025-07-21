@@ -5,8 +5,8 @@ build/
 dist/
 wheels/
 *.egg-info
-wandb/*
-api_keys/
+wandb/
+api_keys/*
 
 # Virtual environments
 .venv

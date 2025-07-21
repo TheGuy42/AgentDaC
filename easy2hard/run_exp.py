@@ -8,7 +8,7 @@ import re
 
 import utils
 from trainer import Easy2HardTrainer
-from art_model_config import configs
+from configs.art_model_config import configs
 
 
 def parse_args():
@@ -88,8 +88,8 @@ async def main():
         files_to_log = [
             "easy2hard/trainer.py",
             "easy2hard/run_exp.py",
-            "art_model_config.py",
-            "vllm_model_config.py",
+            "configs/art_model_config.py",
+            "configs/vllm_model_config.py",
             "dac_agent.py",
             "sys_prompt.py",
             "vllm_client.py",
