@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional, NewType, TypedDict
 from openai.types.chat.chat_completion import ChatCompletion, Choice
 from art import Trajectory
 import re
-from debug_utils import print_trajectory
+from utils.debug_utils import print_trajectory
 import math
 
 # define ChatMessage type

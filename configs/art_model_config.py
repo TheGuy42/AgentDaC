@@ -76,7 +76,7 @@ Qwen2_5_32B_unsloth = InternalModelConfig(
 Qwen2_5_14B_unsloth = InternalModelConfig(
     init_args=InitArgs(
         model_name="unsloth/Qwen2.5-14B-Instruct",
-        max_seq_length=32768,
+        max_seq_length=10000,
         load_in_4bit=False,  # False for LoRA 16bit
         fast_inference=True,  # Enable vLLM fast inference
         # vLLM args

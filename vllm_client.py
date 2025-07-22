@@ -15,7 +15,6 @@ class VllmClient:
         **kwargs: Any,
     ):
         self.inference_base_url = inference_base_url + f":{port}/v1"
-        self.port = port
         self.base_model = base_model
         self.inference_name = base_model
 
@@ -144,11 +143,11 @@ class ArtVLLMClient(VllmClient):
         **kwargs: Any,
     ):
         self.model = model
-        self.client = model.openai_client()
+
         self.inference_base_url = model.inference_base_url
-        # self.port = port
         self.base_model = model.base_model
         self.inference_name = model.get_inference_name()
+        self.client = model.openai_client()
 
     def get_inference_name(self) -> str:
         return self.model.get_inference_name()

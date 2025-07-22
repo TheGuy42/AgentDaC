@@ -49,6 +49,7 @@ class Trainer:
         self.model_name = model_name
         self.model_config = model_config
         self.project_name = project_name
+
         ## Backend configuration
         self.op_client = OpenPipe()
         print("OpenPipe client initialized")
@@ -57,7 +58,9 @@ class Trainer:
 
         self.run_name = run_name if run_name is not None else self._generate_run_name()
         self.output_dir = get_output_dir_from_model_properties(
-            self.project_name, name=self.run_name, art_path=backend._path
+            self.project_name,
+            name=self.run_name,
+            art_path=backend._path,
         )
         self.seed = seed
         self.gpu = gpu
@@ -66,36 +69,23 @@ class Trainer:
         os.environ["CUDA_VISIBLE_DEVICES"] = ", ".join(map(str, self.gpu))
 
         self.model: art.TrainableModel = None
+        
         ## Initialize the vllm router with the provided VLLM server ports
         self.vllm_router: VllmRouter = VllmRouter(
-            vllm_clients=[
-                VllmClient(
-                    port=port,
-                    base_model=model_name,
-                )
-                for port in vllm_server_ports
-            ]
+            vllm_clients=[VllmClient(port=port, base_model=model_name) for port in vllm_server_ports]
         )
 
     async def load_model(self, art_port: int = 8000) -> None:
         print(f"Loading model {self.model_name} with config {self.model_config}")
+        
         self.model = art.TrainableModel(
             name=self.run_name,
             project=self.project_name,
             base_model=self.model_name,
             _internal_config=self.model_config,
         )
-        # counter = 0
-        # sucess = False
-        # while not sucess and counter < 5:
-        #     try:
-        #         await self.model.register(self.backend)
-        #         sucess = True
-        #     except TimeoutError as e:
-        #         print(f"TimeoutError:\n Retrying({counter}) to register the model {self.model_name}...")
-        #         counter += 1
+        
         await self.model.register(self.backend)
-        # self.model.inference_base_url = self.model.inference_base_url.replace(":8000", f":{art_port}")
 
     def _generate_run_name(self) -> str:
         """
@@ -158,6 +148,8 @@ class Trainer:
 
         prev_step_checkpoint_dir = None
         step_checkpoint_dir = None
+        
+        # TODO: understand which loras to load and when. are we loading the correct lora?
 
         for i in range(await self.model.get_step(), epochs):
             print(f"Starting step {i} for model {self.model.name}")
