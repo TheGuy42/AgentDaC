@@ -1,13 +1,12 @@
-import art
 from art.dev.model import InitArgs, EngineArgs, PeftArgs, TrainerArgs, InternalModelConfig
+from art.local import LocalBackend
 import argparse
 import os
-from wandb.sdk.wandb_run import Run
 import re
 
-import utils
-from trainer import Easy2HardTrainer
-from configs.art_model_config import configs
+from src.utils.api_key_utils import api_key_from_file
+from easy2hard.trainer import Easy2HardTrainer
+from src.configs.art_model_config import configs
 
 
 def parse_args():
@@ -61,18 +60,22 @@ async def main():
     Main function to run the training process.
     """
     os.environ["TORCHINDUCTOR_MAX_AUTOTUNE"] = "1"
-    WANDB_API_KEY = utils.api_key_from_file("api_keys/WANDB_KEY.txt")
+    WANDB_API_KEY = api_key_from_file("api_keys/WANDB_KEY.txt")
     args = parse_args()
     print("Running training with the following arguments:")
     print(args)
 
     model_config: InternalModelConfig = configs.get(args.model_name, None)
+    
+    if model_config is None:
+        raise ValueError(f"Model configuration for {args.model_name} not found in configs.")
 
     # Initialize the trainer
     trainer = Easy2HardTrainer(
         model_name=args.model_name,
         model_config=model_config,
         run_name=args.run_name,
+        backend=LocalBackend(in_process=True, path="./.art"),
         WANDB_API_KEY=WANDB_API_KEY,
         seed=42,
         gpu=args.gpu,
@@ -87,12 +90,12 @@ async def main():
         files_to_log = [
             "easy2hard/trainer.py",
             "easy2hard/run_exp.py",
-            "configs/art_model_config.py",
-            "configs/vllm_model_config.py",
-            "dac_agent.py",
-            "sys_prompt.py",
-            "vllm_client.py",
-            "training.py",
+            "src/configs/art_model_config.py",
+            "src/configs/vllm_model_config.py",
+            "src/dac_agent.py",
+            "src/sys_prompt.py",
+            "src/vllm_client.py",
+            "src/training.py",
         ]
         wandb.log_code(
             include_fn=lambda path: any(re.search(file, path) for file in files_to_log),

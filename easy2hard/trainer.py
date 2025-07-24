@@ -1,26 +1,17 @@
-import torch
-import numpy as np
 import os
 import sys
-from dotenv import load_dotenv
-import random
-import re
 from datasets import Dataset, load_dataset
-import regex
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import art
 from art import Trajectory
 from art.dev.model import InternalModelConfig
 from art.local import LocalBackend
-import openai
-from openai import AsyncOpenAI
 
 from training import Trainer
-from sys_prompt import SystemPrompt, DaCSystemPrompt
-from dac_agent import DACAgent, extract_text_between_markers
-from vllm_client import VllmClient, VllmRouter
+from configs.sys_prompt import SystemPrompt, DaCSystemPrompt
+from src.dac_agent import DACAgent
+from src.utils.text_utils import extract_text_between_markers
+from src.vllm_client import VllmClient, VllmRouter
 
 
 class Easy2HardTrainer(Trainer):
@@ -30,7 +21,7 @@ class Easy2HardTrainer(Trainer):
         model_config: InternalModelConfig,
         project_name: str = "easy2hard-dac_agent",
         run_name: str | None = None,
-        backend: LocalBackend = LocalBackend(path="./.art"),
+        backend: LocalBackend | None = None,
         WANDB_API_KEY: str = "",
         OPENPIPE_API_KEY: str = "",
         seed: int = 42,
@@ -43,8 +34,8 @@ class Easy2HardTrainer(Trainer):
             project_name=project_name,
             run_name=run_name,
             backend=backend,
-            WANDB_API_KEY=WANDB_API_KEY,
-            OPENPIPE_API_KEY=OPENPIPE_API_KEY,
+            wandb_api_key=WANDB_API_KEY,
+            openpipe_api_key=OPENPIPE_API_KEY,
             seed=seed,
             gpu=gpu,
             vllm_server_ports=vllm_server_ports,
@@ -152,23 +143,3 @@ async def rollout(
     return trajectory
 
 
-def extract_boxed_content(text: str) -> list[str]:
-    # Pattern explanation (same as before, but the DOTALL flag makes '.' match newlines):
-    # \/boxed\{           - Matches the literal '/boxed{'
-    # (                    - Start capturing group 1 (this is what we want to extract)
-    #   (?:                - Start non-capturing group (for alternation)
-    #     [^{}]            - Match any character that is NOT '{' or '}'
-    #     |                - OR
-    #     \{ (?R) \}       - Recursively match '{' followed by the entire pattern (including outer '/boxed{...}'), followed by '}'
-    #   )* - Match the non-capturing group zero or more times (allowing empty content)
-    # )                    - End capturing group 1
-    # \}                   - Matches the literal '}'
-    #
-    # regex.DOTALL flag: Makes '.' match newlines, allowing the content to span multiple lines.
-    # regex.MULTILINE flag: Not strictly necessary for this pattern, but good for patterns with ^ and $ anchors.
-    # regex.IGNORECASE flag: Not needed here.
-    pattern = r"\/boxed\{((?:[^{}]|(?R))*)\}"
-
-    # Use regex.findall with the DOTALL flag
-    matches = regex.findall(pattern, text, regex.DOTALL)
-    return matches

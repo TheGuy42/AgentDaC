@@ -18,7 +18,7 @@ import openai
 from openai import AsyncOpenAI
 
 from training import Trainer
-from sys_prompt import SystemPrompt, DaCSystemPrompt
+from configs.sys_prompt import SystemPrompt, DaCSystemPrompt
 from dac_agent import DACAgent, extract_text_between_markers
 from vllm_client import VllmClient, VllmRouter
 
@@ -43,8 +43,8 @@ class MMLU_ProTrainer(Trainer):
             project_name=project_name,
             run_name=run_name,
             backend=backend,
-            WANDB_API_KEY=WANDB_API_KEY,
-            OPENPIPE_API_KEY=OPENPIPE_API_KEY,
+            wandb_api_key=WANDB_API_KEY,
+            openpipe_api_key=OPENPIPE_API_KEY,
             seed=seed,
             gpu=gpu,
             vllm_server_ports=vllm_server_ports,
