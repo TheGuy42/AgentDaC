@@ -1,24 +1,52 @@
+from __future__ import annotations
+
 from openai import AsyncOpenAI
 from openai.types.chat.chat_completion import ChatCompletion
 
 from art import Trajectory
 from art.types import Message
-from dataclasses import dataclass
 
 import copy
 from typing import TypedDict, Required
 from pydantic import BaseModel
 
-from src.utils.text_utils import extract_text_between_markers
+from src.utils import text as text_utils
 from src.utils.visualize import trajectory_string, message_string
 from src.configs.markers import Markers
 
+# TODO: think about the structure and the flow of the chat method, especially
+# of the chat() method. we should warn in advance if the task budget is about
+# to deplete, i.e instruct the model to provide a final answer.
 
-@dataclass
-class SysPrompt:
-    root_prompt: str | None = None
-    inter_prompt: str | None = None
-    leaf_prompt: str | None = None
+
+class ChatMessage(BaseModel, extra="allow", frozen=True, strict=True):
+    role: str
+    content: str
+
+
+class PromptConfig:
+    def __init__(
+        self,
+        root_system_prompt: str | None = None,
+        inter_system_prompt: str | None = None,
+        leaf_system_prompt: str | None = None,
+        tasks_depleted_prompt: str = "No more tasks available, please answer the question directly.",
+    ):
+        self.root_prompt: ChatMessage | None = None
+        if root_system_prompt is not None:
+            self.root_prompt = ChatMessage(role="system", content=root_system_prompt)
+
+        self.inter_prompt: ChatMessage | None = None
+        if inter_system_prompt is not None:
+            self.inter_prompt = ChatMessage(role="system", content=inter_system_prompt)
+
+        self.leaf_prompt: ChatMessage | None = None
+        if leaf_system_prompt is not None:
+            self.leaf_prompt = ChatMessage(role="system", content=leaf_system_prompt)
+
+        self.tasks_depleted_prompt = ChatMessage(role="user", content=tasks_depleted_prompt)
+
+    # TODO: we should add a message which is returned in case of forking budget running out.
 
 
 class StopCriteria:
@@ -34,6 +62,11 @@ class StopCriteria:
 
         self._total_rounds = 0
         self._total_tasks = 0
+
+    def clone(self):
+        new = copy.deepcopy(self)
+        new.reset()  # Reset the counters for the cloned instance
+        return new
 
     def reset(self):
         self._total_rounds = 0
@@ -63,24 +96,19 @@ class Metrics(TypedDict, total=False):
     total_tasks: Required[int]
 
 
-class ChatMessage(BaseModel, extra="allow", frozen=True, strict=True):
-    role: str
-    content: str
-
-
 class AgentNode:
     def __init__(
         self,
         client: AsyncOpenAI,
-        model: str,
-        system_prompt: SysPrompt,
+        model_name: str,
+        prompt_config: PromptConfig,
         stop_criteria: StopCriteria,
         cur_depth: int = 0,
     ):
         self.client = client
-        self.model = model
-        self.system_prompt = system_prompt
-        self.stop_criteria = stop_criteria
+        self.model = model_name
+        self.prompt_config = prompt_config
+        self.stop_criteria = stop_criteria.clone()
 
         self.cur_depth = cur_depth
 
@@ -93,24 +121,26 @@ class AgentNode:
 
         self.trajectory = Trajectory(messages_and_choices=[], reward=0)
 
-        sys_msg = self._create_system_message(system_prompt)
+        sys_msg = self._create_system_message(prompt_config)
         if sys_msg is not None:
             self.trajectory.messages_and_choices.append(sys_msg.model_dump())
 
     def __str__(self) -> str:
         return trajectory_string(self.trajectory)
 
-    def _create_system_message(self, system_prompt: SysPrompt) -> ChatMessage | None:
+    def _create_system_message(self, system_prompt: PromptConfig) -> ChatMessage | None:
         max_depth = self.stop_criteria.max_depth
+
         if max_depth is None:
             max_depth = float("inf")
 
-        if self.cur_depth == 0 and system_prompt.root_prompt:
-            return ChatMessage(role="system", content=system_prompt.root_prompt)
-        elif self.cur_depth < max_depth and system_prompt.inter_prompt:
-            return ChatMessage(role="system", content=system_prompt.inter_prompt)
-        elif self.cur_depth >= max_depth and system_prompt.leaf_prompt:
-            return ChatMessage(role="system", content=system_prompt.leaf_prompt)
+        if self.stop_criteria.should_stop(self.cur_depth):
+            # We're a leaf if we need to stop for any reason
+            return system_prompt.leaf_prompt
+        if self.cur_depth == 0:
+            return system_prompt.root_prompt
+        if self.cur_depth < max_depth:
+            return system_prompt.inter_prompt
         return None
 
     async def chat(
@@ -119,10 +149,27 @@ class AgentNode:
         verbose: bool = False,
         **kwargs,
     ) -> Trajectory:
+        """
+        Start a conversation with the agent using the provided prompt.
+
+        Args:
+            prompt (ChatMessage): The initial message to start the conversation.
+            verbose (bool): If True, print the conversation messages.
+            **kwargs: Additional keyword arguments to pass to OpenAI API call.
+
+        Returns:
+            Trajectory: The trajectory of the conversation, including messages and choices.
+                This trajectory is used to train an `art.TrainableModel` model.
+        """
+
+        if prompt.role != "user":
+            raise ValueError("Prompt role must be 'user' to start the conversation.")
+
         self.trajectory.messages_and_choices.append(prompt.model_dump())
-        
+
         if verbose:
-            print(trajectory_string(self.trajectory, indent=self.cur_depth))
+            last_message = self.trajectory.messages()[-1]
+            print(message_string(last_message, indent=self.cur_depth))
 
         while True:
             # Call the OpenAI API to get a response
@@ -138,42 +185,64 @@ class AgentNode:
                 last_message = self.trajectory.messages()[-1]
                 print(message_string(last_message, indent=self.cur_depth))
 
-            if self.stop_criteria.should_stop(self.cur_depth):
-                break  # stop If we reached sub-agent delegation limit
-
             # Extract tasks from the response
             response = ChatMessage.model_validate(choice.message, from_attributes=True)
             tasks = self._parse_tasks(response)
-            self.stop_criteria.update_round(num_tasks=len(tasks))
 
             if len(tasks) == 0:
                 break  # No tasks to delegate, so last message
 
-            tasks_answers = []
-            for task in tasks:
-                # create a sub-agent and get answer the task
-                sub_agent = self._create_agent()
-                task_resp = await sub_agent.answer(task, verbose, **kwargs)
-                answer_text = f"{Markers.ANSWER_START}{task_resp.content}{Markers.ANSWER_END}"
-                tasks_answers.append(answer_text)
+            task_responses = []
 
-                # update metrics from sub-agent
-                self.metrics["direct_tasks"] += 1
-                self.metrics["total_tasks"] += 1 + sub_agent.metrics["total_tasks"]
-                self.metrics["total_calls"] += sub_agent.metrics["total_calls"]
+            if self.stop_criteria.should_stop(self.cur_depth):
+                # Provide mock answers indicating no more tasks available
+                resp = self.prompt_config.tasks_depleted_prompt
+                task_responses = [resp] * len(tasks)
+
+            else:
+                for task in tasks:
+                    # create a sub-agent and get answer the task
+                    sub_agent = self.create_sub_agent()
+                    resp = await sub_agent.answer(task, verbose, **kwargs)
+                    task_responses.append(resp)
+
+                    # update metrics from sub-agent
+                    self.metrics["direct_tasks"] += 1
+                    self.metrics["total_tasks"] += 1 + sub_agent.metrics["total_tasks"]
+                    self.metrics["total_calls"] += sub_agent.metrics["total_calls"]
+
+            # Format the task responses
+            task_answers = []
+            for resp in task_responses:
+                answer_text = f"{Markers.ANSWER_START} {resp.content} {Markers.ANSWER_END}"
+                task_answers.append(answer_text)
 
             # Create a new message with the tasks' answers
-            tasks_message = ChatMessage(role="user", content="\n".join(tasks_answers))
+            tasks_message = ChatMessage(role="user", content="\n".join(task_answers))
             self.trajectory.messages_and_choices.append(tasks_message.model_dump())
 
             if verbose:
                 last_message = self.trajectory.messages()[-1]
                 print(message_string(last_message, indent=self.cur_depth))
 
+            self.stop_criteria.update_round(num_tasks=len(tasks))
+
         self.trajectory.metrics.update(self.metrics)
+        self.trajectory.finish()
         return self.trajectory
 
     async def answer(self, prompt: ChatMessage, verbose: bool = False, **kwargs) -> ChatMessage:
+        """
+        Answer a question using the agent.
+
+        Args:
+            prompt (ChatMessage): The question to answer.
+            verbose (bool): If True, print the conversation messages.
+            **kwargs: Additional keyword arguments to pass to OpenAI API call.
+        Returns:
+            ChatMessage: The answer message from the agent.
+        """
+
         if prompt.role != "user":
             raise ValueError("Prompt role must be 'user' to start the conversation.")
 
@@ -181,19 +250,23 @@ class AgentNode:
         last_message = ChatMessage.model_validate(trajectory.messages()[-1])
         return self._parse_answer(last_message)
 
-    def _create_agent(self):
-        stop = copy.deepcopy(self.stop_criteria)
-        stop.reset()  # Reset the stop criteria for the new agent
-
+    def create_sub_agent(self):
         return AgentNode(
             client=self.client,
-            model=self.model,
-            system_prompt=self.system_prompt,
-            stop_criteria=stop,
+            model_name=self.model,
+            prompt_config=self.prompt_config,
+            stop_criteria=self.stop_criteria.clone(),
             cur_depth=self.cur_depth + 1,
         )
 
     async def _call(self, messages: list[Message], **kwargs) -> ChatCompletion:
+        """
+        Call the OpenAI API to get a chat completion.
+
+        Args:
+            messages (list[Message]): The list of messages to send to the API.
+            **kwargs: Additional keyword arguments to pass to the API call.
+        """
         return await self.client.chat.completions.create(
             model=self.model,
             messages=messages,
@@ -205,21 +278,13 @@ class AgentNode:
         if message.role != "assistant":
             raise ValueError("Message role must be 'assistant' to extract answer.")
 
-        content = message.content
-        answer_list = extract_text_between_markers(content, Markers.ANSWER_START, Markers.ANSWER_END)
-        if len(answer_list) > 0:
-            content = answer_list[-1]  # Take the last answer if multiple are found
-        content = content.strip()
-        return ChatMessage(role="assistant", content=content)
+        answer = text_utils.extract_answer(message.content)
+        return ChatMessage(role="assistant", content=answer)
 
     def _parse_tasks(self, message: ChatMessage) -> list[ChatMessage]:
         if message.role != "assistant":
             raise ValueError("Message role must be 'assistant' to extract tasks.")
 
-        content = message.content
-        tasks = extract_text_between_markers(content, Markers.TASK_START, Markers.TASK_END)
-        tasks_messages = []
-        for task in tasks:
-            tasks_messages.append(ChatMessage(role="user", content=task.strip()))
-
+        tasks = text_utils.extract_tasks(message.content)
+        tasks_messages = [ChatMessage(role="user", content=task) for task in tasks]
         return tasks_messages

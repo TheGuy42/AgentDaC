@@ -18,7 +18,7 @@ import openai
 from openai import AsyncOpenAI
 
 from training import Trainer
-from configs.sys_prompt import SystemPrompt, DaCSystemPrompt
+from configs.prompts import SystemPrompt, DaCSystemPrompt
 from dac_agent import DACAgent, extract_text_between_markers
 from vllm_client import VllmClient, VllmRouter
 

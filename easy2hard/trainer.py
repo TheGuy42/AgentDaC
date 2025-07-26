@@ -7,10 +7,10 @@ from art import Trajectory
 from art.dev.model import InternalModelConfig
 from art.local import LocalBackend
 
-from training import Trainer
-from configs.sys_prompt import SystemPrompt, DaCSystemPrompt
+from src.training import Trainer
+from src.configs.prompts import SystemPrompt, DaCSystemPrompt
 from src.dac_agent import DACAgent
-from src.utils.text_utils import extract_text_between_markers
+from utils.text import extract_text_between_markers
 from src.vllm_client import VllmClient, VllmRouter
 
 

@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional, Dict, Any
-from collections import defaultdict
+from typing import Dict, Any
 
 
 @dataclass
@@ -10,8 +9,10 @@ class VLLMModelConfig:
     """
 
     model_name: str = field(metadata={"help": "The name or path of the model to serve."})
+
     kwargs: Dict[str, Any] = field(
-        default_factory=dict, metadata={"help": "Additional keyword arguments for the vLLM server."}
+        default_factory=dict,
+        metadata={"help": "Additional keyword arguments for the vLLM server."},
     )
 
     def parse_kwargs(self) -> str:
@@ -25,7 +26,7 @@ class VLLMModelConfig:
         Constructs the command to run the vLLM server with this model configuration.
         """
         command = (
-            "python run_vllm.server.py "
+            "python src.run_vllm_server.py "
             f"--model {self.model_name} "
             f"--gpu {gpu} "
             f"--port {port} "
