@@ -1,10 +1,11 @@
-from dataclasses import dataclass, field
 from abc import abstractmethod
 import warnings
 
+from pydantic import BaseModel, Field
 import art
 from art.dev import InternalModelConfig
 from art.utils import iterate_dataset
+import numpy as np
 
 from src.vllm_client import VllmClient, VllmRouter
 from src.models import DirConfig
@@ -12,16 +13,16 @@ from src.dac_agent import AgentNode, ChatMessage, PromptConfig, StopCriteria
 from src.utils import text as text_utils
 
 
-@dataclass
-class TrainingConfig:
+class TrainingConfig(BaseModel, extra="allow", strict=True):
     epochs: int = 10
     num_groups: int = 5
     group_size: int = 10
+    min_reward_stdev: float | None = None
+    eval_steps: int | None = None
     verbose: bool = False
-    eval_every: int | None = None
 
-    config: art.types.TrainConfig = field(default_factory=art.types.TrainConfig)
-    _config: art.dev.train.TrainConfig | None = None
+    art_config: art.types.TrainConfig = Field(default_factory=art.types.TrainConfig)
+    dev_art_config: art.dev.train.TrainConfig | None = None
 
 
 # TODO: should add a standardized way of handling exceptions
@@ -157,11 +158,6 @@ class Trainer:
         # Unload all lora adapters before starting the training
         vllm_router.unload_all_loras()
 
-        # Evaluate the model before training
-        if train_config.eval_every:
-            eval_results = await self.evaluate(eval_dataset)
-            print(f"Initial evaluation results: {eval_results}")
-
         batch_size = train_config.num_groups * train_config.group_size
 
         train_iter = iterate_dataset(
@@ -175,6 +171,11 @@ class Trainer:
         for step_data, epoch, global_step, epoch_step in train_iter:
             self.reload_lora(global_step)
 
+            # Evaluate model
+            if train_config.eval_steps and global_step % train_config.eval_steps == 0:
+                eval_results = await self.evaluate(eval_dataset)
+                print(f"Evaluation results at step {global_step}: {eval_results}")
+
             group_data = [
                 step_data[i : i + train_config.group_size] for i in range(0, len(step_data), train_config.group_size)
             ]
@@ -183,18 +184,30 @@ class Trainer:
 
             trajectory_groups = await art.gather_trajectory_groups(train_groups, pbar_desc="gather", max_exceptions=0)
 
+            filtered_groups = []
+            for group in trajectory_groups:
+                rewards = [tr.reward for tr in group.trajectories]
+                if train_config.min_reward_stdev is None or np.std(rewards) >= train_config.min_reward_stdev:
+                    filtered_groups.append(group)
+
+            trajectory_groups = filtered_groups
+
+            if not trajectory_groups:
+                warnings.warn(f"No trajectories left to train on at step {global_step}. Skipping this step.")
+                continue
+
             await model.delete_checkpoints("eval/reward")
 
             await model.train(
                 trajectory_groups,
-                config=train_config.config,
-                _config=train_config._config,
+                config=train_config.art_config,
+                _config=train_config.dev_art_config,
                 verbose=train_config.verbose,
             )
 
-            if train_config.eval_every and global_step > 0 and global_step % train_config.eval_every == 0:
-                eval_results = await self.evaluate(eval_dataset)
-                print(f"Evaluation results after step {global_step}: {eval_results}")
+        # Final evaluation after training
+        eval_results = await self.evaluate(eval_dataset)
+        print(f"Final evaluation results: {eval_results}")
 
         return self.model
 

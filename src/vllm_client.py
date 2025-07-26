@@ -181,17 +181,18 @@ class VllmRouter:
         if vllm_clients is None:
             vllm_clients = []
 
-        self.vllm_clients: list[VllmClient] = vllm_clients
-        self.num_clients = len(vllm_clients)
-        
+        self.vllm_clients: list[VllmClient] = vllm_clients        
         self.current_index = 0
+
+    @property
+    def num_clients(self) -> int:
+        return len(self.vllm_clients)
 
     def add_client(self, client: VllmClient):
         """
         Add a new VLLMClient to the router.
         """
         self.vllm_clients.append(client)
-        self.num_clients = len(self.vllm_clients)
         self.current_index = 0
 
     def __iter__(self):

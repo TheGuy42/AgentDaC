@@ -6,9 +6,8 @@ from openai.types.chat.chat_completion import ChatCompletion
 from art import Trajectory
 from art.types import Message
 
-import copy
 from typing import TypedDict, Required
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from src.utils import text as text_utils
 from src.utils.visualize import trajectory_string, message_string
@@ -24,66 +23,47 @@ class ChatMessage(BaseModel, extra="allow", frozen=True, strict=True):
     content: str
 
 
-class PromptConfig:
-    def __init__(
-        self,
-        root_system_prompt: str | None = None,
-        inter_system_prompt: str | None = None,
-        leaf_system_prompt: str | None = None,
-        tasks_depleted_prompt: str = "No more tasks available, please answer the question directly.",
-    ):
-        self.root_prompt: ChatMessage | None = None
-        if root_system_prompt is not None:
-            self.root_prompt = ChatMessage(role="system", content=root_system_prompt)
-
-        self.inter_prompt: ChatMessage | None = None
-        if inter_system_prompt is not None:
-            self.inter_prompt = ChatMessage(role="system", content=inter_system_prompt)
-
-        self.leaf_prompt: ChatMessage | None = None
-        if leaf_system_prompt is not None:
-            self.leaf_prompt = ChatMessage(role="system", content=leaf_system_prompt)
-
-        self.tasks_depleted_prompt = ChatMessage(role="user", content=tasks_depleted_prompt)
-
-    # TODO: we should add a message which is returned in case of forking budget running out.
+class PromptConfig(BaseModel):
+    system_root: str | None = None
+    system_inter: str | None = None
+    system_leaf: str | None = None
+    tasks_depleted: str | None = "No more tasks available, please answer the question directly."
 
 
-class StopCriteria:
-    def __init__(
-        self,
-        max_depth: int | None = 1,
-        max_tasks: int | None = 5,
-        max_rounds: int | None = 5,
-    ):
-        self.max_depth = max_depth
-        self.max_tasks = max_tasks
-        self.max_rounds = max_rounds
+class StopCriteria(BaseModel):
+    max_depth: int | None = 1
+    max_tasks: int | None = 5
+    max_rounds: int | None = 5
 
-        self._total_rounds = 0
-        self._total_tasks = 0
+    # Internal counter fields
+    total_rounds: int = Field(default=0, exclude=True, init=False)
+    total_tasks: int = Field(default=0, exclude=True, init=False)
 
-    def clone(self):
-        new = copy.deepcopy(self)
-        new.reset()  # Reset the counters for the cloned instance
+    def clone(self) -> StopCriteria:
+        """Create a deep copy and reset the counters"""
+        new = self.model_copy(deep=True)
+        new.reset()
         return new
 
     def reset(self):
-        self._total_rounds = 0
-        self._total_tasks = 0
+        """Reset the internal counters"""
+        self.total_rounds = 0
+        self.total_tasks = 0
 
     def update_round(self, num_tasks: int):
-        self._total_rounds += 1
-        self._total_tasks += num_tasks
+        """Update round and task counters"""
+        self.total_rounds += 1
+        self.total_tasks += num_tasks
 
     def should_stop(self, cur_depth: int) -> bool:
+        """Check if stopping criteria are met"""
         if self.max_depth and cur_depth >= self.max_depth:
             return True
 
-        if self.max_tasks and self._total_tasks >= self.max_tasks:
+        if self.max_tasks and self.total_tasks >= self.max_tasks:
             return True
 
-        if self.max_rounds and self._total_rounds >= self.max_rounds:
+        if self.max_rounds and self.total_rounds >= self.max_rounds:
             return True
 
         return False
@@ -121,26 +101,34 @@ class AgentNode:
 
         self.trajectory = Trajectory(messages_and_choices=[], reward=0)
 
-        sys_msg = self._create_system_message(prompt_config)
-        if sys_msg is not None:
+        if sys_msg := self._create_system_message():
             self.trajectory.messages_and_choices.append(sys_msg.model_dump())
 
     def __str__(self) -> str:
         return trajectory_string(self.trajectory)
 
-    def _create_system_message(self, system_prompt: PromptConfig) -> ChatMessage | None:
-        max_depth = self.stop_criteria.max_depth
+    def _create_system_message(self) -> ChatMessage | None:
+        prompt_config = self.prompt_config
+        stop_criteria = self.stop_criteria
+        max_depth = stop_criteria.max_depth
 
         if max_depth is None:
             max_depth = float("inf")
 
-        if self.stop_criteria.should_stop(self.cur_depth):
-            # We're a leaf if we need to stop for any reason
-            return system_prompt.leaf_prompt
-        if self.cur_depth == 0:
-            return system_prompt.root_prompt
-        if self.cur_depth < max_depth:
-            return system_prompt.inter_prompt
+        content: str | None = None
+
+        if stop_criteria.should_stop(self.cur_depth):
+            content = prompt_config.system_leaf  # We're a leaf if we need to stop for any reason
+
+        elif self.cur_depth == 0:
+            content = prompt_config.system_root
+
+        elif self.cur_depth < max_depth:
+            content = prompt_config.system_inter
+
+        if content is not None:
+            return ChatMessage(role="system", content=content.strip())
+
         return None
 
     async def chat(
@@ -195,8 +183,12 @@ class AgentNode:
             task_responses = []
 
             if self.stop_criteria.should_stop(self.cur_depth):
+                if self.prompt_config.tasks_depleted is None:
+                    break
+                
                 # Provide mock answers indicating no more tasks available
-                resp = self.prompt_config.tasks_depleted_prompt
+                resp = self.prompt_config.tasks_depleted
+                resp = ChatMessage(role="user", content=self.prompt_config.tasks_depleted)
                 task_responses = [resp] * len(tasks)
 
             else:

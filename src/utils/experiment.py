@@ -20,8 +20,8 @@ def prepare_environment(tokens_folder: str = "./api_keys"):
     if hf_token:
         os.environ["HF_TOKEN"] = hf_token
 
-    # TODO: check these env vars
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    # TODO: check these flags
+    os.environ["TORCHINDUCTOR_MAX_AUTOTUNE"] = "1"
     os.environ["OMP_NUM_THREADS"] = "1"  # Set OMP_NUM_THREADS to 1 to avoid multithreading issues with vLLM
     os.environ["NCCL_CUMEM_ENABLE"] = "1"  # Enable
 

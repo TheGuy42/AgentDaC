@@ -1,4 +1,5 @@
 from datetime import datetime
+from pydantic import BaseModel
 
 import art
 from art.utils import output_dirs
@@ -9,17 +10,16 @@ from src.configs import art_model_config
 from src.configs import vllm_model_config
 
 
-class DirConfig:
-    def __init__(
-        self,
-        model_name: str,
-        project_name: str,
-        art_path: str,
-    ) -> None:
-        self.model_name = model_name
-        self.project_name = project_name
-        self.art_path = art_path
-        self.run_name = self._generate_run_name(model_name)
+class DirConfig(BaseModel, frozen=False):
+    model_name: str
+    project_name: str
+    art_path: str
+    run_name: str = ""
+
+    def model_post_init(self, context) -> None:
+        """Generate run name if not provided"""
+        if not self.run_name:
+            self.run_name = self._generate_run_name(self.model_name)
 
     @property
     def model_output_dir(self) -> str:
@@ -85,6 +85,5 @@ def load_vllm_model(
     server_port: int = 8200,
     gpu_id: int = 1,
 ):
-    
     vllm_config = vllm_model_config.model_configs[model_name]
     vllm_config.run_server(port=server_port, gpu=str(gpu_id))
