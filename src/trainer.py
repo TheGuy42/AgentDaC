@@ -64,7 +64,7 @@ class Trainer:
         client = self.get_client()
         return AgentNode(
             model_name=client.get_inference_name(),
-            client=client.client,
+            openai_client=client.client,
             prompt_config=self.prompt_config,
             stop_criteria=self.stop_criteria.clone(),
         )
@@ -168,7 +168,10 @@ class Trainer:
             use_tqdm=True,
         )
 
-        for step_data, epoch, global_step, epoch_step in train_iter:
+        for batch in train_iter:
+            step_data = batch.items
+            global_step = batch.step
+
             self.reload_lora(global_step)
 
             # Evaluate model

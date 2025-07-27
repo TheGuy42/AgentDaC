@@ -7,15 +7,15 @@ from src.configs.markers import Markers
 class SingleAgentNode(AgentNode):
     def create_sub_agent(self):
         return SingleAgentNode(
-            client=self.client,
+            openai_client=self.openai_client,
             model_name=self.model,
             prompt_config=self.prompt_config,
             stop_criteria=self.stop_criteria.clone(),
-            cur_depth=self.cur_depth + 1,
+            current_depth=self.current_depth + 1,
         )
 
     async def _call(self, messages: list[Message], **kwargs) -> ChatCompletion:
-        return await self.client.chat.completions.create(
+        return await self.openai_client.chat.completions.create(
             model=self.model,
             messages=messages,
             logprobs=True,

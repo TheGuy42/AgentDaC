@@ -1,7 +1,7 @@
 import asyncio
 import random
 
-from src.utils.experiment import prepare_environment
+from src.utils.env import prepare_environment
 from src.models import load_art_model
 from src.vllm_client import VllmClient, ArtVLLMClient
 from src.trainer import TrainingConfig, PromptConfig, StopCriteria
@@ -30,7 +30,7 @@ async def main():
         model_name=model_name,
         project_name=project_name,
         backend=backend,
-        config=None,
+        model_config=None,
     )
 
     # load dataset

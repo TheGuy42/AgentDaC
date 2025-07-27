@@ -15,7 +15,7 @@ class Easy2HardTrainer(Trainer):
         client = self.get_client()
         return SingleAgentNode(
             model_name=client.get_inference_name(),
-            client=client.client,
+            openai_client=client.client,
             prompt_config=self.prompt_config,
             stop_criteria=self.stop_criteria.clone(),
         )

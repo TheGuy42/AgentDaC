@@ -5,8 +5,6 @@ from openai.types.chat.chat_completion import ChatCompletion
 
 from art import Trajectory
 from art.types import Message
-
-from typing import TypedDict, Required
 from pydantic import BaseModel, Field
 
 from src.utils import text as text_utils
@@ -69,61 +67,58 @@ class StopCriteria(BaseModel):
         return False
 
 
-class Metrics(TypedDict, total=False):
-    direct_calls: Required[int]
-    total_calls: Required[int]
-    direct_tasks: Required[int]
-    total_tasks: Required[int]
-
-
 class AgentNode:
     def __init__(
         self,
-        client: AsyncOpenAI,
+        openai_client: AsyncOpenAI,
         model_name: str,
         prompt_config: PromptConfig,
         stop_criteria: StopCriteria,
-        cur_depth: int = 0,
+        current_depth: int = 0,
     ):
-        self.client = client
+        self.openai_client = openai_client
         self.model = model_name
         self.prompt_config = prompt_config
         self.stop_criteria = stop_criteria.clone()
+        self.current_depth = current_depth
 
-        self.cur_depth = cur_depth
-
-        self.metrics = Metrics(
-            direct_calls=0,
-            total_calls=0,
-            direct_tasks=0,
-            total_tasks=0,
+        self.trajectory = Trajectory(
+            messages_and_choices=[],
+            reward=0,
+            metrics={
+                "direct_calls": 0,
+                "total_calls": 0,
+                "direct_tasks": 0,
+                "total_tasks": 0,
+            },
         )
-
-        self.trajectory = Trajectory(messages_and_choices=[], reward=0)
 
         if sys_msg := self._create_system_message():
             self.trajectory.messages_and_choices.append(sys_msg.model_dump())
+
+    @property
+    def metrics(self) -> dict[str, float | int | bool]:
+        return self.trajectory.metrics
 
     def __str__(self) -> str:
         return trajectory_string(self.trajectory)
 
     def _create_system_message(self) -> ChatMessage | None:
         prompt_config = self.prompt_config
-        stop_criteria = self.stop_criteria
-        max_depth = stop_criteria.max_depth
+        max_depth = self.stop_criteria.max_depth
 
         if max_depth is None:
             max_depth = float("inf")
 
         content: str | None = None
 
-        if stop_criteria.should_stop(self.cur_depth):
+        if self.stop_criteria.should_stop(self.current_depth):
             content = prompt_config.system_leaf  # We're a leaf if we need to stop for any reason
 
-        elif self.cur_depth == 0:
+        elif self.current_depth == 0:
             content = prompt_config.system_root
 
-        elif self.cur_depth < max_depth:
+        elif self.current_depth < max_depth:
             content = prompt_config.system_inter
 
         if content is not None:
@@ -157,7 +152,7 @@ class AgentNode:
 
         if verbose:
             last_message = self.trajectory.messages()[-1]
-            print(message_string(last_message, indent=self.cur_depth))
+            print(message_string(last_message, indent=self.current_depth))
 
         while True:
             # Call the OpenAI API to get a response
@@ -171,7 +166,7 @@ class AgentNode:
 
             if verbose:
                 last_message = self.trajectory.messages()[-1]
-                print(message_string(last_message, indent=self.cur_depth))
+                print(message_string(last_message, indent=self.current_depth))
 
             # Extract tasks from the response
             response = ChatMessage.model_validate(choice.message, from_attributes=True)
@@ -182,10 +177,10 @@ class AgentNode:
 
             task_responses = []
 
-            if self.stop_criteria.should_stop(self.cur_depth):
+            if self.stop_criteria.should_stop(self.current_depth):
                 if self.prompt_config.tasks_depleted is None:
                     break
-                
+
                 # Provide mock answers indicating no more tasks available
                 resp = self.prompt_config.tasks_depleted
                 resp = ChatMessage(role="user", content=self.prompt_config.tasks_depleted)
@@ -215,11 +210,10 @@ class AgentNode:
 
             if verbose:
                 last_message = self.trajectory.messages()[-1]
-                print(message_string(last_message, indent=self.cur_depth))
+                print(message_string(last_message, indent=self.current_depth))
 
             self.stop_criteria.update_round(num_tasks=len(tasks))
 
-        self.trajectory.metrics.update(self.metrics)
         self.trajectory.finish()
         return self.trajectory
 
@@ -244,11 +238,11 @@ class AgentNode:
 
     def create_sub_agent(self):
         return AgentNode(
-            client=self.client,
+            openai_client=self.openai_client,
             model_name=self.model,
             prompt_config=self.prompt_config,
             stop_criteria=self.stop_criteria.clone(),
-            cur_depth=self.cur_depth + 1,
+            current_depth=self.current_depth + 1,
         )
 
     async def _call(self, messages: list[Message], **kwargs) -> ChatCompletion:
@@ -259,7 +253,7 @@ class AgentNode:
             messages (list[Message]): The list of messages to send to the API.
             **kwargs: Additional keyword arguments to pass to the API call.
         """
-        return await self.client.chat.completions.create(
+        return await self.openai_client.chat.completions.create(
             model=self.model,
             messages=messages,
             logprobs=True,

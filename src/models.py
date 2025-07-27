@@ -57,10 +57,10 @@ async def load_art_model(
     model_name: str,
     project_name: str,
     backend: LocalBackend,
-    config: InternalModelConfig | None = None,
+    model_config: InternalModelConfig | None = None,
 ) -> tuple[art.TrainableModel, DirConfig]:
-    if config is None:
-        config = art_model_config.configs[model_name]
+    if model_config is None:
+        model_config = art_model_config.configs[model_name]
 
     dir_config = DirConfig(
         model_name=model_name,
@@ -72,7 +72,7 @@ async def load_art_model(
         name=dir_config.run_name,
         project=dir_config.project_name,
         base_model=dir_config.model_name,
-        _internal_config=config,
+        _internal_config=model_config,
     )
 
     await model.register(backend)

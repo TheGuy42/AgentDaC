@@ -44,7 +44,7 @@ class VllmClient:
     async def chat(
         self,
         message: Dict[str, str],
-        model: str = None,
+        model: str | None = None,
         **kwargs,
     ) -> dict:
         if model is None:

@@ -1,6 +1,6 @@
 [project]
 name = "agentdac"
-version = "0.1.0"
+version = "0.2.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -9,12 +9,10 @@ dependencies = [
     "ipywidgets",
     "numpy<2.0",
     "openpipe",
-    "openpipe-art==0.3.13",
+    "openpipe-art[backend]",
     "datasets",
     "torch",
     "torchtune",
-    "nbformat>=5.10.4",
+    "nbformat",
+    "transformers<4.54.0",
 ]
-
-[tool.uv.sources]
-torchtune = { git = "https://github.com/pytorch/torchtune.git", rev = "2344509cf83bd886538fe3e8263e5145d1afb5c2" }
