@@ -1,4 +1,5 @@
 from __future__ import annotations
+import logging
 
 from openai import AsyncOpenAI
 from openai.types.chat.chat_completion import ChatCompletion
@@ -10,6 +11,10 @@ from pydantic import BaseModel, Field
 from src.utils import text as text_utils
 from src.utils.visualize import trajectory_string, message_string
 from src.configs.markers import Markers
+
+
+logger = logging.getLogger(__name__)
+
 
 # TODO: think about the structure and the flow of the chat method, especially
 # of the chat() method. we should warn in advance if the task budget is about
@@ -65,6 +70,11 @@ class StopCriteria(BaseModel):
             return True
 
         return False
+
+
+# TODO: add max-depth metric (and i guess current depth as well)
+# TODO: interesting idea: a global stop-criteria object, it makes sense to count global resource
+# usage in this overall system.
 
 
 class AgentNode:

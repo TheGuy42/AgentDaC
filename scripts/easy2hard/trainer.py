@@ -3,11 +3,10 @@ from src.dac_agent_single import SingleAgentNode
 from src.trainer import Trainer
 from src.dac_agent import ChatMessage
 from src.utils.text import extract_answer
+from scripts.easy2hard.rewards import answer_reward, format_reward
 
 import art
 from openai.types.chat.chat_completion import Choice
-
-from easy2hard.rewards import answer_reward, format_reward
 
 
 class Easy2HardTrainer(Trainer):
@@ -26,6 +25,11 @@ class Easy2HardTrainer(Trainer):
         trajectory = await agent.chat(message, **kwargs)
         return trajectory
 
+    def split_into_groups(self, batch: list[dict], group_size: int) -> list[list[dict]]:
+        # We split into groups according to difficulty
+        batch = sorted(batch, key=lambda x: x["item_difficulty"])
+        return [batch[i : i + group_size] for i in range(0, len(batch), group_size)]
+
     async def rollout_step(self, sample: dict) -> art.Trajectory:
         # Perform a forward step to get the trajectory
         trajectory = await self.forward_step(sample)
@@ -34,23 +38,26 @@ class Easy2HardTrainer(Trainer):
         # Update rewards
         ans_reward = answer_reward(sample, ans_message)
         trajectory.reward += ans_reward
+        trajectory.metrics["answer_reward"] = ans_reward
 
+        trajectory.metadata["format_reward"] = 0.0
         for item in trajectory.messages_and_choices:
             if isinstance(item, Choice):
                 msg = ChatMessage.model_validate(item.message, from_attributes=True)
-                trajectory.reward += format_reward(msg)
+                fmt_reward = format_reward(msg)
+                trajectory.reward += fmt_reward
+                trajectory.metadata["format_reward"] += fmt_reward
 
-        # Compute metadata and metrics
+        # Update metadata and metrics
         problem = sample["problem"].strip()
         answer = sample["answer"].strip()
         agent_answer = extract_answer(ans_message.content)
-        is_correct = 1 if answer == agent_answer.strip() else 0
 
-        # Update metadata and metrics
         trajectory.metadata["problem"] = problem
         trajectory.metadata["answer"] = answer
         trajectory.metadata["agent_answer"] = agent_answer
-        trajectory.metadata["item_difficulty"] = sample["item_difficulty"] 
-        
+        trajectory.metadata["item_difficulty"] = sample["item_difficulty"]
+
+        is_correct = 1 if answer == agent_answer.strip() else 0
         trajectory.metrics["is_correct"] = is_correct
         return trajectory

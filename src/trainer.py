@@ -1,16 +1,21 @@
 from abc import abstractmethod
-import warnings
+import os
+import sys
+import logging
 
 from pydantic import BaseModel, Field
 import art
 from art.dev import InternalModelConfig
-from art.utils import iterate_dataset
+from art.utils import iterate_dataset, retry
 import numpy as np
 
 from src.vllm_client import VllmClient, VllmRouter
-from src.models import DirConfig
+from src.models import PathConfig
 from src.dac_agent import AgentNode, ChatMessage, PromptConfig, StopCriteria
 from src.utils import text as text_utils
+
+
+logger = logging.getLogger(__name__)
 
 
 class TrainingConfig(BaseModel, extra="allow", strict=True):
@@ -18,8 +23,11 @@ class TrainingConfig(BaseModel, extra="allow", strict=True):
     num_groups: int = 5
     group_size: int = 10
     min_reward_stdev: float | None = None
-    eval_steps: int | None = None
     verbose: bool = False
+
+    log_every: int | None = None  # log training results every `log_every` steps
+    eval_every: int | None = None  # evaluate on eval dataset every `eval_every` steps
+    eval_size: int | None = None  # if None then use the entire eval dataset
 
     art_config: art.types.TrainConfig = Field(default_factory=art.types.TrainConfig)
     dev_art_config: art.dev.train.TrainConfig | None = None
@@ -35,13 +43,13 @@ class Trainer:
         self,
         model: art.TrainableModel,
         client_list: list[VllmClient],
-        dir_config: DirConfig,
+        path_config: PathConfig,
         train_config: TrainingConfig,
         prompt_config: PromptConfig,
         stop_criteria: StopCriteria,
     ):
         self.model = model
-        self.dir_config = dir_config
+        self.path_config = path_config
         self.training_config = train_config
         self.vllm_router = VllmRouter(vllm_clients=client_list)
         self.prompt_config = prompt_config
@@ -55,7 +63,7 @@ class Trainer:
         return config
 
     def get_client(self) -> VllmClient:
-        return self.vllm_router.__next__()
+        return next(self.vllm_router)
 
     def create_agent(self) -> AgentNode:
         """
@@ -69,29 +77,19 @@ class Trainer:
             stop_criteria=self.stop_criteria.clone(),
         )
 
-    def reload_lora(self, step: int) -> bool:
-        prev_checkpoint_dir = None
-        curr_checkpoint_dir = None
+    @retry(max_attempts=3, delay=1)
+    def update_lora(self, step: int):
+        prev_checkpoint_dir = self.path_config.get_step_checkpoint_dir(step - 1)
+        if os.path.exists(prev_checkpoint_dir):
+            success = self.vllm_router.unload_lora(self.path_config.run_name)
+            if not success:
+                raise RuntimeError(f"Failed to unload LoRA for step {step - 1}.")
 
-        if step > 0:
-            curr_checkpoint_dir = self.dir_config.get_step_checkpoint_dir(step)
-
-        if step - 1 > 0:
-            prev_checkpoint_dir = self.dir_config.get_step_checkpoint_dir(step - 1)
-
-        if prev_checkpoint_dir is not None:
-            print("Unloading lora")
-            if not self.vllm_router.unload_lora(self.dir_config.run_name):
-                print(f"Failed to unload lora from {prev_checkpoint_dir}")
-                return False
-
-        if curr_checkpoint_dir is not None:
-            print(f"Loading lora from {curr_checkpoint_dir}")
-            if not self.vllm_router.load_lora(self.dir_config.run_name, curr_checkpoint_dir):
-                print(f"Failed to load lora from {curr_checkpoint_dir}")
-                return False
-
-        return True
+        curr_checkpoint_dir = self.path_config.get_step_checkpoint_dir(step)
+        if os.path.exists(curr_checkpoint_dir):
+            success = self.vllm_router.load_lora(self.path_config.run_name, curr_checkpoint_dir)
+            if not success:
+                raise RuntimeError(f"Failed to load LoRA for step {step}.")
 
     async def predict(self, dataset: list[dict], **kwargs) -> list[str]:
         """
@@ -113,7 +111,7 @@ class Trainer:
             last_messages = tr.messages()[-1]
             last_chat = ChatMessage.model_validate(last_messages, from_attributes=True)
             if last_chat.role != "assistant":
-                warnings.warn(
+                logger.warning(
                     f"Expected the last message to be from the assistant, but got {last_chat.role}. "
                     "Returning an empty answer."
                 )
@@ -132,7 +130,7 @@ class Trainer:
             dataset (list[dict]): List of samples to evaluate.
 
         Returns:
-            dict[str, float]: Dictionary containing evaluation metrics.
+            dict[str, float]: Dictionary containing average evaluation metrics.
         """
 
         if len(dataset) == 0:
@@ -156,37 +154,62 @@ class Trainer:
         train_config = self.training_config
 
         # Unload all lora adapters before starting the training
+        # including adapters loaded in previous training sessions
         vllm_router.unload_all_loras()
 
-        batch_size = train_config.num_groups * train_config.group_size
-
+        # Training set iterator
+        train_batch_size = train_config.num_groups * train_config.group_size
+        train_step = await model.get_step()
         train_iter = iterate_dataset(
             dataset=train_dataset,
-            groups_per_step=batch_size,
+            groups_per_step=train_batch_size,
             num_epochs=train_config.epochs,
-            initial_step=await model.get_step(),
+            initial_step=train_step,
             use_tqdm=True,
         )
 
-        for batch in train_iter:
-            step_data = batch.items
-            global_step = batch.step
+        # Evaluation set iterator
+        eval_batch_size = train_config.eval_size if train_config.eval_size else len(eval_dataset)
+        eval_step = train_step // train_config.eval_every if train_config.eval_every else 0
+        eval_iter = iterate_dataset(
+            dataset=eval_dataset,
+            groups_per_step=eval_batch_size,
+            num_epochs=sys.maxsize,
+            initial_step=eval_step,
+            use_tqdm=False,
+        )
 
-            self.reload_lora(global_step)
+        for train_batch in train_iter:
+            step_data = train_batch.items
+            global_step = train_batch.step
+
+            self.update_lora(global_step)
 
             # Evaluate model
-            if train_config.eval_steps and global_step % train_config.eval_steps == 0:
-                eval_results = await self.evaluate(eval_dataset)
-                print(f"Evaluation results at step {global_step}: {eval_results}")
+            if train_config.eval_every and global_step % train_config.eval_every == 0:
+                eval_batch = next(eval_iter)
+                print(f"Evaluating model at train step {global_step} and eval step {eval_batch.step}...")
+                eval_results = await self.evaluate(eval_batch.items)
+                print(f"Evaluation results: {eval_results}")
 
-            group_data = [
-                step_data[i : i + train_config.group_size] for i in range(0, len(step_data), train_config.group_size)
+            # Construct GRPO training groups
+            train_groups = [
+                art.TrajectoryGroup([self.rollout_step(sample) for sample in data])
+                for data in self.split_into_groups(step_data, train_config.group_size)
             ]
 
-            train_groups = [art.TrajectoryGroup([self.rollout_step(sample) for sample in data]) for data in group_data]
+            # Perform rollout
+            trajectory_groups = await art.gather_trajectory_groups(
+                train_groups,
+                pbar_desc="gather",
+                max_exceptions=0,
+            )
 
-            trajectory_groups = await art.gather_trajectory_groups(train_groups, pbar_desc="gather", max_exceptions=0)
+            # Log rollout results
+            if train_config.log_every and global_step % train_config.log_every == 0:
+                await model.log(trajectory_groups, split="train")
 
+            # Filter groups with low reward standard deviation
             filtered_groups = []
             for group in trajectory_groups:
                 rewards = [tr.reward for tr in group.trajectories]
@@ -196,7 +219,7 @@ class Trainer:
             trajectory_groups = filtered_groups
 
             if not trajectory_groups:
-                warnings.warn(f"No trajectories left to train on at step {global_step}. Skipping this step.")
+                logger.warning(f"No trajectories left to train on at step {global_step}. Skipping this step.")
                 continue
 
             await model.delete_checkpoints("eval/reward")
@@ -209,10 +232,15 @@ class Trainer:
             )
 
         # Final evaluation after training
-        eval_results = await self.evaluate(eval_dataset)
+        eval_batch = next(eval_iter)
+        print(f"Evaluating model at eval step {eval_batch.step}...")
+        eval_results = await self.evaluate(eval_batch.items)
         print(f"Final evaluation results: {eval_results}")
 
         return self.model
+
+    def split_into_groups(self, batch: list[dict], group_size: int) -> list[list[dict]]:
+        return [batch[i : i + group_size] for i in range(0, len(batch), group_size)]
 
     async def forward(self, dataset: list[dict], **kwargs) -> list[art.Trajectory]:
         """

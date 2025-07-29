@@ -1,23 +1,29 @@
 from datetime import datetime
+import logging
 from pydantic import BaseModel
 
 import art
 from art.utils import output_dirs
-from art.dev import InternalModelConfig
 from art.local import LocalBackend
 
 from src.configs import art_model_config
 from src.configs import vllm_model_config
 
 
-class DirConfig(BaseModel, frozen=False):
+logger = logging.getLogger(__name__)
+
+
+class PathConfig(BaseModel, frozen=False):
     model_name: str
     project_name: str
-    art_path: str
     run_name: str = ""
+    art_path: str = ""
 
     def model_post_init(self, context) -> None:
         """Generate run name if not provided"""
+        if not self.art_path:
+            self.art_path = output_dirs.get_default_art_path()
+
         if not self.run_name:
             self.run_name = self._generate_run_name(self.model_name)
 
@@ -54,36 +60,92 @@ class DirConfig(BaseModel, frozen=False):
 
 
 async def load_art_model(
-    model_name: str,
-    project_name: str,
-    backend: LocalBackend,
-    model_config: InternalModelConfig | None = None,
-) -> tuple[art.TrainableModel, DirConfig]:
-    if model_config is None:
-        model_config = art_model_config.configs[model_name]
+    path_config: PathConfig,
+    internal_config: art.dev.InternalModelConfig | None = None,
+    openai_config: art.dev.OpenAIServerConfig | None = None,
+    print_full: bool = False,
+) -> art.TrainableModel:
+    if internal_config is None:
+        if path_config.model_name not in art_model_config.CONFIGS:
+            raise ValueError(
+                f"No configuration found for model: {path_config.model_name}. "
+                f"Available models: {list(art_model_config.CONFIGS.keys())}"
+            )
 
-    dir_config = DirConfig(
-        model_name=model_name,
-        project_name=project_name,
-        art_path=backend._path,
+        art_config = art_model_config.CONFIGS[path_config.model_name]
+        internal_config = art_config.internal_config
+
+    art_config = art_model_config.ArtConfig(
+        model_name=path_config.model_name,
+        internal_config=internal_config,
     )
+
+    if not print_full:
+        print("Model configuration:")
+        print(art_config.model_dump_json(indent=4))
+
+    art_config = art_config.to_full(output_dir=path_config.model_output_dir)
+
+    if print_full:
+        print("Full model configuration:")
+        print(art_config.model_dump_json(indent=4))
 
     model = art.TrainableModel(
-        name=dir_config.run_name,
-        project=dir_config.project_name,
-        base_model=dir_config.model_name,
-        _internal_config=model_config,
+        name=path_config.run_name,
+        project=path_config.project_name,
+        base_model=path_config.model_name,
+        _internal_config=internal_config,
     )
 
-    await model.register(backend)
-
-    return model, dir_config
+    backend = LocalBackend(path=path_config.art_path)
+    await model.register(backend, _openai_client_config=openai_config)
+    return model
 
 
 def load_vllm_model(
     model_name: str,
-    server_port: int = 8200,
-    gpu_id: int = 1,
+    port: int = 8200,
+    server_args: art.dev.ServerArgs | None = None,
+    engine_args: art.dev.EngineArgs | None = None,
+    print_full: bool = False,
 ):
-    vllm_config = vllm_model_config.model_configs[model_name]
-    vllm_config.run_server(port=server_port, gpu=str(gpu_id))
+    if engine_args is None or server_args is None:
+        if model_name not in vllm_model_config.CONFIGS:
+            raise ValueError(
+                f"No configuration found for model: {model_name}. "
+                f"Available models: {list(vllm_model_config.CONFIGS.keys())}"
+            )
+
+        vllm_config = vllm_model_config.CONFIGS[model_name]
+        engine_args = vllm_config.engine_args if engine_args is None else engine_args
+        server_args = vllm_config.server_args if server_args is None else server_args
+
+    vllm_config = vllm_model_config.VllmConfig(
+        model_name=model_name,
+        server_args=server_args,
+        engine_args=engine_args,
+    )
+
+    vllm_config.server_args["port"] = port
+
+    if not print_full:
+        print("Model configuration:")
+        print(vllm_config.model_dump_json(indent=4))
+
+    vllm_config = vllm_config.to_full()
+
+    if print_full:
+        print("Full model configuration:")
+        print(vllm_config.model_dump_json(indent=4))
+
+    args = [
+        *[
+            f"--{key.replace('_', '-')}{f'={item}' if item is not True else ''}"
+            for args in [vllm_config.engine_args, vllm_config.server_args]
+            for key, value in args.items()
+            for item in (value if isinstance(value, list) else [value])
+            if item is not None
+        ],
+    ]
+
+    return args

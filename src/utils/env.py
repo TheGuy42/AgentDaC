@@ -22,8 +22,9 @@ def prepare_environment(tokens_folder: str = "./api_keys"):
 
     # os.environ["TORCHINDUCTOR_MAX_AUTOTUNE"] = "1"
     # os.environ["OMP_NUM_THREADS"] = "1"  # Set OMP_NUM_THREADS to 1 to avoid multithreading issues with vLLM
-    os.environ["NCCL_CUMEM_ENABLE"] = "0" # TODO: check this flag, which value should be set?
+    os.environ["NCCL_CUMEM_ENABLE"] = "0"  # To avoid vLLM bug with NCCL
     os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"  # To avoid vLLM issues with multiprocessing
+    return os.environ
 
 
 def token_from_file(path: str | Path, do_raise: bool = False) -> str:
