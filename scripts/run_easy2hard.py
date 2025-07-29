@@ -83,7 +83,12 @@ async def main(args: argparse.Namespace):
     )
 
     # load model
-    model = await load_art_model(path_config=path_config, print_full=False)
+    model = await load_art_model(
+        path_config=path_config,
+        internal_config=None,
+        openai_config=None,
+        print_full=False,
+    )
 
     # load dataset
     dataset_dict: DatasetDict = load_dataset(

@@ -13,7 +13,7 @@ if str(module_dir) not in sys.path:
 from src.models import load_vllm_model
 from src.utils.env import prepare_environment
 from src.utils.logging import setup_logging
-from src.configs.vllm_model_config import available_configs
+from src.configs.vllm_model_config import available_configs, VllmConfig
 
 
 def parse_args() -> argparse.Namespace:
@@ -45,6 +45,13 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--vllm_config",
+        type=str,
+        help="Path to a JSON file containing additional vLLM configuration parameters. "
+        "The serialized object should be of type `VllmConfig`.",
+    )
+
+    parser.add_argument(
         "--kwargs",
         type=str,
         default="",
@@ -57,7 +64,20 @@ def parse_args() -> argparse.Namespace:
 def main(args: argparse.Namespace):
     prepare_environment()
 
-    vllm_args = load_vllm_model(model_name=args.model, port=args.port)
+    server_args = None
+    engine_args = None
+    if args.vllm_config:
+        with open(args.vllm_config, "r") as f:
+            vllm_config = VllmConfig.model_validate_json(f.read())
+            server_args = vllm_config.server_args
+            engine_args = vllm_config.engine_args
+
+    vllm_args = load_vllm_model(
+        model_name=args.model,
+        port=args.port,
+        server_args=server_args,
+        engine_args=engine_args,
+    )
 
     gpus_string = ",".join([str(gpu) for gpu in args.gpu])
 

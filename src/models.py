@@ -72,6 +72,7 @@ async def load_art_model(
                 f"Available models: {list(art_model_config.CONFIGS.keys())}"
             )
 
+        logger.info(f"Loading default `internal_config` for {path_config.model_name}...")
         art_config = art_model_config.CONFIGS[path_config.model_name]
         internal_config = art_config.internal_config
 
@@ -108,7 +109,7 @@ def load_vllm_model(
     server_args: art.dev.ServerArgs | None = None,
     engine_args: art.dev.EngineArgs | None = None,
     print_full: bool = False,
-):
+) -> list[str]:
     if engine_args is None or server_args is None:
         if model_name not in vllm_model_config.CONFIGS:
             raise ValueError(
@@ -117,8 +118,14 @@ def load_vllm_model(
             )
 
         vllm_config = vllm_model_config.CONFIGS[model_name]
-        engine_args = vllm_config.engine_args if engine_args is None else engine_args
-        server_args = vllm_config.server_args if server_args is None else server_args
+
+        if engine_args is None:
+            logger.info(f"Loading default `engine_args` for {model_name}...")
+            engine_args = vllm_config.engine_args
+
+        if server_args is None:
+            logger.info(f"Loading default `server_args` for {model_name}...")
+            server_args = vllm_config.server_args
 
     vllm_config = vllm_model_config.VllmConfig(
         model_name=model_name,
