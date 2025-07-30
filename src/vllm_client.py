@@ -124,7 +124,7 @@ class VllmClient:
         This method is a placeholder and should be implemented based on the server's capabilities.
         """
         # This method is not implemented in the base class
-        models = self._get_vllm_model_list()
+        models = self._get_vllm_model_list() # TODO: IMPORTANT does not work.
         for model in models:
             model_name = model.get("id", "")
             if model_name:

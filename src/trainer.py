@@ -42,7 +42,7 @@ class Trainer:
     def __init__(
         self,
         model: art.TrainableModel,
-        client_list: list[VllmClient],
+        inference_clients: list[VllmClient],
         path_config: PathConfig,
         train_config: TrainingConfig,
         prompt_config: PromptConfig,
@@ -51,7 +51,7 @@ class Trainer:
         self.model = model
         self.path_config = path_config
         self.training_config = train_config
-        self.vllm_router = VllmRouter(vllm_clients=client_list)
+        self.vllm_router = VllmRouter(vllm_clients=inference_clients)
         self.prompt_config = prompt_config
         self.stop_criteria = stop_criteria
 

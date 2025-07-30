@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 # Does it matter if we import original model or unsloth model?
 # Does optimizations differ between original and unsloth models?
 # There are also 8-bit quantized versions of models, test them.
+# We need to make sure stream mode is off
 
 
 class VllmConfig(BaseModel, frozen=False):

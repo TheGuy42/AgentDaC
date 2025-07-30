@@ -5,7 +5,7 @@ import asyncio
 import argparse
 import logging
 
-from datasets import Dataset, load_dataset, DatasetDict
+from datasets import Dataset, load_dataset
 import art
 
 # set pythonpath to the main module directory
@@ -20,12 +20,12 @@ from src.vllm_client import VllmClient, ArtVLLMClient
 from src.trainer import TrainingConfig, PromptConfig, StopCriteria
 from src.configs.prompts import DaCSystemPrompt
 from src.configs.art_model_config import available_configs
-from scripts.easy2hard.trainer import Easy2HardTrainer
+from scripts.mmlu_pro.trainer import MmluProTrainer
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run the Easy2Hard experiment.",
+        description="Run the MMLU Pro experiment.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
@@ -39,7 +39,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--project_name",
         type=str,
-        default="easy2hard_dac",
+        default="mmlu_pro_dac",
         help="The name of the project for saving results.",
     )
 
@@ -90,14 +90,11 @@ async def main(args: argparse.Namespace):
     )
 
     # load dataset
-    dataset_dict: DatasetDict = load_dataset(
-        path="furonghuang-lab/Easy2Hard-Bench",
-        name="E2H-AMC",
-        split=None,
-    )  # type: ignore
+    data: Dataset = load_dataset(path="TIGER-Lab/MMLU-Pro", split="test")  # type: ignore
 
-    train_data: Dataset = dataset_dict["train"]
-    test_data: Dataset = dataset_dict["eval"]
+    split_dict = data.train_test_split(test_size=0.3, seed=0)
+    train_data = split_dict["train"]
+    test_data = split_dict["test"]
 
     # create inference clients
     inference_clients: list[VllmClient] = [ArtVLLMClient(model)]
@@ -130,7 +127,7 @@ async def main(args: argparse.Namespace):
         max_rounds=5,
     )
 
-    trainer = Easy2HardTrainer(
+    trainer = MmluProTrainer(
         model=model,
         inference_clients=inference_clients,
         path_config=path_config,

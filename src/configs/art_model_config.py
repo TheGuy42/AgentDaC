@@ -82,6 +82,7 @@ def available_configs() -> list[str]:
 ################################################################
 
 # TODO: there is an option to load in 8bit, its also a quantization, test it.
+# TODO: is stream mode on or off? 
 
 add_config(
     "unsloth/Qwen2-7B",

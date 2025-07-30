@@ -48,13 +48,13 @@ class Easy2HardTrainer(Trainer):
         trajectory.reward += ans_reward
         trajectory.metrics["answer_reward"] = ans_reward
 
-        trajectory.metadata["format_reward"] = 0.0
+        trajectory.metrics["format_reward"] = 0.0
         for item in trajectory.messages_and_choices:
             if isinstance(item, Choice):
                 msg = ChatMessage.model_validate(item.message, from_attributes=True)
                 fmt_reward = format_reward(msg)
                 trajectory.reward += fmt_reward
-                trajectory.metadata["format_reward"] += fmt_reward
+                trajectory.metrics["format_reward"] += fmt_reward
 
         # Update metadata and metrics
         problem = sample["problem"].strip()
