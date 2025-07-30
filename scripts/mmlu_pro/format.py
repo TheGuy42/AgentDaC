@@ -19,5 +19,5 @@ def format_prompt(sample: dict) -> str:
     )
 
     fmt_question = f"Q: {question}\n{_form_options(options)}"
-    content = f"{instruction}\n{fmt_question}"
+    content = f"{instruction}\n{fmt_question}".strip()
     return content
