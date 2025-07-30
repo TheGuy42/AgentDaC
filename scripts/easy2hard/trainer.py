@@ -3,7 +3,7 @@ from src.dac_agent_single import SingleAgentNode
 from src.trainer import Trainer
 from src.dac_agent import ChatMessage
 from src.utils.text import extract_answer
-from scripts.easy2hard.rewards import answer_reward, format_reward
+from scripts.easy2hard.rewards import answer_reward, format_reward, verify
 
 import art
 from openai.types.chat.chat_completion import Choice
@@ -20,8 +20,16 @@ class Easy2HardTrainer(Trainer):
         )
 
     async def forward_step(self, sample: dict, **kwargs) -> art.Trajectory:
+        instruction = (
+            "The final answer should be written as valid LaTeX equation, starting with $ and ending with $. "
+            "It should contain only the final result, without any additional text or explanation. "
+            "Final answer format examples: $42$, $1,2,3,4$, $(1,2)$, $x^2$, $y=1$, $\\frac{1}{2}$, $\\sqrt{2} \\pi$, $\\text{Michael}$, $\\text{no}$, and so on."
+        )
+
+        problem = sample["problem"].strip()
+        content = f"{problem}\n{instruction}"
         agent = self.create_agent()
-        message = ChatMessage(role="user", content=sample["problem"])
+        message = ChatMessage(role="user", content=content)
         trajectory = await agent.chat(message, **kwargs)
         return trajectory
 
@@ -58,6 +66,6 @@ class Easy2HardTrainer(Trainer):
         trajectory.metadata["agent_answer"] = agent_answer
         trajectory.metadata["item_difficulty"] = sample["item_difficulty"]
 
-        is_correct = 1 if answer == agent_answer.strip() else 0
+        is_correct = 1 if verify(answer, agent_answer) else 0
         trajectory.metrics["is_correct"] = is_correct
         return trajectory

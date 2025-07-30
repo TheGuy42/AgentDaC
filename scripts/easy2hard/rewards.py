@@ -1,6 +1,13 @@
+import math_verify as mv
+
 from src.utils import text as text_utils
 from src.configs.markers import Markers
 from src.dac_agent import ChatMessage
+
+
+def verify(answer: str, pred_answer: str) -> bool:
+    answer = f"${answer}$"
+    return mv.verify(mv.parse(answer), mv.parse(pred_answer))
 
 
 def answer_reward(sample: dict[str, str], message: ChatMessage) -> float:
@@ -27,7 +34,8 @@ def answer_reward(sample: dict[str, str], message: ChatMessage) -> float:
     else:
         llm_answer = answer_list[-1].strip()
 
-    if llm_answer.lower().strip() == answer.lower().strip():
+    # if llm_answer.lower().strip() == answer.lower().strip():
+    if verify(answer, llm_answer):
         total_reward += 1.5
     else:
         total_reward -= 1

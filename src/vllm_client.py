@@ -1,7 +1,6 @@
 import requests
 from openai import AsyncOpenAI
-from typing import Any, Dict, Optional
-from openai.types.chat.chat_completion import ChatCompletion, Choice
+from typing import Any, Dict
 from art.openai import patch_openai
 from art import TrainableModel
 
@@ -10,18 +9,18 @@ class VllmClient:
     def __init__(
         self,
         base_model: str,
-        inference_base_url: str = "http://localhost",
         port: int = 8000,
+        host: str = "0.0.0.0",
         **kwargs: Any,
     ):
-        self.inference_base_url = inference_base_url + f":{port}/v1"
+        self.base_url = f"http://{host}:{port}/v1"
         self.base_model = base_model
         self.inference_name = base_model
 
         self.client = AsyncOpenAI(
-            base_url=self.inference_base_url,
-            api_key="default",  # Assuming no API key is needed for local server
-            **kwargs,  # Additional keyword arguments for the client
+            base_url=self.base_url,
+            api_key="default",
+            **kwargs,
         )
         self.client = patch_openai(self.client)
 
@@ -34,7 +33,7 @@ class VllmClient:
         Returns True if the server is reachable, False otherwise.
         """
         try:
-            response = requests.get(f"{self.inference_base_url}/models/{self.get_inference_name()}")
+            response = requests.get(f"{self.base_url}/models/{self.get_inference_name()}")
             response.raise_for_status()  # Raise an exception for HTTP errors (4xx or 5xx)
             return True
         except requests.exceptions.RequestException as e:
@@ -60,7 +59,7 @@ class VllmClient:
         return response
 
     def load_lora(self, lora_name: str, lora_path: str):
-        url = f"{self.inference_base_url}/load_lora_adapter"
+        url = f"{self.base_url}/load_lora_adapter"
         headers = {"Content-Type": "application/json"}
         payload = {
             "lora_name": lora_name,
@@ -84,7 +83,7 @@ class VllmClient:
             return {"success": False, "error": str(e)}
 
     def unload_lora(self, lora_name: str):
-        url = f"{self.inference_base_url}/unload_lora_adapter"
+        url = f"{self.base_url}/unload_lora_adapter"
         headers = {"Content-Type": "application/json"}
         payload = {
             "lora_name": lora_name,
@@ -112,7 +111,7 @@ class VllmClient:
         Returns a list of model names.
         """
         try:
-            response = requests.get(f"{self.inference_base_url}/models")
+            response = requests.get(f"{self.base_url}/models")
             response.raise_for_status()  # Raise an exception for HTTP errors (4xx or 5xx)
             return response.json().get("data", [])
         except requests.exceptions.RequestException as e:
@@ -144,7 +143,7 @@ class ArtVLLMClient(VllmClient):
     ):
         self.model = model
 
-        self.inference_base_url = model.inference_base_url
+        self.base_url = model.inference_base_url
         self.base_model = model.base_model
         self.inference_name = model.get_inference_name()
         self.client = model.openai_client()
@@ -181,7 +180,7 @@ class VllmRouter:
         if vllm_clients is None:
             vllm_clients = []
 
-        self.vllm_clients: list[VllmClient] = vllm_clients        
+        self.vllm_clients: list[VllmClient] = vllm_clients
         self.current_index = 0
 
     @property

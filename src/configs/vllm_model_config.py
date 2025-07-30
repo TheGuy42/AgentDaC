@@ -6,32 +6,26 @@ from pydantic import BaseModel, Field
 # TODO: test following settings:
 # Does it matter if we import original model or unsloth model?
 # Does optimizations differ between original and unsloth models?
+# There are also 8-bit quantized versions of models, test them.
 
 
 class VllmConfig(BaseModel, frozen=False):
     """
-    Configuration for a vLLM model.
+    Configuration for a served vLLM model.
     """
 
     model_name: str
-    server_args: dict = Field(default_factory=ServerArgs)
-    engine_args: dict = Field(default_factory=EngineArgs)
+    openai_config: dict = Field(default_factory=OpenAIServerConfig)
 
     def to_full(self, lora_path: str | None = None) -> VllmConfig:
-        openai_config = OpenAIServerConfig(
-            server_args=self.server_args,
-            engine_args=self.engine_args,
-        )
-        openai_config = get_openai_server_config(
+        self.openai_config = get_openai_server_config(
             model_name=self.model_name,
             base_model=self.model_name,
             log_file="",
             lora_path=lora_path,
-            config=openai_config,
+            config=self.openai_config,
         )
-        self.engine_args = openai_config.get("engine_args", self.engine_args)
-        self.server_args = openai_config.get("server_args", self.server_args)
-        self.engine_args["enable_lora"] = True
+        self.openai_config["engine_args"]["enable_lora"] = True
         return self
 
 
@@ -47,14 +41,22 @@ def add_config(
     """
     Add a configuration to the global CONFIGS dictionary.
     """
+
+    args = {
+        "server_args": server_args,
+        "engine_args": engine_args,
+    }
+
+    args = {k: v for k, v in args.items() if v is not None}
+    args.update(kwargs)
+
     for model_name in model_names:
         if model_name in CONFIGS:
             raise ValueError(f"Configuration for model '{model_name}' already exists.")
 
         config = VllmConfig(
             model_name=model_name,
-            server_args=server_args or ServerArgs(),
-            engine_args=engine_args or EngineArgs(),
+            openai_config=OpenAIServerConfig(**args),
             **kwargs,
         )
 
@@ -86,7 +88,7 @@ add_config(
     "unsloth/Qwen2.5-14B-Instruct",
     engine_args=EngineArgs(
         max_num_seqs=64,
-        max_model_len=10000,
+        max_model_len=8192,
         gpu_memory_utilization=0.79,
     ),
 )

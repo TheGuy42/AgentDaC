@@ -5,6 +5,7 @@ from pydantic import BaseModel
 import art
 from art.utils import output_dirs
 from art.local import LocalBackend
+from art.dev import OpenAIServerConfig, InternalModelConfig
 
 from src.configs import art_model_config
 from src.configs import vllm_model_config
@@ -61,15 +62,15 @@ class PathConfig(BaseModel, frozen=False):
 
 async def load_art_model(
     path_config: PathConfig,
-    internal_config: art.dev.InternalModelConfig | None = None,
-    openai_config: art.dev.OpenAIServerConfig | None = None,
+    internal_config: InternalModelConfig | None = None,
+    openai_config: OpenAIServerConfig | None = None,
     print_full: bool = False,
 ) -> art.TrainableModel:
     if internal_config is None:
         if path_config.model_name not in art_model_config.CONFIGS:
             raise ValueError(
                 f"No configuration found for model: {path_config.model_name}. "
-                f"Available models: {list(art_model_config.CONFIGS.keys())}"
+                f"Available configs: {art_model_config.available_configs()}"
             )
 
         logger.info(f"Loading default `internal_config` for {path_config.model_name}...")
@@ -106,34 +107,26 @@ async def load_art_model(
 def load_vllm_model(
     model_name: str,
     port: int = 8200,
-    server_args: art.dev.ServerArgs | None = None,
-    engine_args: art.dev.EngineArgs | None = None,
+    openai_config: OpenAIServerConfig | None = None,
     print_full: bool = False,
 ) -> list[str]:
-    if engine_args is None or server_args is None:
+    if openai_config is None:
         if model_name not in vllm_model_config.CONFIGS:
             raise ValueError(
                 f"No configuration found for model: {model_name}. "
-                f"Available models: {list(vllm_model_config.CONFIGS.keys())}"
+                f"Available configs: {vllm_model_config.available_configs()}"
             )
 
+        logger.info(f"Loading default `openai_config` for {model_name}...")
         vllm_config = vllm_model_config.CONFIGS[model_name]
-
-        if engine_args is None:
-            logger.info(f"Loading default `engine_args` for {model_name}...")
-            engine_args = vllm_config.engine_args
-
-        if server_args is None:
-            logger.info(f"Loading default `server_args` for {model_name}...")
-            server_args = vllm_config.server_args
+        openai_config = vllm_config.openai_config
 
     vllm_config = vllm_model_config.VllmConfig(
         model_name=model_name,
-        server_args=server_args,
-        engine_args=engine_args,
+        openai_config=openai_config,
     )
 
-    vllm_config.server_args["port"] = port
+    vllm_config.openai_config.setdefault("server_args", {})["port"] = port
 
     if not print_full:
         print("Model configuration:")
@@ -145,14 +138,17 @@ def load_vllm_model(
         print("Full model configuration:")
         print(vllm_config.model_dump_json(indent=4))
 
-    args = [
+    engine_args = vllm_config.openai_config.get("engine_args", {})
+    server_args = vllm_config.openai_config.get("server_args", {})
+
+    full_args = [
         *[
             f"--{key.replace('_', '-')}{f'={item}' if item is not True else ''}"
-            for args in [vllm_config.engine_args, vllm_config.server_args]
+            for args in [engine_args, server_args]
             for key, value in args.items()
             for item in (value if isinstance(value, list) else [value])
             if item is not None
         ],
     ]
 
-    return args
+    return full_args

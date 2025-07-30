@@ -47,7 +47,7 @@ def add_config(
     Add a configuration to the global CONFIGS dictionary.
     """
 
-    internal_args = {
+    args = {
         "init_args": init_args,
         "engine_args": engine_args,
         "peft_args": peft_args,
@@ -55,8 +55,8 @@ def add_config(
         "torchtune_args": torchtune_args,
     }
 
-    internal_args = {k: v for k, v in internal_args.items() if v is not None}
-    internal_args.update(kwargs)
+    args = {k: v for k, v in args.items() if v is not None}
+    args.update(kwargs)
 
     for model_name in model_names:
         if model_name in CONFIGS:
@@ -64,7 +64,7 @@ def add_config(
 
         config = ArtConfig(
             model_name=model_name,
-            internal_config=InternalModelConfig(**internal_args),
+            internal_config=InternalModelConfig(**args),
         )
 
         CONFIGS[config.model_name] = config
@@ -81,6 +81,7 @@ def available_configs() -> list[str]:
 ##################### Model Configurations #####################
 ################################################################
 
+# TODO: there is an option to load in 8bit, its also a quantization, test it.
 
 add_config(
     "unsloth/Qwen2-7B",
@@ -117,7 +118,7 @@ add_config(
     "unsloth/Qwen2.5-14B-Instruct",
     init_args=InitArgs(
         load_in_4bit=False,
-        max_seq_length=10000,
+        max_seq_length=4096,
         gpu_memory_utilization=0.7,
     ),
 )

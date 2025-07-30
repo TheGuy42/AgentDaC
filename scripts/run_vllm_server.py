@@ -16,6 +16,9 @@ from src.utils.logging import setup_logging
 from src.configs.vllm_model_config import available_configs, VllmConfig
 
 
+logger = logging.getLogger(__name__)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run the vLLM server on a specific GPU.",
@@ -33,7 +36,7 @@ def parse_args() -> argparse.Namespace:
         "--port",
         type=int,
         default=8200,
-        help="The port on which the vLLM server will run (e.g., '8000').",
+        help="The port on which the vLLM server will run (e.g., '8200').",
     )
 
     parser.add_argument(
@@ -41,7 +44,7 @@ def parse_args() -> argparse.Namespace:
         type=int,
         nargs="+",
         default=[0],
-        help=f"The ID of the GPU(s) to use (e.g., 0 or '0,1'). Available GPUs: {list(range(torch.cuda.device_count()))}",
+        help=f"The ID of the GPU(s) to use (e.g., 0 or 0 1).  Available GPUs: {list(range(torch.cuda.device_count()))}",
     )
 
     parser.add_argument(
@@ -64,30 +67,37 @@ def parse_args() -> argparse.Namespace:
 def main(args: argparse.Namespace):
     prepare_environment()
 
-    server_args = None
-    engine_args = None
+    openai_config = None
     if args.vllm_config:
         with open(args.vllm_config, "r") as f:
             vllm_config = VllmConfig.model_validate_json(f.read())
-            server_args = vllm_config.server_args
-            engine_args = vllm_config.engine_args
+            openai_config = vllm_config.openai_config
+
+            if vllm_config.model_name != args.model:
+                logger.warning(
+                    f"Model name in `vllm_config` ({vllm_config.model_name}) does not match "
+                    f"the provided model name ({args.model})."
+                )
 
     vllm_args = load_vllm_model(
         model_name=args.model,
         port=args.port,
-        server_args=server_args,
-        engine_args=engine_args,
+        openai_config=openai_config,
+        print_full=True,
     )
 
     gpus_string = ",".join([str(gpu) for gpu in args.gpu])
 
-    command = (
-        f"export VLLM_ALLOW_RUNTIME_LORA_UPDATING=True && "
-        f"CUDA_VISIBLE_DEVICES={gpus_string} && "
-        # f"VLLM_ATTENTION_BACKEND=FLASH_ATTN && " # TODO: does modifying attn backend can significantly improve performance?
-        # f"VLLM_FLASH_ATTN_VERSION=2 "
-        f"vllm serve {' '.join(vllm_args)} {args.kwargs} "
-    )
+    env_vars = {
+        "VLLM_ALLOW_RUNTIME_LORA_UPDATING": "True",
+        "CUDA_VISIBLE_DEVICES": gpus_string,
+        # "VLLM_ATTENTION_BACKEND": "FLASH_ATTN",   # TODO: does modifying attn backend can significantly improve performance?
+        # "VLLM_FLASH_ATTN_VERSION": "2",
+    }
+
+    cmds = [f"export {key}={value}" for key, value in env_vars.items()]
+    cmds.append(f"vllm serve {' '.join(vllm_args)} {args.kwargs}")
+    command = " && ".join(cmds)
 
     print()
     print(f"🚀 Running command: {command}")

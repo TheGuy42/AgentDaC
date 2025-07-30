@@ -87,7 +87,7 @@ async def main(args: argparse.Namespace):
         path_config=path_config,
         internal_config=None,
         openai_config=None,
-        print_full=False,
+        print_full=True,
     )
 
     # load dataset
