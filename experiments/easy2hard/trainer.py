@@ -3,10 +3,11 @@ from src.dac_agent_single import SingleAgentNode
 from src.trainer import Trainer
 from src.dac_agent import ChatMessage
 from src.utils.text import extract_answer
-from scripts.easy2hard.rewards import answer_reward, format_reward, verify
+
+from experiments.global_rewards import format_reward, behavior_reward
+from experiments.easy2hard.rewards import answer_reward, verify
 
 import art
-from openai.types.chat.chat_completion import Choice
 
 
 class Easy2HardTrainer(Trainer):
@@ -43,29 +44,34 @@ class Easy2HardTrainer(Trainer):
         trajectory = await self.forward_step(sample)
         ans_message = ChatMessage.model_validate(trajectory.messages()[-1], from_attributes=True)
 
-        # Update rewards
+        # Compute rewards
+        trajectory.reward = 0.0
         ans_reward = answer_reward(sample, ans_message)
         trajectory.reward += ans_reward
-        trajectory.metrics["answer_reward"] = ans_reward
+        fmt_reward = format_reward(trajectory)
+        trajectory.reward += fmt_reward
+        bhv_reward = behavior_reward(trajectory)
+        trajectory.reward += bhv_reward
 
-        trajectory.metrics["format_reward"] = 0.0
-        for item in trajectory.messages_and_choices:
-            if isinstance(item, Choice):
-                msg = ChatMessage.model_validate(item.message, from_attributes=True)
-                fmt_reward = format_reward(msg)
-                trajectory.reward += fmt_reward
-                trajectory.metrics["format_reward"] += fmt_reward
-
-        # Update metadata and metrics
         problem = sample["problem"].strip()
         answer = sample["answer"].strip()
         agent_answer = extract_answer(ans_message.content)
 
-        trajectory.metadata["problem"] = problem
-        trajectory.metadata["answer"] = answer
-        trajectory.metadata["agent_answer"] = agent_answer
-        trajectory.metadata["item_difficulty"] = sample["item_difficulty"]
+        # Update metrics
+        trajectory.metrics.update({
+            "answer_reward": ans_reward,
+            "format_reward": fmt_reward,
+            "behavior_reward": bhv_reward,
+            "total_reward": trajectory.reward,
+            "is_correct": int(verify(answer, agent_answer)),
+        })
 
-        is_correct = 1 if verify(answer, agent_answer) else 0
-        trajectory.metrics["is_correct"] = is_correct
+        # Update metadata
+        trajectory.metadata.update({
+            "problem": problem,
+            "answer": answer,
+            "agent_answer": agent_answer,
+            "item_difficulty": sample["item_difficulty"],
+        })
+
         return trajectory
