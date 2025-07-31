@@ -1,9 +1,9 @@
 [project]
 name = "agentdac"
-version = "0.2.0"
+version = "0.3.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "ipykernel",
     "ipywidgets",
@@ -16,4 +16,9 @@ dependencies = [
     "nbformat",
     "transformers<4.54.0",
     "math-verify>=0.8.0",
+]
+
+[tool.uv.workspace]
+members = [
+    "python",
 ]

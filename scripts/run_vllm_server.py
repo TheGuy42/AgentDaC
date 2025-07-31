@@ -4,6 +4,7 @@ import argparse
 import os
 import sys
 import pathlib
+import subprocess
 
 # set pythonpath to the main module directory
 module_dir = pathlib.Path(__file__).parent.resolve().parent
@@ -19,7 +20,7 @@ from src.configs.vllm_model_config import available_configs, VllmConfig
 logger = logging.getLogger(__name__)
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args() -> tuple[argparse.Namespace, list[str]]:
     parser = argparse.ArgumentParser(
         description="Run the vLLM server on a specific GPU.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -54,17 +55,10 @@ def parse_args() -> argparse.Namespace:
         "The serialized object should be of type `VllmConfig`.",
     )
 
-    parser.add_argument(
-        "--kwargs",
-        type=str,
-        default="",
-        help="Additional keyword arguments to pass to the vLLM server.",
-    )
-
-    return parser.parse_args()
+    return parser.parse_known_args()
 
 
-def main(args: argparse.Namespace):
+def main(args: argparse.Namespace, extra_args: list[str]) -> None:
     prepare_environment()
 
     openai_config = None
@@ -86,27 +80,29 @@ def main(args: argparse.Namespace):
         print_full=True,
     )
 
-    gpus_string = ",".join([str(gpu) for gpu in args.gpu])
+    env = os.environ.copy()
+    env.update(
+        {
+            "VLLM_ALLOW_RUNTIME_LORA_UPDATING": "True",
+            "CUDA_VISIBLE_DEVICES": ",".join([str(gpu) for gpu in args.gpu]),
+            # "VLLM_ATTENTION_BACKEND": "FLASH_ATTN",   # TODO: does modifying attn backend can significantly improve performance?
+            # "VLLM_FLASH_ATTN_VERSION": "2",
+        }
+    )
 
-    env_vars = {
-        "VLLM_ALLOW_RUNTIME_LORA_UPDATING": "True",
-        "CUDA_VISIBLE_DEVICES": gpus_string,
-        # "VLLM_ATTENTION_BACKEND": "FLASH_ATTN",   # TODO: does modifying attn backend can significantly improve performance?
-        # "VLLM_FLASH_ATTN_VERSION": "2",
-    }
-
-    cmds = [f"export {key}={value}" for key, value in env_vars.items()]
-    cmds.append(f"vllm serve {' '.join(vllm_args)} {args.kwargs}")
-    command = " && ".join(cmds)
+    cmd_args = ["vllm", "serve"] + vllm_args + extra_args
 
     print()
-    print(f"🚀 Running command: {command}")
+    print(f"🚀 Running command: {' '.join(cmd_args)}")
     print()
 
-    os.system(command)
+    try:
+        subprocess.run(cmd_args, env=env, shell=False)
+    except KeyboardInterrupt:
+        pass  # Allow graceful shutdown on Ctrl+C
 
 
 if __name__ == "__main__":
     setup_logging(logging.INFO)
-    args = parse_args()
-    main(args)
+    args, extra_args = parse_args()
+    main(args, extra_args)

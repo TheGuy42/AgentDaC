@@ -90,7 +90,10 @@ async def main(args: argparse.Namespace):
     )
 
     # load dataset
-    data: Dataset = load_dataset(path="TIGER-Lab/MMLU-Pro", split="test")  # type: ignore
+    data: Dataset = load_dataset(
+        path="TIGER-Lab/MMLU-Pro",
+        split="test",
+    )  # type: ignore
 
     split_dict = data.train_test_split(test_size=0.3, seed=0)
     train_data = split_dict["train"]

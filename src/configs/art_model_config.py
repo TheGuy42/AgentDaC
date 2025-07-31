@@ -13,13 +13,13 @@ from pydantic import BaseModel, Field
 from art.dev.get_model_config import get_model_config
 
 
-class ArtConfig(BaseModel, frozen=False):
+class ArtConfig(BaseModel, frozen=False, extra="allow"):
     """
     Configuration for an ART model.
     """
 
     model_name: str
-    internal_config: dict = Field(default_factory=InternalModelConfig)
+    internal_config: InternalModelConfig = Field(default_factory=InternalModelConfig)
 
     def to_full(self, output_dir: str) -> ArtConfig:
         internal_config = get_model_config(
@@ -82,7 +82,6 @@ def available_configs() -> list[str]:
 ################################################################
 
 # TODO: there is an option to load in 8bit, its also a quantization, test it.
-# TODO: is stream mode on or off? 
 
 add_config(
     "unsloth/Qwen2-7B",
@@ -114,13 +113,21 @@ add_config(
     trainer_args=TrainerArgs(vllm_gpu_memory_utilization=0.8),
 )
 
+# TODO: there are two places with engine_args. The first place is OpenAIServerConfig, which is passed
+# to the backend and used to initialize vllm. The second is in InternalModelConfig. What happens when
+# these configs disagree with each other? which config is used for what?
 
 add_config(
     "unsloth/Qwen2.5-14B-Instruct",
     init_args=InitArgs(
         load_in_4bit=False,
         max_seq_length=4096,
-        gpu_memory_utilization=0.7,
+        gpu_memory_utilization=0.8,
+    ),
+    engine_args=EngineArgs(
+        max_num_batched_tokens=4096*4,
+        max_seq_len_to_capture=4096,
+        multi_step_stream_outputs=False,
     ),
 )
 

@@ -10,13 +10,13 @@ from pydantic import BaseModel, Field
 # We need to make sure stream mode is off
 
 
-class VllmConfig(BaseModel, frozen=False):
+class VllmConfig(BaseModel, frozen=False, extra="allow"):
     """
     Configuration for a served vLLM model.
     """
 
     model_name: str
-    openai_config: dict = Field(default_factory=OpenAIServerConfig)
+    openai_config: OpenAIServerConfig = Field(default_factory=OpenAIServerConfig)
 
     def to_full(self, lora_path: str | None = None) -> VllmConfig:
         self.openai_config = get_openai_server_config(
@@ -88,9 +88,9 @@ add_config(
 add_config(
     "unsloth/Qwen2.5-14B-Instruct",
     engine_args=EngineArgs(
-        max_num_seqs=64,
+        # max_num_seqs=64,
         max_model_len=8192,
-        gpu_memory_utilization=0.79,
+        gpu_memory_utilization=0.8,
     ),
 )
 
