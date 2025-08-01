@@ -1,9 +1,10 @@
 import requests
 from openai import AsyncOpenAI
-from typing import Any, Dict
+from typing import Any
 from art.openai import patch_openai
 from art import TrainableModel
 
+# TODO: rewrite cleaner and better.
 
 class VllmClient:
     def __init__(
@@ -11,17 +12,20 @@ class VllmClient:
         base_model: str,
         port: int = 8000,
         host: str = "0.0.0.0",
+        api_key: str | None = "default",
         **kwargs: Any,
     ):
-        self.base_url = f"http://{host}:{port}/v1"
+        self.base_url = f"http://{host}:{port}"
         self.base_model = base_model
         self.inference_name = base_model
+        self.api_key = api_key
 
         self.client = AsyncOpenAI(
-            base_url=self.base_url,
-            api_key="default",
+            base_url=f"{self.base_url}/v1",
+            api_key=self.api_key,
             **kwargs,
         )
+        
         self.client = patch_openai(self.client)
 
     def get_inference_name(self) -> str:
@@ -33,7 +37,13 @@ class VllmClient:
         Returns True if the server is reachable, False otherwise.
         """
         try:
-            response = requests.get(f"{self.base_url}/models/{self.get_inference_name()}")
+            headers = {}
+            if self.api_key:
+                headers["Authorization"] = f"Bearer {self.api_key}"
+            response = requests.get(
+                f"{self.base_url}/health",
+                headers=headers,
+            )
             response.raise_for_status()  # Raise an exception for HTTP errors (4xx or 5xx)
             return True
         except requests.exceptions.RequestException as e:
@@ -42,7 +52,7 @@ class VllmClient:
 
     async def chat(
         self,
-        message: Dict[str, str],
+        messages: list[dict[str, str]],
         model: str | None = None,
         **kwargs,
     ) -> dict:
@@ -53,14 +63,16 @@ class VllmClient:
 
         response = await self.client.chat.completions.create(
             model=model,
-            messages=message,
-            **kwargs,  # Additional keyword arguments for the chat completion
+            messages=messages,
+            **kwargs,
         )
         return response
 
     def load_lora(self, lora_name: str, lora_path: str):
-        url = f"{self.base_url}/load_lora_adapter"
+        url = f"{self.base_url}/v1/load_lora_adapter"
         headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
         payload = {
             "lora_name": lora_name,
             "lora_path": lora_path,
@@ -83,8 +95,10 @@ class VllmClient:
             return {"success": False, "error": str(e)}
 
     def unload_lora(self, lora_name: str):
-        url = f"{self.base_url}/unload_lora_adapter"
+        url = f"{self.base_url}/v1/unload_lora_adapter"
         headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
         payload = {
             "lora_name": lora_name,
         }
@@ -105,13 +119,18 @@ class VllmClient:
                 print("Response Text:", e.response.text)
             return {"success": False, "error": str(e)}
 
-    def _get_vllm_model_list(self) -> list[str]:
+    def _get_vllm_model_list(self) -> list[dict]:
         """
         Get the list of models available on the VLLM server.
         Returns a list of model names.
         """
         try:
-            response = requests.get(f"{self.base_url}/models")
+            headers = {}
+            if self.api_key:
+                headers["Authorization"] = f"Bearer {self.api_key}"
+            response = requests.get(
+                f"{self.base_url}/v1/models", headers=headers
+            )
             response.raise_for_status()  # Raise an exception for HTTP errors (4xx or 5xx)
             return response.json().get("data", [])
         except requests.exceptions.RequestException as e:
@@ -124,9 +143,9 @@ class VllmClient:
         This method is a placeholder and should be implemented based on the server's capabilities.
         """
         # This method is not implemented in the base class
-        models = self._get_vllm_model_list() # TODO: IMPORTANT does not work.
+        models: list[dict] = self._get_vllm_model_list() # TODO: IMPORTANT does not work.
         for model in models:
-            model_name = model.get("id", "")
+            model_name = model.get("parent", None)
             if model_name:
                 try:
                     result = self.unload_lora(model_name)

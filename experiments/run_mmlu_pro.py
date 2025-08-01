@@ -25,7 +25,7 @@ from experiments.mmlu_pro.trainer import MmluProTrainer
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run the MMLU Pro experiment.",
+        description="Run the MMLU-Pro experiment.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 

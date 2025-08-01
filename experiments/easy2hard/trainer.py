@@ -4,7 +4,7 @@ from src.trainer import Trainer
 from src.dac_agent import ChatMessage
 from src.utils.text import extract_answer
 
-from experiments.global_rewards import format_reward, behavior_reward
+from experiments.general_rewards import format_reward, behavior_reward
 from experiments.easy2hard.rewards import answer_reward, verify
 
 import art
