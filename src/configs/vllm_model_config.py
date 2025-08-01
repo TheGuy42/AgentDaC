@@ -7,7 +7,6 @@ from pydantic import BaseModel, Field
 # Does it matter if we import original model or unsloth model?
 # Does optimizations differ between original and unsloth models?
 # There are also 8-bit quantized versions of models, test them.
-# We need to make sure stream mode is off
 
 
 class VllmConfig(BaseModel, frozen=False, extra="allow"):
@@ -18,7 +17,7 @@ class VllmConfig(BaseModel, frozen=False, extra="allow"):
     model_name: str
     openai_config: OpenAIServerConfig = Field(default_factory=OpenAIServerConfig)
 
-    def to_full(self, lora_path: str | None = None) -> VllmConfig:
+    def initialize(self, port: int, lora_path: str | None = None) -> VllmConfig:
         self.openai_config = get_openai_server_config(
             model_name=self.model_name,
             base_model=self.model_name,
@@ -26,7 +25,8 @@ class VllmConfig(BaseModel, frozen=False, extra="allow"):
             lora_path=lora_path,
             config=self.openai_config,
         )
-        self.openai_config["engine_args"]["enable_lora"] = True
+        self.openai_config["server_args"]["port"] = port  # type: ignore
+        self.openai_config["engine_args"]["enable_lora"] = True  # type: ignore
         return self
 
 

@@ -5,7 +5,6 @@ from pydantic import BaseModel
 import art
 from art.utils import output_dirs
 from art.local import LocalBackend
-from art.dev import OpenAIServerConfig, InternalModelConfig
 
 from src.configs import art_model_config
 from src.configs import vllm_model_config
@@ -62,80 +61,71 @@ class PathConfig(BaseModel, frozen=False):
 
 async def load_art_model(
     path_config: PathConfig,
-    internal_config: InternalModelConfig | None = None,
-    openai_config: OpenAIServerConfig | None = None,
+    art_config: art_model_config.ArtConfig | None = None,
     print_full: bool = False,
 ) -> art.TrainableModel:
-    if internal_config is None:
+    if art_config is None:
         if path_config.model_name not in art_model_config.CONFIGS:
             raise ValueError(
                 f"No configuration found for model: {path_config.model_name}. "
                 f"Available configs: {art_model_config.available_configs()}"
             )
 
-        logger.info(f"Loading default `internal_config` for {path_config.model_name}...")
+        logger.info(f"Loading default config for {path_config.model_name}...")
         art_config = art_model_config.CONFIGS[path_config.model_name]
-        internal_config = art_config.internal_config
 
-    art_config = art_model_config.ArtConfig(
-        model_name=path_config.model_name,
-        internal_config=internal_config,
-    )
+    if path_config.model_name != art_config.model_name:
+        raise ValueError(f"Model name mismatch: {path_config.model_name} != {art_config.model_name}.")
 
     if not print_full:
-        print("Model configuration:")
+        print("Art Config:")
         print(art_config.model_dump_json(indent=4))
 
-    art_config = art_config.to_full(output_dir=path_config.model_output_dir)
+    art_config = art_config.initialize(output_dir=path_config.model_output_dir)
 
     if print_full:
-        print("Full model configuration:")
+        print("Full Art Config:")
         print(art_config.model_dump_json(indent=4))
 
     model = art.TrainableModel(
         name=path_config.run_name,
         project=path_config.project_name,
         base_model=path_config.model_name,
-        _internal_config=internal_config,
+        _internal_config=art_config.internal_config,
     )
 
     backend = LocalBackend(path=path_config.art_path)
-    await model.register(backend, _openai_client_config=openai_config)
+    await model.register(backend, _openai_client_config=art_config.openai_config)
     return model
 
 
 def load_vllm_model(
     model_name: str,
     port: int = 8200,
-    openai_config: OpenAIServerConfig | None = None,
+    vllm_config: vllm_model_config.VllmConfig | None = None,
     print_full: bool = False,
 ) -> list[str]:
-    if openai_config is None:
+    if vllm_config is None:
         if model_name not in vllm_model_config.CONFIGS:
             raise ValueError(
                 f"No configuration found for model: {model_name}. "
                 f"Available configs: {vllm_model_config.available_configs()}"
             )
 
-        logger.info(f"Loading default `openai_config` for {model_name}...")
+        logger.info(f"Loading default config for {model_name}...")
         vllm_config = vllm_model_config.CONFIGS[model_name]
-        openai_config = vllm_config.openai_config
 
-    vllm_config = vllm_model_config.VllmConfig(
-        model_name=model_name,
-        openai_config=openai_config,
-    )
-
-    vllm_config.openai_config.setdefault("server_args", {})["port"] = port
+    if vllm_config.model_name != model_name:
+        raise ValueError(f"Model name mismatch: {vllm_config.model_name} != {model_name}.")
 
     if not print_full:
-        print("Model configuration:")
+        print("vLLM Config:")
         print(vllm_config.model_dump_json(indent=4))
 
-    vllm_config = vllm_config.to_full()
+    vllm_config = vllm_config.initialize(port)
 
     if print_full:
-        print("Full model configuration:")
+        print("Full vLLM Config:")
         print(vllm_config.model_dump_json(indent=4))
 
     engine_args = vllm_config.openai_config.get("engine_args", {})

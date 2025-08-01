@@ -61,22 +61,15 @@ def parse_args() -> tuple[argparse.Namespace, list[str]]:
 def main(args: argparse.Namespace, extra_args: list[str]) -> None:
     prepare_environment()
 
-    openai_config = None
+    vllm_config = None
     if args.vllm_config:
         with open(args.vllm_config, "r") as f:
             vllm_config = VllmConfig.model_validate_json(f.read())
-            openai_config = vllm_config.openai_config
-
-            if vllm_config.model_name != args.model:
-                logger.warning(
-                    f"Model name in `vllm_config` ({vllm_config.model_name}) does not match "
-                    f"the provided model name ({args.model})."
-                )
 
     vllm_args = load_vllm_model(
         model_name=args.model,
         port=args.port,
-        openai_config=openai_config,
+        vllm_config=vllm_config,
         print_full=True,
     )
 
@@ -103,6 +96,6 @@ def main(args: argparse.Namespace, extra_args: list[str]) -> None:
 
 
 if __name__ == "__main__":
-    setup_logging(logging.INFO)
+    setup_logging(logging.WARNING)
     args, extra_args = parse_args()
     main(args, extra_args)

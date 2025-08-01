@@ -7,6 +7,7 @@ from art.dev import (
     PeftArgs,
     TrainerArgs,
     TorchtuneArgs,
+    OpenAIServerConfig,
 )
 
 from pydantic import BaseModel, Field
@@ -20,8 +21,9 @@ class ArtConfig(BaseModel, frozen=False, extra="allow"):
 
     model_name: str
     internal_config: InternalModelConfig = Field(default_factory=InternalModelConfig)
+    openai_config: OpenAIServerConfig | None = None
 
-    def to_full(self, output_dir: str) -> ArtConfig:
+    def initialize(self, output_dir: str) -> ArtConfig:
         internal_config = get_model_config(
             base_model=self.model_name,
             output_dir=output_dir,
@@ -41,13 +43,14 @@ def add_config(
     peft_args: PeftArgs | None = None,
     trainer_args: TrainerArgs | None = None,
     torchtune_args: TorchtuneArgs | None = None,
+    openai_config: OpenAIServerConfig | None = None,
     **kwargs,
 ):
     """
     Add a configuration to the global CONFIGS dictionary.
     """
 
-    args = {
+    inter_args = {
         "init_args": init_args,
         "engine_args": engine_args,
         "peft_args": peft_args,
@@ -55,8 +58,8 @@ def add_config(
         "torchtune_args": torchtune_args,
     }
 
-    args = {k: v for k, v in args.items() if v is not None}
-    args.update(kwargs)
+    inter_args = {k: v for k, v in inter_args.items() if v is not None}
+    inter_args.update(kwargs)
 
     for model_name in model_names:
         if model_name in CONFIGS:
@@ -64,7 +67,8 @@ def add_config(
 
         config = ArtConfig(
             model_name=model_name,
-            internal_config=InternalModelConfig(**args),
+            internal_config=InternalModelConfig(**inter_args),
+            openai_config=openai_config,
         )
 
         CONFIGS[config.model_name] = config
@@ -125,7 +129,7 @@ add_config(
         gpu_memory_utilization=0.8,
     ),
     engine_args=EngineArgs(
-        max_num_batched_tokens=4096*4,
+        max_num_batched_tokens=4096 * 4,
         max_seq_len_to_capture=4096,
         multi_step_stream_outputs=False,
     ),

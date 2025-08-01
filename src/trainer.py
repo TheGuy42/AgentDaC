@@ -70,15 +70,18 @@ class Trainer:
         backend: LocalBackend = self.model.backend()  # type: ignore
         return backend._get_wandb_run(self.model)  # type: ignore
 
-    async def close(self):
-        try:
-            await self.model.backend().close()
-        except Exception as e:
-            logger.error(f"Failed to close model backend: {e}")
+    def close(self):
         try:
             self.logger_run.finish()
         except Exception as e:
             logger.error(f"Failed to finish logger run: {e}")
+        try:
+            # NOTE: for the base class Backend, close() method is async
+            # but as a result of a bug, for LocalBackend it is not async
+            backend: LocalBackend = self.model.backend()  # type: ignore
+            backend.close()
+        except Exception as e:
+            logger.error(f"Failed to close model backend: {e}")
 
     def log_hparams(self):
         run = self.logger_run
