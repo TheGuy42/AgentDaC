@@ -3,11 +3,14 @@ import os
 import sys
 import logging
 
+from wandb.sdk.wandb_run import Run
 from pydantic import BaseModel, Field
+import numpy as np
+
 import art
 from art.dev import InternalModelConfig
 from art.utils import iterate_dataset, retry
-import numpy as np
+from art.local import LocalBackend
 
 from src.vllm_client import VllmClient, VllmRouter
 from src.models import PathConfig
@@ -61,6 +64,28 @@ class Trainer:
         if config is None:
             raise ValueError("Model configuration is not set.")
         return config
+
+    @property
+    def logger_run(self) -> Run | None:
+        backend: LocalBackend = self.model.backend()  # type: ignore
+        return backend._get_wandb_run(self.model)
+
+    def log_hparams(self):
+        run = self.logger_run
+        if run is None:
+            logger.warning("No wandb run found. Skipping hyperparameter logging.")
+            return
+
+        run.config.update(
+            {
+                "model": self.model.model_dump(),
+                "path_config": self.path_config.model_dump(),
+                "training_config": self.training_config.model_dump(),
+                "prompt_config": self.prompt_config.model_dump(),
+                "stop_criteria": self.stop_criteria.model_dump(),
+            },
+            allow_val_change=True,
+        )
 
     def get_client(self) -> VllmClient:
         return next(self.vllm_router)
@@ -153,9 +178,8 @@ class Trainer:
         vllm_router = self.vllm_router
         train_config = self.training_config
 
-        # Unload all lora adapters before starting the training
-        # including adapters loaded in previous training sessions
         vllm_router.unload_all_loras()
+        self.log_hparams()
 
         # Training set iterator
         train_batch_size = train_config.num_groups * train_config.group_size
