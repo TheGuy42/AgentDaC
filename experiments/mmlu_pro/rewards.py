@@ -8,36 +8,18 @@ def verify(answer: str, pred_answer: str) -> bool:
 
 
 def answer_reward(sample: dict[str, str], last_message: ChatMessage) -> float:
-    # TODO: implement properly
-   
     role = last_message.role
     content = last_message.content
 
     if role != "assistant":
         raise ValueError(f"Expected role 'assistant', got '{role}'")
 
-    answer = sample["answer"]
-    total_reward = 0.0
-
     answer_list = text_utils.extract_text_between_markers(content, Markers.ANSWER_START, Markers.ANSWER_END)
 
     if len(answer_list) == 0:
-        total_reward -= 3
-        llm_answer = content.strip()
+        return 0.0
 
-    elif len(answer_list) > 1:
-        total_reward -= 0.5 * (len(answer_list) - 1)
-        llm_answer = answer_list[-1].strip()
+    answer = sample["answer"]
+    llm_answer = answer_list[-1].strip()
 
-    else:
-        llm_answer = answer_list[-1].strip()
-
-    if verify(answer, llm_answer):
-        total_reward += 1.5
-    else:
-        total_reward -= 1
-
-    return total_reward
-
-
-
+    return 1.5 if verify(answer, llm_answer) else -1
