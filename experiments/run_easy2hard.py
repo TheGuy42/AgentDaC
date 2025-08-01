@@ -18,7 +18,7 @@ from src.utils.logging import setup_logging
 from src.models import load_art_model, PathConfig
 from src.vllm_client import VllmClient, ArtVLLMClient
 from src.trainer import TrainingConfig, PromptConfig, StopCriteria
-from src.configs.prompts import DaCSystemPrompt
+from src.configs import prompts
 from src.configs.art_model_config import available_configs
 from experiments.easy2hard.trainer import Easy2HardTrainer
 
@@ -119,9 +119,10 @@ async def main(args: argparse.Namespace):
     )
 
     sys_prompt = PromptConfig(
-        system_root=DaCSystemPrompt.dac_sys_prompt_gilad_root,
-        system_inter=DaCSystemPrompt.dac_sys_prompt_gilad_inter,
-        system_leaf=DaCSystemPrompt.dac_sys_prompt_gilad_leaf,
+        system_root=prompts.DAC_SYS_PROMPT_GILAD_ROOT,
+        system_inter=prompts.DAC_SYS_PROMPT_GILAD_INTER,
+        system_leaf=prompts.DAC_SYS_PROMPT_GILAD_LEAF,
+        tasks_depleted=prompts.TASKS_DEPLETED,
     )
 
     stop_criteria = StopCriteria(

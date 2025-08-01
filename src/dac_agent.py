@@ -30,7 +30,7 @@ class PromptConfig(BaseModel):
     system_root: str | None = None
     system_inter: str | None = None
     system_leaf: str | None = None
-    tasks_depleted: str | None = "No more tasks available, please answer the question directly."
+    tasks_depleted: str | None = None
 
 
 class StopCriteria(BaseModel):
@@ -164,6 +164,8 @@ class AgentNode:
             last_message = self.trajectory.messages()[-1]
             print(message_string(last_message, indent=self.current_depth))
 
+        should_break = False
+
         while True:
             # Call the OpenAI API to get a response
             completion = await self._call(self.trajectory.messages(), **kwargs)
@@ -182,7 +184,7 @@ class AgentNode:
             response = ChatMessage.model_validate(choice.message, from_attributes=True)
             tasks = self._parse_tasks(response)
 
-            if len(tasks) == 0:
+            if should_break or len(tasks) == 0:
                 break  # No tasks to delegate, so last message
 
             task_responses = []
@@ -192,9 +194,10 @@ class AgentNode:
                     break
 
                 # Provide mock answers indicating no more tasks available
-                resp = self.prompt_config.tasks_depleted
-                resp = ChatMessage(role="user", content=self.prompt_config.tasks_depleted)
+                content = self.prompt_config.tasks_depleted.strip()
+                resp = ChatMessage(role="user", content=content)
                 task_responses = [resp] * len(tasks)
+                should_break = True
 
             else:
                 for task in tasks:
@@ -204,9 +207,12 @@ class AgentNode:
                     task_responses.append(resp)
 
                     # update metrics from sub-agent
-                    self.metrics["direct_tasks"] += 1
-                    self.metrics["total_tasks"] += 1 + sub_agent.metrics["total_tasks"]
+                    self.metrics["total_tasks"] += sub_agent.metrics["total_tasks"]
                     self.metrics["total_calls"] += sub_agent.metrics["total_calls"]
+
+            # Update metrics
+            self.metrics["direct_tasks"] += len(tasks)
+            self.metrics["total_tasks"] += len(tasks)
 
             # Format the task responses
             task_answers = []
