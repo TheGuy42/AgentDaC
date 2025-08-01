@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from src.utils import text as text_utils
 from src.utils.visualize import trajectory_string, message_string
 from src.configs.markers import Markers
+from src.configs.prompts import get_prompt
 
 
 logger = logging.getLogger(__name__)
@@ -27,10 +28,10 @@ class ChatMessage(BaseModel, extra="allow", frozen=True, strict=True):
 
 
 class PromptConfig(BaseModel):
-    system_root: str | None = None
-    system_inter: str | None = None
-    system_leaf: str | None = None
-    tasks_depleted: str | None = None
+    system_root: str = ""
+    system_inter: str = ""
+    system_leaf: str = ""
+    tasks_depleted: str = ""
 
 
 class StopCriteria(BaseModel):
@@ -123,16 +124,17 @@ class AgentNode:
         content: str | None = None
 
         if self.stop_criteria.should_stop(self.current_depth):
-            content = prompt_config.system_leaf  # We're a leaf if we need to stop for any reason
+            # Leaf if we need to stop for any reason
+            content = get_prompt(prompt_config.system_leaf)
 
         elif self.current_depth == 0:
-            content = prompt_config.system_root
+            content = get_prompt(prompt_config.system_root)
 
         elif self.current_depth < max_depth:
-            content = prompt_config.system_inter
+            content = get_prompt(prompt_config.system_inter)
 
         if content is not None:
-            return ChatMessage(role="system", content=content.strip())
+            return ChatMessage(role="system", content=content)
 
         return None
 
@@ -162,7 +164,7 @@ class AgentNode:
 
         if verbose:
             last_message = self.trajectory.messages()[-1]
-            print(message_string(last_message, indent=self.current_depth))
+            print(trajectory_string(self.trajectory, indent=self.current_depth))
 
         should_break = False
 
@@ -190,11 +192,11 @@ class AgentNode:
             task_responses = []
 
             if self.stop_criteria.should_stop(self.current_depth):
-                if self.prompt_config.tasks_depleted is None:
+                content = get_prompt(self.prompt_config.tasks_depleted)
+                if content is None:
                     break
 
                 # Provide mock answers indicating no more tasks available
-                content = self.prompt_config.tasks_depleted.strip()
                 resp = ChatMessage(role="user", content=content)
                 task_responses = [resp] * len(tasks)
                 should_break = True

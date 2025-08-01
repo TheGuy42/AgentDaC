@@ -18,7 +18,6 @@ from src.utils.logging import setup_logging
 from src.models import load_art_model, PathConfig
 from src.vllm_client import VllmClient, ArtVLLMClient
 from src.trainer import TrainingConfig, PromptConfig, StopCriteria
-from src.configs import prompts
 from src.configs.art_model_config import available_configs
 from experiments.easy2hard.trainer import Easy2HardTrainer
 
@@ -111,7 +110,9 @@ async def main(args: argparse.Namespace):
         epochs=10,
         num_groups=2,
         group_size=10,
-        eval_every=None,
+        log_every=1,
+        eval_every=2,
+        eval_size=250,
         verbose=False,
         min_reward_stdev=None,
         art_config=art.types.TrainConfig(learning_rate=1e-5),
@@ -119,10 +120,10 @@ async def main(args: argparse.Namespace):
     )
 
     sys_prompt = PromptConfig(
-        system_root=prompts.DAC_SYS_PROMPT_GILAD_ROOT,
-        system_inter=prompts.DAC_SYS_PROMPT_GILAD_INTER,
-        system_leaf=prompts.DAC_SYS_PROMPT_GILAD_LEAF,
-        tasks_depleted=prompts.TASKS_DEPLETED,
+        system_root="dac_sys_prompt_gilad_root",
+        system_inter="dac_sys_prompt_gilad_inter",
+        system_leaf="dac_sys_prompt_gilad_leaf",
+        tasks_depleted="tasks_depleted",
     )
 
     stop_criteria = StopCriteria(
@@ -140,11 +141,13 @@ async def main(args: argparse.Namespace):
         stop_criteria=stop_criteria,
     )
 
-    # train model
-    await trainer.train(
-        train_dataset=train_data.to_list(),
-        eval_dataset=test_data.to_list(),
-    )
+    try:
+        await trainer.train(
+            train_dataset=train_data.to_list(),
+            eval_dataset=test_data.to_list(),
+        )
+    finally:
+        await trainer.close()
 
 
 if __name__ == "__main__":

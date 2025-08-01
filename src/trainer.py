@@ -66,9 +66,19 @@ class Trainer:
         return config
 
     @property
-    def logger_run(self) -> Run | None:
+    def logger_run(self) -> Run:
         backend: LocalBackend = self.model.backend()  # type: ignore
-        return backend._get_wandb_run(self.model)
+        return backend._get_wandb_run(self.model)  # type: ignore
+
+    async def close(self):
+        try:
+            await self.model.backend().close()
+        except Exception as e:
+            logger.error(f"Failed to close model backend: {e}")
+        try:
+            self.logger_run.finish()
+        except Exception as e:
+            logger.error(f"Failed to finish logger run: {e}")
 
     def log_hparams(self):
         run = self.logger_run
@@ -116,63 +126,6 @@ class Trainer:
             if not success:
                 raise RuntimeError(f"Failed to load LoRA for step {step}.")
 
-    async def predict(self, dataset: list[dict], **kwargs) -> list[str]:
-        """
-        Perform predictions on a dataset using the model.
-        Returns a list of predicted answers.
-
-        Args:
-            dataset (list[dict]): List of samples to predict.
-            **kwargs: Additional keyword arguments for the prediction step.
-
-        Returns:
-            list[str]: List of predicted answers for each sample in the dataset.
-        """
-
-        trajectories = await self.forward(dataset, **kwargs)
-
-        answers = []
-        for tr in trajectories:
-            last_messages = tr.messages()[-1]
-            last_chat = ChatMessage.model_validate(last_messages, from_attributes=True)
-            if last_chat.role != "assistant":
-                logger.warning(
-                    f"Expected the last message to be from the assistant, but got {last_chat.role}. "
-                    "Returning an empty answer."
-                )
-                answers.append("")
-                continue
-
-            answer = text_utils.extract_answer(last_chat.content)
-            answers.append(answer)
-        return answers
-
-    async def evaluate(self, dataset: list[dict]) -> dict[str, float]:
-        """
-        Evaluate the model on a given dataset.
-
-        Args:
-            dataset (list[dict]): List of samples to evaluate.
-
-        Returns:
-            dict[str, float]: Dictionary containing average evaluation metrics.
-        """
-
-        if len(dataset) == 0:
-            return {}
-
-        # Rollout and log each trajectory
-        eval_tasks = [self.rollout_step(sample) for sample in dataset]
-        eval_trajectories = await art.gather_trajectories(eval_tasks, pbar_desc="eval", max_exceptions=0)
-        await self.model.log(eval_trajectories, split="eval")
-
-        # Aggregate metrics from all trajectories
-        metrics = [tr.metrics for tr in eval_trajectories]
-        n = len(metrics)
-        keys = metrics[0].keys() if n > 0 else []
-        eval_results = {key: sum(m[key] for m in metrics) / n for key in keys}
-        return eval_results
-
     async def train(self, train_dataset: list[dict], eval_dataset: list[dict]) -> art.TrainableModel:
         model = self.model
         vllm_router = self.vllm_router
@@ -210,28 +163,13 @@ class Trainer:
             self.update_lora(global_step)
 
             # Evaluate model
-            if train_config.eval_every and global_step % train_config.eval_every == 0:
+            if (train_config.eval_every is not None) and (global_step % train_config.eval_every == 0):
                 eval_batch = next(eval_iter)
-                print(f"Evaluating model at train step {global_step} and eval step {eval_batch.step}...")
-                eval_results = await self.evaluate(eval_batch.items)
-                print(f"Evaluation results: {eval_results}")
+                await self.rollout(eval_batch.items, split="eval", log=True)
 
-            # Construct GRPO training groups
-            train_groups = [
-                art.TrajectoryGroup([self.rollout_step(sample) for sample in data])
-                for data in self.split_into_groups(step_data, train_config.group_size)
-            ]
-
-            # Perform rollout
-            trajectory_groups = await art.gather_trajectory_groups(
-                train_groups,
-                pbar_desc="gather",
-                max_exceptions=0,
-            )
-
-            # Log rollout results
-            if train_config.log_every and global_step % train_config.log_every == 0:
-                await model.log(trajectory_groups, split="train")
+            # Perform Rollout
+            log_step = (train_config.log_every is not None) and (global_step % train_config.log_every == 0)
+            trajectory_groups = await self.rollout(step_data, split="train", log=log_step)
 
             # Filter groups with low reward standard deviation
             filtered_groups = []
@@ -246,8 +184,11 @@ class Trainer:
                 logger.warning(f"No trajectories left to train on at step {global_step}. Skipping this step.")
                 continue
 
-            await model.delete_checkpoints("eval/reward")
+            # Update checkpoints
+            metric_name = "eval/reward" if train_config.eval_every is not None else "train/reward"
+            await model.delete_checkpoints(metric_name)
 
+            # Train step
             await model.train(
                 trajectory_groups,
                 config=train_config.art_config,
@@ -257,14 +198,41 @@ class Trainer:
 
         # Final evaluation after training
         eval_batch = next(eval_iter)
-        print(f"Evaluating model at eval step {eval_batch.step}...")
-        eval_results = await self.evaluate(eval_batch.items)
-        print(f"Final evaluation results: {eval_results}")
+        print("Evaluating final mode...")
+        await self.rollout(eval_batch.items, split="eval", log=True)
 
         return self.model
 
-    def split_into_groups(self, batch: list[dict], group_size: int) -> list[list[dict]]:
-        return [batch[i : i + group_size] for i in range(0, len(batch), group_size)]
+    async def predict(self, dataset: list[dict], **kwargs) -> list[str]:
+        """
+        Perform predictions on a dataset using the model.
+        Returns a list of predicted answers.
+
+        Args:
+            dataset (list[dict]): List of samples to predict.
+            **kwargs: Additional keyword arguments for the prediction step.
+
+        Returns:
+            list[str]: List of predicted answers for each sample in the dataset.
+        """
+
+        trajectories = await self.forward(dataset, **kwargs)
+
+        answers = []
+        for tr in trajectories:
+            last_messages = tr.messages()[-1]
+            last_chat = ChatMessage.model_validate(last_messages, from_attributes=True)
+            if last_chat.role != "assistant":
+                logger.warning(
+                    f"Expected the last message to be from the assistant, but got {last_chat.role}. "
+                    "Returning an empty answer."
+                )
+                answers.append("")
+                continue
+
+            answer = text_utils.extract_answer(last_chat.content)
+            answers.append(answer)
+        return answers
 
     async def forward(self, dataset: list[dict], **kwargs) -> list[art.Trajectory]:
         """
@@ -282,6 +250,53 @@ class Trainer:
         return trajectories
 
     @abstractmethod
+    async def forward_step(self, sample: dict, **kwargs) -> art.Trajectory:
+        """
+        Perform a raw forward step for a single sample.
+
+        Args:
+            sample (dict): A single sample from the dataset.
+            **kwargs: Additional keyword arguments for the forward step.
+
+        Returns:
+            art.Trajectory: The trajectory generated by the model for the sample.
+        """
+        raise NotImplementedError("Subclasses must implement the forward_step method.")
+
+    async def rollout(
+        self,
+        dataset: list[dict],
+        split: str = "train",
+        log: bool = False,
+    ) -> list[art.TrajectoryGroup]:
+        """
+        Performs a grouped rollout for the given dataset, generating a trajectory for each sample.
+        The dataset is split into groups of size `group_size` defined in the training configuration.
+
+        Args:
+            dataset (list[dict]): List of samples to process.
+            split (str): The split name for logging purposes (e.g., "train", "eval").
+            log (bool): Whether to log the rollout results.
+
+        Returns:
+            list[art.TrajectoryGroup]: List of trajectory groups generated by the model for the dataset.
+        """
+        groups = [
+            art.TrajectoryGroup([self.rollout_step(sample) for sample in data])
+            for data in self.split_into_groups(dataset, self.training_config.group_size)
+        ]
+
+        trajectory_groups = await art.gather_trajectory_groups(groups, pbar_desc=split, max_exceptions=0)
+
+        if log:
+            await self.model.log(trajectory_groups, split=split)
+
+        return trajectory_groups
+
+    def split_into_groups(self, batch: list[dict], group_size: int) -> list[list[dict]]:
+        return [batch[i : i + group_size] for i in range(0, len(batch), group_size)]
+
+    @abstractmethod
     async def rollout_step(self, sample: dict) -> art.Trajectory:
         """
         Performs a single training rollout step for a single sample.
@@ -295,17 +310,3 @@ class Trainer:
             art.Trajectory: The trajectory generated by the model for the sample, which includes the reward.
         """
         raise NotImplementedError("Subclasses must implement the train_step method.")
-
-    @abstractmethod
-    async def forward_step(self, sample: dict, **kwargs) -> art.Trajectory:
-        """
-        Perform a raw forward step for a single sample.
-
-        Args:
-            sample (dict): A single sample from the dataset.
-            **kwargs: Additional keyword arguments for the forward step.
-
-        Returns:
-            art.Trajectory: The trajectory generated by the model for the sample.
-        """
-        raise NotImplementedError("Subclasses must implement the forward_step method.")

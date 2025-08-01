@@ -10,9 +10,12 @@ def verify(answer: str, pred_answer: str) -> bool:
     return mv.verify(mv.parse(answer), mv.parse(pred_answer))
 
 
-def answer_reward(sample: dict[str, str], message: ChatMessage) -> float:
-    role = message.role
-    content = message.content
+def answer_reward(sample: dict[str, str], last_message: ChatMessage) -> float:
+    
+    # TODO: implement properly
+    
+    role = last_message.role
+    content = last_message.content
 
     if role != "assistant":
         raise ValueError(f"Expected role 'assistant', got '{role}'")

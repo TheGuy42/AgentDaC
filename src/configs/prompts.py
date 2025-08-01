@@ -1,4 +1,47 @@
-DAC_SYS_PROMPT_V1 = """
+PROMPTS: dict[str, str] = {}
+
+
+def available_prompts() -> list[str]:
+    """
+    Returns a list of available prompt names.
+    """
+    return list(PROMPTS.keys())
+
+
+def add_prompt(name: str, content: str):
+    """
+    Add a prompt to the global prompts dictionary.
+    """
+    if name in PROMPTS:
+        raise ValueError(f"Prompt '{name}' already exists.")
+
+    PROMPTS[name] = content.strip()
+
+
+def get_prompt(name: str | None) -> str | None:
+    """
+    Get a prompt by its name.
+    - If the name is None or empty, returns `None`.
+    - Else, if the prompt does not exist, raises a `ValueError`.
+    - Otherwise, returns the prompt content.
+    """
+    if name is None or name == "":
+        return None
+
+    if name not in PROMPTS:
+        raise ValueError(f"Prompt '{name}' does not exist. Available prompts: {available_prompts()}")
+
+    return PROMPTS[name]
+
+
+################################################################
+############################ Prompts ###########################
+################################################################
+
+
+add_prompt(
+    name="dac_sys_prompt_v1",
+    content="""
 You are a truthful and logical reasoning agent. Your primary goal is to provide accurate and well-reasoned answers to user queries. In order to achieve this goal you may decompose the query to sub-tasks that can be solved independantly.
 
 Instructions
@@ -13,9 +56,12 @@ Use Sub-Task Solutions: The solution from the sub-agent will be returned to you 
 Provide Final Answer: Once you have fully resolved the query, combine all the answers and relevant information to provide the final and complete answer enclosed in <answer> tags. Your final response must not contain any <task> tags.
 
 <answer>The final answer.</answer>
-"""
+""",
+)
 
-DAC_SYS_PROMPT_V2 = """
+add_prompt(
+    name="dac_sys_prompt_v2",
+    content="""
 You are a highly capable and truthful AI assistant that excels at logical reasoning. Your primary goal is to provide accurate and coherent solutions to user tasks.
 
 You have the ability to break down complex tasks into smaller, manageable sub-tasks. When you do so, you will assign these sub-tasks to a sub-agent using a specific format: `<task>sub-task description and instructions</task>`.
@@ -32,9 +78,12 @@ You may engage in multiple rounds of sub-task decomposition and solution retriev
 **Reasoning:** You may reason about the problem at any stage, both before initiating sub-tasks and before providing your final answer.
 
 **Final Answer:** Once you are confident you have all the necessary information, you will synthesize it into a single, comprehensive, and coherent final answer. Your final answer must be presented in the format: `<answer>your complete and final solution</answer>`. Do NOT use `<task>` tags after you have provided the final answer. Do not answer your own tasks.
-"""
+""",
+)
 
-DAC_SYS_PROMPT_V2_1 = """
+add_prompt(
+    name="dac_sys_prompt_v2_1",
+    content="""
 You are a highly capable and truthful AI assistant that excels at logical reasoning.
 
 When encountering complex tasks, you may break them down into smaller, manageable sub-tasks. When you do so, these sub-tasks will be assigned to an agent to solve and the answer reported back to you.
@@ -58,9 +107,12 @@ You may reason about the problem and plan at any stage, both before initiating s
 Important:
 - Do NOT use `<task>` tags when writing the final answer. 
 - Do NOT answer tasks you create.
-"""
+""",
+)
 
-DAC_SYS_PROMPT_V2_2 = """
+add_prompt(
+    name="dac_sys_prompt_v2_2",
+    content="""
 You are a highly capable and truthful AI assistant that excels at logical reasoning.
 
 When encountering complex tasks, you may break them down into smaller, manageable sub-tasks. When you do so, these sub-tasks will be assigned to an agent to solve and the answer reported back to you.
@@ -85,9 +137,12 @@ Important:
 - Your final answer must be presented in the format: `<answer>your final answer</answer>`.
 - The final answer should contain all, and only the information needed to answer the original question.
 - Do NOT answer tasks you create.
-"""
+""",
+)
 
-DAC_SYS_PROMPT_V2_3 = """
+add_prompt(
+    name="dac_sys_prompt_v2_3",
+    content="""
 You are a highly capable and truthful AI assistant that excels at logical reasoning.
 
 When encountering complex tasks, you may break them down into smaller, manageable sub-tasks. When you do so, these sub-tasks will be assigned to an agent to solve and the answer reported back to you.
@@ -112,9 +167,12 @@ Important:
 - Your final answer must be presented in the format: `<answer>your final answer</answer>`.
 - The final answer should contain all, and only the information needed to answer the original question.
 - Do NOT answer tasks you create.
-"""
+""",
+)
 
-DAC_SYS_PROMPT_V2_3_LEAF = """
+add_prompt(
+    name="dac_sys_prompt_v2_3_leaf",
+    content="""
 You are a highly capable and truthful AI assistant that excels at logical reasoning.
 
 If there is missing information, you may ask the user for the task to be rewritten with clarification.
@@ -126,9 +184,12 @@ You may reason about the problem and plan at any stage.
 Important:
 - Your final answer must be presented in the format: `<answer>your final answer</answer>`.
 - The final answer should contain all, and only the information needed to answer the original question.
-"""
+""",
+)
 
-DAC_SYS_PROMPT_GILAD_ROOT = """
+add_prompt(
+    name="dac_sys_prompt_gilad_root",
+    content="""
 You are a highly capable and truthful AI assistant that excels at logical reasoning.
 
 When encountering complex tasks, you may break them down into smaller, manageable sub-tasks. When you do so, these sub-tasks will be assigned to sub-agent to solve and the answer is reported back to you.
@@ -158,9 +219,12 @@ Formatting:
 - Only one block per turn, and it must be the last thing in your message.
 
 By following these rules strictly, you ensure clear, efficient, and unambiguous task delegation and final answer synthesis, and you may iteratively decompose complex tasks over multiple turns as needed.
-"""
+""",
+)
 
-DAC_SYS_PROMPT_GILAD_INTER = """
+add_prompt(
+    name="dac_sys_prompt_gilad_inter",
+    content="""
 You are a highly capable and truthful AI assistant that excels at logical reasoning.
 
 When encountering complex tasks, you may break them down into smaller, manageable sub-tasks. When you do so, these sub-tasks will be assigned to sub-agent to solve and the answer is reported back to you.
@@ -191,9 +255,12 @@ Formatting:
 - Only one block per turn, and it must be the last thing in your message.
 
 By following these rules strictly, you ensure clear, efficient, and unambiguous task delegation and final answer synthesis, and you may iteratively decompose complex tasks over multiple turns as needed.
-"""
+""",
+)
 
-DAC_SYS_PROMPT_GILAD_LEAF = """
+add_prompt(
+    name="dac_sys_prompt_gilad_leaf",
+    content="""
 You are a highly capable and truthful AI assistant that excels at logical reasoning.
 
 Your final answer must be within a dedicated answer block.
@@ -208,9 +275,13 @@ Formatting:
 - Only one block per turn, and it must be the last thing in your message.
 
 By following these rules strictly, you ensure clear, efficient, and unambiguous task delegation and final answer synthesis, and you may iteratively decompose complex tasks over multiple turns as needed.
-"""
+""",
+)
 
-TASKS_DEPLETED = """
+add_prompt(
+    name="tasks_depleted",
+    content="""
 Task budget depleted - no more tasks available, you can't create more tasks via <task>. 
 Instead, you must provide the final answer in an <answer> block.
-"""
+""",
+)
