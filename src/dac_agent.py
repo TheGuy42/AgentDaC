@@ -254,7 +254,7 @@ class AgentNode:
         last_message = ChatMessage.model_validate(trajectory.messages()[-1])
         return self._parse_answer(last_message)
 
-    def create_sub_agent(self):
+    def create_sub_agent(self) -> AgentNode:
         return AgentNode(
             openai_client=self.openai_client,
             model_name=self.model,

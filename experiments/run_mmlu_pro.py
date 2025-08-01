@@ -5,7 +5,7 @@ import asyncio
 import argparse
 import logging
 
-from datasets import Dataset, load_dataset
+from datasets import Dataset, load_dataset, DatasetDict
 import art
 
 # set pythonpath to the main module directory
@@ -65,7 +65,41 @@ def parse_args() -> argparse.Namespace:
         help="List of endpoint ports for vLLM servers.",
     )
 
+    parser.add_argument(
+        "--train_config",
+        type=str,
+        help="Path to a JSON file containing training configuration parameters.",
+    )
+
+    parser.add_argument(
+        "--prompt_config",
+        type=str,
+        help="Path to a JSON file containing prompt configuration parameters.",
+    )
+
+    parser.add_argument(
+        "--stop_criteria",
+        type=str,
+        help="Path to a JSON file containing stop criteria parameters.",
+    )
+
     return parser.parse_args()
+
+
+def load_data() -> tuple[Dataset, Dataset]:
+    """
+    Load the Easy2Hard dataset.
+    """
+    data: Dataset = load_dataset(
+        path="TIGER-Lab/MMLU-Pro",
+        split="test",
+    )  # type: ignore
+
+    split_dict = data.train_test_split(test_size=0.3, seed=0)
+    train_data = split_dict["train"]
+    test_data = split_dict["test"]
+
+    return train_data, test_data
 
 
 async def main(args: argparse.Namespace):
@@ -89,56 +123,60 @@ async def main(args: argparse.Namespace):
     )
 
     # load dataset
-    data: Dataset = load_dataset(
-        path="TIGER-Lab/MMLU-Pro",
-        split="test",
-    )  # type: ignore
-
-    split_dict = data.train_test_split(test_size=0.3, seed=0)
-    train_data = split_dict["train"]
-    test_data = split_dict["test"]
+    train_data, test_data = load_data()
 
     # create inference clients
     inference_clients: list[VllmClient] = [ArtVLLMClient(model)]
-
     for port in args.vllm_ports:
         vllm_client = VllmClient(port=port, base_model=path_config.model_name)
         inference_clients.append(vllm_client)
 
-    # training configuration
-    train_config = TrainingConfig(
-        epochs=10,
-        num_groups=2,
-        group_size=10,
-        eval_every=None,
-        verbose=False,
-        min_reward_stdev=None,
-        art_config=art.types.TrainConfig(learning_rate=1e-5),
-        dev_art_config=None,
-    )
+    # experiment setup
+    if args.train_config:
+        with open(args.train_config, "r") as f:
+            train_config = TrainingConfig.model_validate_json(f.read())
+    else:
+        train_config = TrainingConfig(
+            epochs=10,
+            num_groups=2,
+            group_size=10,
+            log_every=1,
+            eval_every=2,
+            eval_size=250,
+            art_config=art.types.TrainConfig(learning_rate=1e-5),
+        )
 
-    sys_prompt = PromptConfig(
-        system_root="dac_sys_prompt_gilad_root",
-        system_inter="dac_sys_prompt_gilad_inter",
-        system_leaf="dac_sys_prompt_gilad_leaf",
-        tasks_depleted="tasks_depleted",
-    )
+    if args.prompt_config:
+        with open(args.prompt_config, "r") as f:
+            prompt_config = PromptConfig.model_validate_json(f.read())
+    else:
+        prompt_config = PromptConfig(
+            system_root="dac_sys_prompt_gilad_root",
+            system_inter="dac_sys_prompt_gilad_inter",
+            system_leaf="dac_sys_prompt_gilad_leaf",
+            tasks_depleted="tasks_depleted",
+        )
 
-    stop_criteria = StopCriteria(
-        max_depth=1,
-        max_tasks=5,
-        max_rounds=5,
-    )
+    if args.stop_criteria:
+        with open(args.stop_criteria, "r") as f:
+            stop_criteria = StopCriteria.model_validate_json(f.read())
+    else:
+        stop_criteria = StopCriteria(
+            max_depth=1,
+            max_tasks=5,
+            max_rounds=5,
+        )
 
     trainer = MmluProTrainer(
         model=model,
         inference_clients=inference_clients,
         path_config=path_config,
         train_config=train_config,
-        prompt_config=sys_prompt,
+        prompt_config=prompt_config,
         stop_criteria=stop_criteria,
     )
 
+    # start training
     try:
         await trainer.train(
             train_dataset=train_data.to_list(),
