@@ -1,51 +1,97 @@
-"""Utilities for configuring logging."""
-
 from __future__ import annotations
-
 import os
 import logging
 
+logging.Logger.manager
 
 LOG_FORMAT = "%(levelname)s %(asctime)s [%(filename)s:%(lineno)d] %(message)s"
 LOG_DATEFMT = "%m-%d %H:%M:%S"
-
-#: Environment variable used to propagate the log level to subprocesses.
 LOG_LEVEL_ENV = "DAC_LOG_LEVEL"
 
 
-def setup_logging(level: int | None = None) -> None:
-    """Initialize or update the root logger configuration.
+def parse_log_level(value: str, default: int = logging.INFO) -> int:
+    name_to_level = logging.getLevelNamesMapping()
+    value = value.strip().upper()
 
-    If a log handler already exists, its level and formatter are updated;
-    otherwise a :class:`logging.StreamHandler` is installed.  The log level is
-    also stored in :data:`LOG_LEVEL_ENV` so subprocesses started by the library
-    inherit the same verbosity.
+    level = int(value) if value.isdecimal() else None
+
+    if value.isdecimal():
+        level = int(value)
+        if level not in name_to_level.values():
+            print(f"Invalid log level: {level}. Using default: {default}.")
+            return default
+        return level
+
+    if value not in name_to_level:
+        print(f"Invalid log level name: {value}. Using default: {default}.")
+        return default
+
+    return name_to_level[value]
+
+
+CURRENT_LEVEL: int = parse_log_level(os.environ.get(LOG_LEVEL_ENV, "INFO"))
+ACTIVE_LOGGERS: dict[str, logging.Logger] = {}
+
+
+def _configure_logger(logger: logging.Logger, level: int, fmt: logging.Formatter) -> None:
     """
-    default_level = logging.INFO
+    Apply level, handlers, and formatter to a logger.
+    """
+    logger.setLevel(level)
+    if logger.handlers:
+        for handler in logger.handlers:
+            handler.setLevel(level)
+            handler.setFormatter(fmt)
+    else:
+        handler = logging.StreamHandler()
+        handler.setLevel(level)
+        handler.setFormatter(fmt)
+        logger.addHandler(handler)
 
-    if level is None:
-        # If caller didn't specify a level, try the environment variable.
-        env_level = os.environ.get(LOG_LEVEL_ENV, default=logging.getLevelName(default_level))
-        level = getattr(logging, env_level.upper(), None)
 
-        # warning if env_level is not a valid logging level
-        if level is None:
-            level = default_level
-            logging.warning(f"Invalid log level '{env_level}' specified in {LOG_LEVEL_ENV}. Defaulting to INFO.")
+def setup_logging(level: int, *, is_global: bool = False) -> None:
+    """
+    Set the default logging level and reconfigure loggers.
 
-    root = logging.getLogger()
-    root.setLevel(level)
+    Args:
+      level: the new default logging level (e.g., logging.DEBUG).
+      is_global: if True, also configure the root logger.
+    """
+    global CURRENT_LEVEL
+    CURRENT_LEVEL = level
+    os.environ[LOG_LEVEL_ENV] = logging.getLevelName(level)
 
     fmt = logging.Formatter(LOG_FORMAT, datefmt=LOG_DATEFMT)
 
-    if not root.handlers:
-        handler = logging.StreamHandler()
-        handler.setFormatter(fmt)
-        handler.setLevel(level)
-        root.addHandler(handler)
-    else:
-        for handler in root.handlers:
-            handler.setFormatter(fmt)
-            handler.setLevel(level)
+    if is_global:
+        root = logging.getLogger()
+        _configure_logger(root, level, fmt)
 
-    os.environ[LOG_LEVEL_ENV] = logging.getLevelName(level)
+    # Update all tracked loggers
+    for lg in ACTIVE_LOGGERS.values():
+        _configure_logger(lg, level, fmt)
+
+
+def create_logger(name: str, level: int | None = None) -> logging.Logger:
+    """
+    Create or retrieve a logger and track it for future reconfiguration.
+
+    Args:
+      name: the logger name (commonly __name__ or any identifier).
+      level: optional override; uses CURRENT_LEVEL if None.
+
+    Returns:
+      A configured Logger instance.
+    """
+    lvl = level if level is not None else CURRENT_LEVEL
+    fmt = logging.Formatter(LOG_FORMAT, datefmt=LOG_DATEFMT)
+
+    if name in ACTIVE_LOGGERS:
+        logger = ACTIVE_LOGGERS[name]
+        _configure_logger(logger, lvl, fmt)
+        return logger
+
+    logger = logging.getLogger(name)
+    _configure_logger(logger, lvl, fmt)
+    ACTIVE_LOGGERS[name] = logger
+    return logger

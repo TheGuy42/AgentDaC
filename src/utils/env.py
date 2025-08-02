@@ -24,6 +24,7 @@ def prepare_environment(tokens_folder: str = "./api_keys"):
     # os.environ["OMP_NUM_THREADS"] = "1"  # Set OMP_NUM_THREADS to 1 to avoid multithreading issues with vLLM
     os.environ["NCCL_CUMEM_ENABLE"] = "0"  # To avoid vLLM bug with NCCL
     os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"  # To avoid vLLM issues with multiprocessing
+    os.environ["ART_SERVER_TIMEOUT"] = str(60 * 5)  # increase timeout for ART server creation
     return os.environ
 
 

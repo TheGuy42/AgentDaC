@@ -1,5 +1,4 @@
 from __future__ import annotations
-import logging
 
 from openai import AsyncOpenAI
 from openai.types.chat.chat_completion import ChatCompletion
@@ -12,9 +11,10 @@ from src.utils import text as text_utils
 from src.utils.visualize import trajectory_string, message_string
 from src.configs.markers import Markers
 from src.configs.prompts import get_prompt
+from src.utils.logging import create_logger
 
 
-logger = logging.getLogger(__name__)
+logger = create_logger(__name__)
 
 
 # TODO: think about the structure and the flow of the chat method, especially
@@ -182,8 +182,14 @@ class AgentNode:
                 last_message = self.trajectory.messages()[-1]
                 print(message_string(last_message, indent=self.current_depth))
 
+            try:
             # Extract tasks from the response
-            response = ChatMessage.model_validate(choice.message, from_attributes=True)
+            # TODO: for some reason sometimes choices.message is None, why?
+                response = ChatMessage.model_validate(choice.message, from_attributes=True)
+            except Exception as e:
+                print("Error validating choice message:", choice)
+                raise e
+            
             tasks = self._parse_tasks(response)
 
             if should_break or len(tasks) == 0:

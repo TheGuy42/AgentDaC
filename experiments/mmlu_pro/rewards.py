@@ -22,4 +22,4 @@ def answer_reward(sample: dict[str, str], last_message: ChatMessage) -> float:
     answer = sample["answer"]
     llm_answer = answer_list[-1].strip()
 
-    return 1.5 if verify(answer, llm_answer) else 0.0
+    return 3.0 if verify(answer, llm_answer) else 0.0

@@ -16,10 +16,11 @@ if str(module_dir) not in sys.path:
 
 from src.utils.env import prepare_environment
 from src.utils.logging import setup_logging
+from src.utils.io import load_base_model
 from src.models import load_art_model, PathConfig
 from src.vllm_client import VllmClient, ArtVLLMClient
 from src.trainer import TrainingConfig, PromptConfig, StopCriteria
-from src.configs.art_model_config import available_configs, ArtConfig
+from src.configs.art_configs import available_configs, ArtConfig
 from experiments.mmlu_pro.trainer import MmluProTrainer
 
 
@@ -91,35 +92,14 @@ def load_configs(config_dir: str | pathlib.Path) -> dict[str, Any]:
     if isinstance(config_dir, str):
         config_dir = pathlib.Path(config_dir)
 
-    if not config_dir.exists():
-        raise ValueError(f"Config directory '{config_dir}' does not exist.")
+    configs = {
+        "art_config": load_base_model(ArtConfig, config_dir / "art_config.json", do_raise=False),
+        "train_config": load_base_model(TrainingConfig, config_dir / "train_config.json", do_raise=False),
+        "prompt_config": load_base_model(PromptConfig, config_dir / "prompt_config.json", do_raise=False),
+        "stop_criteria": load_base_model(StopCriteria, config_dir / "stop_criteria.json", do_raise=False),
+    }
 
-    if not config_dir.is_dir():
-        raise ValueError(f"Config directory '{config_dir}' is not a directory.")
-
-    configs_dict = {}
-
-    art_config_path = config_dir / "art_config.json"
-    if art_config_path.exists():
-        art_config = ArtConfig.model_validate_json(art_config_path.read_text())
-        configs_dict["art_config"] = art_config
-
-    train_config_path = config_dir / "train_config.json"
-    if train_config_path.exists():
-        train_config = TrainingConfig.model_validate_json(train_config_path.read_text())
-        configs_dict["train_config"] = train_config
-
-    prompt_config_path = config_dir / "prompt_config.json"
-    if prompt_config_path.exists():
-        prompt_config = PromptConfig.model_validate_json(prompt_config_path.read_text())
-        configs_dict["prompt_config"] = prompt_config
-
-    stop_criteria_path = config_dir / "stop_criteria.json"
-    if stop_criteria_path.exists():
-        stop_criteria = StopCriteria.model_validate_json(stop_criteria_path.read_text())
-        configs_dict["stop_criteria"] = stop_criteria
-
-    return configs_dict
+    return {k: v for k, v in configs.items() if v is not None}
 
 
 async def main(args: argparse.Namespace):
@@ -205,6 +185,6 @@ async def main(args: argparse.Namespace):
 
 
 if __name__ == "__main__":
-    setup_logging(logging.WARNING)
+    setup_logging(logging.INFO)
     args = parse_args()
     asyncio.run(main(args))

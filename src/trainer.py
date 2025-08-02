@@ -1,7 +1,6 @@
 from abc import abstractmethod
 import os
 import sys
-import logging
 
 from wandb.sdk.wandb_run import Run
 from pydantic import BaseModel, Field
@@ -16,9 +15,10 @@ from src.vllm_client import VllmClient, VllmRouter
 from src.models import PathConfig
 from src.dac_agent import AgentNode, ChatMessage, PromptConfig, StopCriteria
 from src.utils import text as text_utils
+from src.utils.logging import create_logger
 
 
-logger = logging.getLogger(__name__)
+logger = create_logger(__name__)
 
 
 class TrainingConfig(BaseModel, extra="allow", strict=True):

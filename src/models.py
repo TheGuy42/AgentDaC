@@ -1,16 +1,16 @@
 from datetime import datetime
-import logging
 from pydantic import BaseModel
 
 import art
 from art.utils import output_dirs
 from art.local import LocalBackend
 
-from src.configs import art_model_config
-from src.configs import vllm_model_config
+from src.configs import art_configs
+from src.configs import vllm_configs
+from src.utils.logging import create_logger
 
 
-logger = logging.getLogger(__name__)
+logger = create_logger(__name__)
 
 
 class PathConfig(BaseModel, frozen=False):
@@ -61,18 +61,18 @@ class PathConfig(BaseModel, frozen=False):
 
 async def load_art_model(
     path_config: PathConfig,
-    art_config: art_model_config.ArtConfig | None = None,
+    art_config: art_configs.ArtConfig | None = None,
     print_full: bool = False,
 ) -> art.TrainableModel:
     if art_config is None:
-        if path_config.model_name not in art_model_config.CONFIGS:
+        if path_config.model_name not in art_configs.CONFIGS:
             raise ValueError(
                 f"No configuration found for model: {path_config.model_name}. "
-                f"Available configs: {art_model_config.available_configs()}"
+                f"Available configs: {art_configs.available_configs()}"
             )
 
         logger.info(f"Loading default config for {path_config.model_name}...")
-        art_config = art_model_config.CONFIGS[path_config.model_name]
+        art_config = art_configs.CONFIGS[path_config.model_name]
 
     if path_config.model_name != art_config.model_name:
         raise ValueError(f"Model name mismatch: {path_config.model_name} != {art_config.model_name}.")
@@ -102,18 +102,17 @@ async def load_art_model(
 def load_vllm_model(
     model_name: str,
     port: int = 8200,
-    vllm_config: vllm_model_config.VllmConfig | None = None,
+    vllm_config: vllm_configs.VllmConfig | None = None,
     print_full: bool = False,
 ) -> list[str]:
     if vllm_config is None:
-        if model_name not in vllm_model_config.CONFIGS:
+        if model_name not in vllm_configs.CONFIGS:
             raise ValueError(
-                f"No configuration found for model: {model_name}. "
-                f"Available configs: {vllm_model_config.available_configs()}"
+                f"No configuration found for model: {model_name}. Available configs: {vllm_configs.available_configs()}"
             )
 
         logger.info(f"Loading default config for {model_name}...")
-        vllm_config = vllm_model_config.CONFIGS[model_name]
+        vllm_config = vllm_configs.CONFIGS[model_name]
 
     if vllm_config.model_name != model_name:
         raise ValueError(f"Model name mismatch: {vllm_config.model_name} != {model_name}.")

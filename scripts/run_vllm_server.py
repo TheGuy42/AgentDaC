@@ -13,11 +13,11 @@ if str(module_dir) not in sys.path:
 
 from src.models import load_vllm_model
 from src.utils.env import prepare_environment
-from src.utils.logging import setup_logging
-from src.configs.vllm_model_config import available_configs, VllmConfig
+from src.utils.logging import create_logger, setup_logging
+from src.configs.vllm_configs import available_configs, VllmConfig
 
 
-logger = logging.getLogger(__name__)
+logger = create_logger(__name__)
 
 
 def parse_args() -> tuple[argparse.Namespace, list[str]]:
