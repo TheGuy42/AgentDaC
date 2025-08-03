@@ -30,7 +30,6 @@ class ArtConfig(BaseModel, frozen=False, extra="allow"):
             config=self.internal_config,
         )
         self.internal_config["engine_args"].setdefault("seed", 0)  # type: ignore
-        self.internal_config["engine_args"].setdefault("multi_step_stream_outputs", False)  # type: ignore
         return self
 
 
