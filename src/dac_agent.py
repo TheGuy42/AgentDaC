@@ -184,7 +184,10 @@ class AgentNode:
 
             try:
                 # Extract tasks from the response
-                # TODO: for some reason sometimes choices.message is None, why?
+                # TODO: Sometimes crashes while validating:
+                # It happens when the model response is immediately EOS
+                # at that case the content field is None (this is expected from OpenAI API)
+                # we should handle this case gracefully
                 response = ChatMessage.model_validate(choice.message, from_attributes=True)
             except Exception as e:
                 print("Error validating choice message:", choice)
