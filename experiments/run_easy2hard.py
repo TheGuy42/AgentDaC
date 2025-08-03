@@ -38,17 +38,17 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "--project_name",
+        "--project",
         type=str,
         default="easy2hard_dac",
         help="The name of the project for saving results.",
     )
 
     parser.add_argument(
-        "--run_name",
+        "--run",
         type=str,
         default="",
-        help="The name of the run for saving results.",
+        help="The name of the run to continue (if exists).",
     )
 
     parser.add_argument(
@@ -68,7 +68,7 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "--config-dir",
+        "--config_dir",
         type=str,
         help="Directory containing experiment configuration files.",
     )
@@ -110,8 +110,8 @@ async def main(args: argparse.Namespace):
 
     path_config = PathConfig(
         base_model=args.model,
-        project_name=args.project_name,
-        run_name=args.run_name,
+        project_name=args.project,
+        run_name=args.run,
     )
 
     # Defaults

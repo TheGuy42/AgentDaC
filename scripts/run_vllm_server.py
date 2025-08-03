@@ -79,7 +79,7 @@ def main(args: argparse.Namespace, extra_args: list[str]) -> None:
             "VLLM_ALLOW_RUNTIME_LORA_UPDATING": "True",
             "CUDA_VISIBLE_DEVICES": ",".join([str(gpu) for gpu in args.gpu]),
             # "VLLM_ATTENTION_BACKEND": "FLASH_ATTN",   # TODO: does modifying attn backend can significantly improve performance?
-            # "VLLM_FLASH_ATTN_VERSION": "2",
+            # "VLLM_FLASH_ATTN_VERSION": "3", # TODO: comment / uncomment when necessary
         }
     )
 

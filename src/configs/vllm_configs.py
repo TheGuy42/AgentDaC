@@ -25,7 +25,8 @@ class VllmConfig(BaseModel, frozen=False, extra="allow"):
         )
         self.openai_config["server_args"]["port"] = port  # type: ignore
         self.openai_config["engine_args"]["enable_lora"] = True  # type: ignore
-        self.openai_config["engine_args"]["seed"] = 0  # type: ignore
+        self.openai_config["engine_args"].setdefault("seed", 0)  # type: ignore
+        self.openai_config["engine_args"].setdefault("multi_step_stream_outputs", False)  # type: ignore
         return self
 
 

@@ -162,8 +162,7 @@ class Trainer:
             use_tqdm=False,
         )
 
-        # Sync all vLLM clients with model weights
-        await self.sync_lora()
+        await self.sync_lora()  # Sync all vLLM clients with model weights
 
         for train_batch in train_iter:
             step_data = train_batch.items
@@ -208,14 +207,14 @@ class Trainer:
                 verbose=config.verbose,
             )
 
-            # Sync all vLLM clients with updated model
-            await self.sync_lora(global_step)
+            await self.sync_lora()  # Sync all vLLM clients with updated model
 
             # Update checkpoints
             metric_name = "eval/reward" if config.eval_every is not None else "train/reward"
             await self.model.delete_checkpoints(metric_name)
 
         # Final evaluation after training
+        await self.sync_lora()
         eval_batch = next(eval_iter)
         await self.rollout(eval_batch.items, split="eval", log=True)
 

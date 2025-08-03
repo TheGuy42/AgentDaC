@@ -24,12 +24,13 @@ class ArtConfig(BaseModel, frozen=False, extra="allow"):
     openai_config: OpenAIServerConfig | None = None
 
     def initialize(self, output_dir: str) -> ArtConfig:
-        internal_config = get_model_config(
+        self.internal_config = get_model_config(
             base_model=self.base_model,
             output_dir=output_dir,
             config=self.internal_config,
         )
-        self.internal_config = internal_config
+        self.internal_config["engine_args"].setdefault("seed", 0)  # type: ignore
+        self.internal_config["engine_args"].setdefault("multi_step_stream_outputs", False)  # type: ignore
         return self
 
 
@@ -131,7 +132,6 @@ add_config(
     engine_args=EngineArgs(
         max_num_batched_tokens=4096 * 4,
         max_seq_len_to_capture=4096,
-        multi_step_stream_outputs=False,
     ),
 )
 
