@@ -25,6 +25,9 @@ def save_base_model(
         path.parent.mkdir(parents=True)
         logger.info(f"Created parent directory: {path.parent}")
 
+    if path.exists():
+        raise FileExistsError(f"File '{path}' already exists.")
+
     path.write_text(
         model.model_dump_json(indent=4, **kwargs),
         encoding="utf-8",
@@ -96,6 +99,9 @@ def save_object(
     if not path.parent.exists():
         path.parent.mkdir(parents=True)
         logger.info(f"Created parent directory: {path.parent}")
+
+    if path.exists():
+        raise FileExistsError(f"File '{path}' already exists.")
 
     path.write_text(
         json.dumps(obj, indent=4, **kwargs),

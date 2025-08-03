@@ -1,6 +1,8 @@
 from __future__ import annotations
-from art.dev import ServerArgs, EngineArgs, OpenAIServerConfig, get_openai_server_config
 from pydantic import BaseModel, Field
+from pathlib import Path
+from art.dev import ServerArgs, EngineArgs, OpenAIServerConfig, get_openai_server_config
+from src.utils.io import save_base_model
 
 
 # TODO: test following settings:
@@ -27,6 +29,9 @@ class VllmConfig(BaseModel, frozen=False, extra="allow"):
         self.openai_config["engine_args"]["enable_lora"] = True  # type: ignore
         self.openai_config["engine_args"].setdefault("seed", 0)  # type: ignore
         return self
+
+    def save(self, dir_name: str, file_name: str = "vllm_config.json") -> None:
+        save_base_model(self, Path(dir_name) / file_name)
 
 
 CONFIGS: dict[str, VllmConfig] = {}

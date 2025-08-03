@@ -61,6 +61,10 @@ def parse_args() -> tuple[argparse.Namespace, list[str]]:
 def main(args: argparse.Namespace, extra_args: list[str]) -> None:
     prepare_environment()
 
+    print()
+    print(f"Current working directory: {os.getcwd()}")
+    print()
+    
     vllm_config = None
     if args.vllm_config:
         with open(args.vllm_config, "r") as f:

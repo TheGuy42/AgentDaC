@@ -11,7 +11,9 @@ from art.dev import (
 )
 
 from pydantic import BaseModel, Field
+from pathlib import Path
 from art.dev.get_model_config import get_model_config
+from src.utils.io import save_base_model
 
 
 class ArtConfig(BaseModel, frozen=False, extra="allow"):
@@ -31,6 +33,9 @@ class ArtConfig(BaseModel, frozen=False, extra="allow"):
         )
         self.internal_config["engine_args"].setdefault("seed", 0)  # type: ignore
         return self
+
+    def save(self, dir_name: str, file_name: str = "art_config.json") -> None:
+        save_base_model(self, Path(dir_name) / file_name)
 
 
 CONFIGS: dict[str, ArtConfig] = {}

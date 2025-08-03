@@ -6,13 +6,14 @@ from openai.types.chat.chat_completion import ChatCompletion
 from art import Trajectory
 from art.types import Message
 from pydantic import BaseModel, Field
+from pathlib import Path
 
 from src.utils import text as text_utils
 from src.utils.visualize import trajectory_string, message_string
 from src.configs.markers import Markers
 from src.configs.prompts import get_prompt
 from src.utils.logging import create_logger
-
+from src.utils.io import save_base_model
 
 logger = create_logger(__name__)
 
@@ -27,6 +28,12 @@ class PromptConfig(BaseModel):
     system_inter: str = ""
     system_leaf: str = ""
     tasks_depleted: str = ""
+
+    def save(self, dir_name: str, file_name: str = "prompt_config.json") -> None:
+        """
+        Save the prompt configuration to a JSON file.
+        """
+        save_base_model(self, Path(dir_name) / file_name)
 
 
 class StopCriteria(BaseModel):
@@ -66,6 +73,12 @@ class StopCriteria(BaseModel):
             return True
 
         return False
+
+    def save(self, dir_name: str, file_name: str = "stop_criteria.json") -> None:
+        """
+        Save the stop criteria configuration to a JSON file.
+        """
+        save_base_model(self, Path(dir_name) / file_name)
 
 
 def patch_completion(completion: ChatCompletion) -> ChatCompletion:

@@ -1,4 +1,5 @@
 import sys
+import os
 import torch
 import pathlib
 import asyncio
@@ -107,6 +108,10 @@ async def main(args: argparse.Namespace):
     Main function to run the training process.
     """
     prepare_environment()
+    
+    print()
+    print(f"Current working directory: {os.getcwd()}")
+    print()
 
     path_config = PathConfig(
         base_model=args.model,
@@ -142,11 +147,11 @@ async def main(args: argparse.Namespace):
 
     # Load configurations if provided
     if args.config_dir:
-        configs = load_configs(args.config_dir)
-        art_config = configs.get("art_config", art_config)
-        train_config = configs.get("train_config", train_config)
-        prompt_config = configs.get("prompt_config", prompt_config)
-        stop_criteria = configs.get("stop_criteria", stop_criteria)
+        config_dict = load_configs(args.config_dir)
+        art_config = config_dict.get("art_config", art_config)
+        train_config = config_dict.get("train_config", train_config)
+        prompt_config = config_dict.get("prompt_config", prompt_config)
+        stop_criteria = config_dict.get("stop_criteria", stop_criteria)
 
     # load model
     model = await load_art_model(

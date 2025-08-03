@@ -4,6 +4,7 @@ import sys
 from wandb.sdk.wandb_run import Run
 from pydantic import BaseModel, Field
 import numpy as np
+from pathlib import Path
 
 import art
 from art.dev import InternalModelConfig
@@ -15,6 +16,7 @@ from src.models import PathConfig
 from src.dac_agent import AgentNode, ChatMessage, PromptConfig, StopCriteria
 from src.utils import text as text_utils
 from src.utils.logging import create_logger
+from src.utils.io import save_base_model
 
 
 logger = create_logger(__name__)
@@ -35,6 +37,12 @@ class TrainingConfig(BaseModel, extra="allow", strict=True):
 
     verbose: bool = False
     max_exceptions: int | float = 0
+    
+    def save(self, dir_name: str, file_name: str = "train_config.json") -> None:
+        """
+        Save the training configuration to a JSON file.
+        """
+        save_base_model(self, Path(dir_name) / file_name)
 
 
 class Trainer:
