@@ -17,8 +17,8 @@ def _message_format_reward(message: ChatMessage) -> float:
 
     # Conversation structure:
 
-    num_tasks = len(text_utils.extract_text_between_markers(content, Markers.TASK_START, Markers.TASK_END))
-    num_answers = len(text_utils.extract_text_between_markers(content, Markers.ANSWER_START, Markers.ANSWER_END))
+    num_tasks = len(text_utils.extract_between(content, Markers.TASK_START, Markers.TASK_END))
+    num_answers = len(text_utils.extract_between(content, Markers.ANSWER_START, Markers.ANSWER_END))
 
     if num_tasks == 0 and num_answers == 0:
         # Penalize for no tasks or answers

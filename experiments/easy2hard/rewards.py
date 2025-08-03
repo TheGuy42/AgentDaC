@@ -17,7 +17,7 @@ def answer_reward(sample: dict[str, str], last_message: ChatMessage) -> float:
     if role != "assistant":
         raise ValueError(f"Expected role 'assistant', got '{role}'")
 
-    answer_list = text_utils.extract_text_between_markers(content, Markers.ANSWER_START, Markers.ANSWER_END)
+    answer_list = text_utils.extract_between(content, Markers.ANSWER_START, Markers.ANSWER_END)
 
     if len(answer_list) == 0:
         return 0.0
