@@ -1,257 +1,198 @@
-import requests
-from openai import AsyncOpenAI
-from typing import Any
-from art.openai import patch_openai
-from art import TrainableModel
+from __future__ import annotations
+import openai
+import httpx
+import asyncio
 
-# TODO: rewrite cleaner and better.
+import art
+from art.openai import patch_openai
+from src.utils.logging import create_logger
+
+
+logger = create_logger(__name__)
+
 
 class VllmClient:
     def __init__(
         self,
+        base_url: str | httpx.URL,
         base_model: str,
-        port: int = 8000,
+        model_name: str | None = None,
+        api_key: str | None = "default",
+        timeout: float | httpx.Timeout | None = httpx.Timeout(timeout=1200, connect=5.0),
+    ):
+        self.base_url = base_url
+        self.base_model = base_model
+        self.model_name = model_name if model_name else base_model
+        self.api_key = api_key
+        self.timeout = timeout
+
+        self.http_client = openai.DefaultAsyncHttpxClient(
+            base_url=base_url,
+            headers={"Authorization": f"Bearer {api_key}"} if api_key else None,
+            timeout=timeout,
+            limits=httpx.Limits(max_connections=100_000, max_keepalive_connections=100_000),
+        )
+
+        self.openai_client = openai.AsyncOpenAI(
+            base_url=base_url,
+            api_key=api_key,
+            http_client=self.http_client,
+            max_retries=3,
+        )
+
+        # TODO: what if we dont patch?
+        self.openai_client = patch_openai(self.openai_client)
+
+    @staticmethod
+    def from_connection(
+        port: int,
+        base_model: str,
+        model_name: str | None = None,
         host: str = "0.0.0.0",
         api_key: str | None = "default",
-        **kwargs: Any,
-    ):
-        self.base_url = f"http://{host}:{port}"
-        self.base_model = base_model
-        self.inference_name = base_model
-        self.api_key = api_key
-
-        self.client = AsyncOpenAI(
-            base_url=f"{self.base_url}/v1",
-            api_key=self.api_key,
+        timeout: float | httpx.Timeout | None = httpx.Timeout(timeout=1200, connect=5.0),
+        **kwargs,
+    ) -> VllmClient:
+        return VllmClient(
+            base_url=f"http://{host}:{port}/v1",
+            base_model=base_model,
+            model_name=model_name,
+            api_key=api_key,
+            timeout=timeout,
             **kwargs,
         )
-        
-        self.client = patch_openai(self.client)
 
     def get_inference_name(self) -> str:
-        return self.inference_name
+        return self.model_name
 
-    def verify_connection(self) -> bool:
+    async def verify_connection(self) -> bool:
         """
-        Verify if the VLLM server is running and accessible.
-        Returns True if the server is reachable, False otherwise.
+        Verify if the model is available on the VLLM server.
         """
         try:
-            headers = {}
-            if self.api_key:
-                headers["Authorization"] = f"Bearer {self.api_key}"
-            response = requests.get(
-                f"{self.base_url}/health",
-                headers=headers,
-            )
-            response.raise_for_status()  # Raise an exception for HTTP errors (4xx or 5xx)
-            return True
-        except requests.exceptions.RequestException as e:
-            print(f"Error connecting to VLLM server: {e}")
+            await self.openai_client.models.retrieve(self.get_inference_name())
+        except Exception as e:
+            logger.error(f"Failed to connect to VLLM server: {e}")
             return False
+        return True
 
-    async def chat(
-        self,
-        messages: list[dict[str, str]],
-        model: str | None = None,
-        **kwargs,
-    ) -> dict:
-        if model is None:
-            model = self.get_inference_name()
-            if not model:
-                raise ValueError("Model name must be specified or set in the client.")
+    @art.utils.retry(max_attempts=3)
+    async def load_lora(self, lora_name: str, lora_path: str):
+        payload = {"lora_name": lora_name, "lora_path": lora_path}
+        resp = await self.http_client.post("/load_lora_adapter", json=payload)
+        resp.raise_for_status()
+        self.model_name = lora_name  # Update the inference name to the loaded LORA
 
-        response = await self.client.chat.completions.create(
-            model=model,
-            messages=messages,
-            **kwargs,
-        )
-        return response
+    @art.utils.retry(max_attempts=3)
+    async def unload_lora(self, lora_name: str):
+        if lora_name == self.base_model:
+            logger.warning("Cannot unload the base model. Use a different LORA name.")
+            return
 
-    def load_lora(self, lora_name: str, lora_path: str):
-        url = f"{self.base_url}/v1/load_lora_adapter"
-        headers = {"Content-Type": "application/json"}
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
-        payload = {
-            "lora_name": lora_name,
-            "lora_path": lora_path,
-        }
+        payload = {"lora_name": lora_name}
+        response = await self.http_client.post("/unload_lora_adapter", json=payload)
+        response.raise_for_status()
 
-        try:
-            response = requests.post(url, headers=headers, json=payload)
-            response.raise_for_status()  # Raise an exception for HTTP errors (4xx or 5xx)
-            self.inference_name = lora_name  # Update the inference name to the loaded LORA
+        # Reset the inference name to the base model
+        if lora_name == self.get_inference_name():
+            self.model_name = self.base_model
 
-            print("Request successful!")
-            print("Status Code:", response.status_code)
-            # print("Response JSON:", response.json())
-            return {"success": True, "status_code": response.status_code}
-        except requests.exceptions.RequestException as e:
-            print(f"Error making request: {e}")
-            if hasattr(e, "response") and e.response is not None:
-                print("Response Status Code:", e.response.status_code)
-                print("Response Text:", e.response.text)
-            return {"success": False, "error": str(e)}
-
-    def unload_lora(self, lora_name: str):
-        url = f"{self.base_url}/v1/unload_lora_adapter"
-        headers = {"Content-Type": "application/json"}
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
-        payload = {
-            "lora_name": lora_name,
-        }
-
-        try:
-            response = requests.post(url, headers=headers, json=payload)
-            response.raise_for_status()  # Raise an exception for HTTP errors (4xx or 5xx)
-            self.inference_name = self.base_model  # Reset inference name to base model
-
-            print("Request successful!")
-            print("Status Code:", response.status_code)
-            # print("Response JSON:", response.json())
-            return {"success": True, "status_code": response.status_code}
-        except requests.exceptions.RequestException as e:
-            print(f"Error making request: {e}")
-            if hasattr(e, "response") and e.response is not None:
-                print("Response Status Code:", e.response.status_code)
-                print("Response Text:", e.response.text)
-            return {"success": False, "error": str(e)}
-
-    def _get_vllm_model_list(self) -> list[dict]:
+    async def get_model_list(self) -> list[openai.types.Model]:
         """
         Get the list of models available on the VLLM server.
-        Returns a list of model names.
         """
-        try:
-            headers = {}
-            if self.api_key:
-                headers["Authorization"] = f"Bearer {self.api_key}"
-            response = requests.get(
-                f"{self.base_url}/v1/models", headers=headers
-            )
-            response.raise_for_status()  # Raise an exception for HTTP errors (4xx or 5xx)
-            return response.json().get("data", [])
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching model list: {e}")
+        result = await self.openai_client.models.list()
+        model_list = result.data
+
+        if len(model_list) == 0:
+            logger.warning("No models found on the VLLM server.")
             return []
 
-    def unload_all_loras(self):
+        return model_list
+
+    async def unload_all_loras(self):
+        unload_tasks = []
+        for model in await self.get_model_list():
+            name = model.id
+            parent = getattr(model, "parent", None)
+            if name != self.base_model and parent == self.base_model:
+                unload_tasks.append(self.unload_lora(model.id))
+        await asyncio.gather(*unload_tasks)
+
+
+class ArtClient(VllmClient):
+    @staticmethod
+    def from_art_model(art_model: art.TrainableModel, **kwargs) -> VllmClient:
         """
-        Unload all LORA adapters from the VLLM server.
-        This method is a placeholder and should be implemented based on the server's capabilities.
+        Create a VllmClient instance from an ART TrainableModel.
         """
-        # This method is not implemented in the base class
-        models: list[dict] = self._get_vllm_model_list() # TODO: IMPORTANT does not work.
-        for model in models:
-            model_name = model.get("parent", None)
-            if model_name:
-                try:
-                    result = self.unload_lora(model_name)
-                    print(f"Unloaded LORA adapter {model_name}: {result}")
-                except Exception as e:
-                    continue  # Skip models that cannot be unloaded
+        client = art_model.openai_client()
+        return ArtClient(
+            base_url=client.base_url,
+            base_model=art_model.base_model,
+            model_name=art_model.get_inference_name(),
+            api_key=client.api_key,
+            timeout=client.timeout,
+            **kwargs,
+        )
 
+    async def load_lora(self, lora_name: str, lora_path: str):
+        return  # No-op for ArtClient, as it uses ART's LORA management
 
-class ArtVLLMClient(VllmClient):
-    def __init__(
-        self,
-        model: TrainableModel,
-        **kwargs: Any,
-    ):
-        self.model = model
-
-        self.base_url = model.inference_base_url
-        self.base_model = model.base_model
-        self.inference_name = model.get_inference_name()
-        self.client = model.openai_client()
-
-    def get_inference_name(self) -> str:
-        return self.model.get_inference_name()
-
-    def load_lora(self, lora_name: str, lora_path: str):
-        return {"success": True, "status_code": "art"}
-
-    def unload_lora(self, lora_name: str):
-        return {"success": True, "status_code": "art"}
-
-    def _get_vllm_model_list(self) -> list[str]:
-        return []  # are manages their own things
-
-    def unload_all_loras(self):
-        """
-        Unload all LORA adapters from the Art VLLM client.
-        This method is a placeholder and should be implemented based on the server's capabilities.
-        """
-        # This method is not implemented in the base class
-        pass
+    async def unload_lora(self, lora_name: str):
+        return  # No-op for ArtClient, as it uses ART's LORA management
 
 
 class VllmRouter:
     """
-    A router class to manage multiple VLLMClient instances.
-    It distributes the load by returning a different client each time `get_client` is called.
-    the class can be used as in iterator to get clients in a round-robin fashion.
+    An iterator class that rotates through a list of VllmClient instances.
     """
 
-    def __init__(self, vllm_clients: list[VllmClient] | None = None):
-        if vllm_clients is None:
-            vllm_clients = []
+    def __init__(self, clients: list[VllmClient] | None = None):
+        if clients is None:
+            clients = []
 
-        self.vllm_clients: list[VllmClient] = vllm_clients
-        self.current_index = 0
+        self.clients: list[VllmClient] = clients
+        self.idx = 0
 
-    @property
-    def num_clients(self) -> int:
-        return len(self.vllm_clients)
+    def __len__(self) -> int:
+        return len(self.clients)
 
-    def add_client(self, client: VllmClient):
+    def next(self) -> VllmClient:
+        client = self.clients[self.idx]
+        self.idx = (self.idx + 1) % len(self)
+        return client
+
+    def append(self, client: VllmClient):
         """
         Add a new VLLMClient to the router.
         """
-        self.vllm_clients.append(client)
-        self.current_index = 0
+        self.clients.append(client)
 
-    def __iter__(self):
-        self.current_index = 0
-        return self
-
-    def __next__(self):
-        self.current_index = (self.current_index + 1) % self.num_clients
-        client = self.vllm_clients[self.current_index]
-        return client
-
-    def get_client(self) -> VllmClient:
+    def current(self) -> VllmClient:
         """
         Get the current client in the round-robin rotation.
         """
-        client = self.vllm_clients[self.current_index]
+        client = self.clients[self.idx]
         return client
 
-    def load_lora(self, lora_name: str, lora_path: str) -> bool:
+    async def load_lora(self, lora_name: str, lora_path: str):
         """
         Load a LORA adapter on all clients.
         """
-        results = []
-        for client in self.vllm_clients:
-            result = client.load_lora(lora_name, lora_path)
-            results.append(result)
-        return all(result["success"] for result in results)
+        tasks = [client.load_lora(lora_name, lora_path) for client in self.clients]
+        await asyncio.gather(*tasks)
 
-    def unload_lora(self, lora_name: str) -> bool:
+    async def unload_lora(self, lora_name: str):
         """
         Unload a LORA adapter on all clients.
         """
-        results = []
-        for client in self.vllm_clients:
-            result = client.unload_lora(lora_name)
-            results.append(result)
-        return all(result["success"] for result in results)
+        tasks = [client.unload_lora(lora_name) for client in self.clients]
+        await asyncio.gather(*tasks)
 
-    def unload_all_loras(self) -> None:
+    async def unload_all_loras(self) -> None:
         """
         Unload all LORA adapters from all clients.
         """
-        for client in self.vllm_clients:
-            client.unload_all_loras()
+        tasks = [client.unload_all_loras() for client in self.clients]
+        await asyncio.gather(*tasks)

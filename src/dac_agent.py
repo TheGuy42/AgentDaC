@@ -183,8 +183,8 @@ class AgentNode:
                 print(message_string(last_message, indent=self.current_depth))
 
             try:
-            # Extract tasks from the response
-            # TODO: for some reason sometimes choices.message is None, why?
+                # Extract tasks from the response
+                # TODO: for some reason sometimes choices.message is None, why?
                 response = ChatMessage.model_validate(choice.message, from_attributes=True)
             except Exception as e:
                 print("Error validating choice message:", choice)

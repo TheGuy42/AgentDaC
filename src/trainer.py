@@ -1,5 +1,4 @@
 from abc import abstractmethod
-import os
 import sys
 
 from wandb.sdk.wandb_run import Run
@@ -8,10 +7,10 @@ import numpy as np
 
 import art
 from art.dev import InternalModelConfig
-from art.utils import iterate_dataset, retry
+from art.utils import iterate_dataset
 from art.local import LocalBackend
 
-from src.vllm_client import VllmClient, VllmRouter
+from src.vllm_client import VllmRouter
 from src.models import PathConfig
 from src.dac_agent import AgentNode, ChatMessage, PromptConfig, StopCriteria
 from src.utils import text as text_utils
@@ -45,7 +44,7 @@ class Trainer:
     def __init__(
         self,
         model: art.TrainableModel,
-        inference_clients: list[VllmClient],
+        vllm_router: VllmRouter,
         path_config: PathConfig,
         train_config: TrainingConfig,
         prompt_config: PromptConfig,
@@ -54,7 +53,7 @@ class Trainer:
         self.model = model
         self.path_config = path_config
         self.training_config = train_config
-        self.vllm_router = VllmRouter(vllm_clients=inference_clients)
+        self.vllm_router = vllm_router
         self.prompt_config = prompt_config
         self.stop_criteria = stop_criteria
 
@@ -70,6 +69,14 @@ class Trainer:
         backend: LocalBackend = self.model.backend()  # type: ignore
         return backend._get_wandb_run(self.model)  # type: ignore
 
+    @property
+    def inference_name(self) -> str:
+        """
+        Returns the inference name of the model.
+        This is used to identify the model in the vLLM router.
+        """
+        return self.model.get_inference_name()
+
     def close(self):
         try:
             self.logger_run.finish()
@@ -84,6 +91,11 @@ class Trainer:
             logger.error(f"Failed to close model backend: {e}")
 
     def log_hparams(self):
+        """
+        Logs hyperparameters to wandb.
+
+        Note: Inheriting classes should override this method to log additional hyperparameters.
+        """
         run = self.logger_run
         if run is None:
             logger.warning("No wandb run found. Skipping hyperparameter logging.")
@@ -100,57 +112,52 @@ class Trainer:
             allow_val_change=True,
         )
 
-    def get_client(self) -> VllmClient:
-        return next(self.vllm_router)
-
     def create_agent(self) -> AgentNode:
         """
         Create a new instance of the AgentNode with the current model and configuration.
         """
-        client = self.get_client()
+        client = self.vllm_router.next()
         return AgentNode(
-            model_name=client.get_inference_name(),
-            openai_client=client.client,
+            model_name=self.inference_name,
+            openai_client=client.openai_client,
             prompt_config=self.prompt_config,
             stop_criteria=self.stop_criteria.clone(),
         )
 
-    @retry(max_attempts=3, delay=1)
-    def update_lora(self, step: int):
-        prev_checkpoint_dir = self.path_config.get_step_checkpoint_dir(step - 1)
-        if os.path.exists(prev_checkpoint_dir):
-            success = self.vllm_router.unload_lora(self.path_config.run_name)
-            if not success:
-                raise RuntimeError(f"Failed to unload LoRA for step {step - 1}.")
+    async def sync_lora(self, step: int | None = None):
+        """
+        Syncs the LoRA weights with the current model step.
 
+        Args:
+            step (int | None): The step to sync the LoRA weights with.
+                If None, the current model step will be used.
+        """
+        if step is None:
+            step = await self.model.get_step()
+
+        await self.vllm_router.unload_all_loras()
         curr_checkpoint_dir = self.path_config.get_step_checkpoint_dir(step)
-        if os.path.exists(curr_checkpoint_dir):
-            success = self.vllm_router.load_lora(self.path_config.run_name, curr_checkpoint_dir)
-            if not success:
-                raise RuntimeError(f"Failed to load LoRA for step {step}.")
+        await self.vllm_router.load_lora(self.inference_name, curr_checkpoint_dir)
 
     async def train(self, train_dataset: list[dict], eval_dataset: list[dict]) -> art.TrainableModel:
-        model = self.model
-        vllm_router = self.vllm_router
-        train_config = self.training_config
-
-        vllm_router.unload_all_loras()
+        config = self.training_config
+        await self.sync_lora()
         self.log_hparams()
 
         # Training set iterator
-        train_batch_size = train_config.num_groups * train_config.group_size
-        train_step = await model.get_step()
+        train_batch_size = config.num_groups * config.group_size
+        train_step = await self.model.get_step()
         train_iter = iterate_dataset(
             dataset=train_dataset,
             groups_per_step=train_batch_size,
-            num_epochs=train_config.epochs,
+            num_epochs=config.epochs,
             initial_step=train_step,
             use_tqdm=True,
         )
 
         # Evaluation set iterator
-        eval_batch_size = train_config.eval_size if train_config.eval_size else len(eval_dataset)
-        eval_step = train_step // train_config.eval_every if train_config.eval_every else 0
+        eval_batch_size = config.eval_size if config.eval_size else len(eval_dataset)
+        eval_step = train_step // config.eval_every if config.eval_every else 0
         eval_iter = iterate_dataset(
             dataset=eval_dataset,
             groups_per_step=eval_batch_size,
@@ -162,23 +169,22 @@ class Trainer:
         for train_batch in train_iter:
             step_data = train_batch.items
             global_step = train_batch.step
-
-            self.update_lora(global_step)
+            await self.sync_lora(global_step)
 
             # Evaluate model
-            if (train_config.eval_every is not None) and (global_step % train_config.eval_every == 0):
+            if (config.eval_every is not None) and (global_step % config.eval_every == 0):
                 eval_batch = next(eval_iter)
                 await self.rollout(eval_batch.items, split="eval", log=True)
 
             # Perform Rollout
-            log_step = (train_config.log_every is not None) and (global_step % train_config.log_every == 0)
+            log_step = (config.log_every is not None) and (global_step % config.log_every == 0)
             trajectory_groups = await self.rollout(step_data, split="train", log=log_step)
 
             # Filter groups with low reward standard deviation
             filtered_groups = []
             for group in trajectory_groups:
                 rewards = [tr.reward for tr in group.trajectories]
-                if train_config.min_reward_stdev is None or np.std(rewards) >= train_config.min_reward_stdev:
+                if config.min_reward_stdev is None or np.std(rewards) >= config.min_reward_stdev:
                     filtered_groups.append(group)
 
             trajectory_groups = filtered_groups
@@ -188,15 +194,15 @@ class Trainer:
                 continue
 
             # Update checkpoints
-            metric_name = "eval/reward" if train_config.eval_every is not None else "train/reward"
-            await model.delete_checkpoints(metric_name)
+            metric_name = "eval/reward" if config.eval_every is not None else "train/reward"
+            await self.model.delete_checkpoints(metric_name)
 
             # Train step
-            await model.train(
+            await self.model.train(
                 trajectory_groups,
-                config=train_config.art_config,
-                _config=train_config.dev_art_config,
-                verbose=train_config.verbose,
+                config=config.art_config,
+                _config=config.dev_art_config,
+                verbose=config.verbose,
             )
 
         # Final evaluation after training

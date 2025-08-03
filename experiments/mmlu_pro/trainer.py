@@ -12,10 +12,10 @@ import art
 
 class MmluProTrainer(Trainer):
     def create_agent(self) -> AgentNode:
-        client = self.get_client()
+        client = self.vllm_router.next()
         return SingleAgentNode(
-            model_name=client.get_inference_name(),
-            openai_client=client.client,
+            model_name=self.inference_name,
+            openai_client=client.openai_client,
             prompt_config=self.prompt_config,
             stop_criteria=self.stop_criteria.clone(),
         )

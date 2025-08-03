@@ -12,6 +12,12 @@ from src.utils.logging import create_logger
 
 logger = create_logger(__name__)
 
+# TODO: rename parameters to match ones of art
+# they have:
+
+# model_name - the name of the run
+# base_model - the actual name of the model
+# project_name
 
 class PathConfig(BaseModel, frozen=False):
     model_name: str
@@ -34,7 +40,7 @@ class PathConfig(BaseModel, frozen=False):
         """
         return output_dirs.get_output_dir_from_model_properties(
             project=self.project_name,
-            name=self.model_name,
+            name=self.run_name,
             art_path=self.art_path,
         )
 

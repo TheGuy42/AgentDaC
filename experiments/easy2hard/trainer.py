@@ -12,10 +12,10 @@ import art
 
 class Easy2HardTrainer(Trainer):
     def create_agent(self) -> AgentNode:
-        client = self.get_client()
+        client = self.vllm_router.next()
         return SingleAgentNode(
-            model_name=client.get_inference_name(),
-            openai_client=client.client,
+            model_name=self.inference_name,
+            openai_client=client.openai_client,
             prompt_config=self.prompt_config,
             stop_criteria=self.stop_criteria.clone(),
         )
@@ -58,20 +58,24 @@ class Easy2HardTrainer(Trainer):
         agent_answer = extract_answer(ans_message.content)
 
         # Update metrics
-        trajectory.metrics.update({
-            "answer_reward": ans_reward,
-            "format_reward": fmt_reward,
-            "behavior_reward": bhv_reward,
-            "total_reward": trajectory.reward,
-            "is_correct": int(verify(answer, agent_answer)),
-        })
+        trajectory.metrics.update(
+            {
+                "answer_reward": ans_reward,
+                "format_reward": fmt_reward,
+                "behavior_reward": bhv_reward,
+                "total_reward": trajectory.reward,
+                "is_correct": int(verify(answer, agent_answer)),
+            }
+        )
 
         # Update metadata
-        trajectory.metadata.update({
-            "problem": problem,
-            "answer": answer,
-            "agent_answer": agent_answer,
-            "item_difficulty": sample["item_difficulty"],
-        })
+        trajectory.metadata.update(
+            {
+                "problem": problem,
+                "answer": answer,
+                "agent_answer": agent_answer,
+                "item_difficulty": sample["item_difficulty"],
+            }
+        )
 
         return trajectory

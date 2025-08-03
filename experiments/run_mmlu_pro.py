@@ -18,7 +18,7 @@ from src.utils.env import prepare_environment
 from src.utils.logging import setup_logging
 from src.utils.io import load_base_model
 from src.models import load_art_model, PathConfig
-from src.vllm_client import VllmClient, ArtVLLMClient
+from src.vllm_client import VllmClient, ArtClient, VllmRouter
 from src.trainer import TrainingConfig, PromptConfig, StopCriteria
 from src.configs.art_configs import available_configs, ArtConfig
 from experiments.mmlu_pro.trainer import MmluProTrainer
@@ -159,15 +159,23 @@ async def main(args: argparse.Namespace):
     train_data, test_data = load_data()
 
     # create inference clients
-    inference_clients: list[VllmClient] = [ArtVLLMClient(model)]
+    # create inference clients
+    inference_clients = [ArtClient.from_art_model(model)]
     for port in args.vllm_ports:
-        vllm_client = VllmClient(port=port, base_model=path_config.model_name)
-        inference_clients.append(vllm_client)
+        inference_clients.append(
+            VllmClient.from_connection(
+                port=port,
+                base_model=model.base_model,
+                model_name=model.get_inference_name(),
+            )
+        )
+
+    vllm_router = VllmRouter(inference_clients)
 
     # create and configure the trainer
     trainer = MmluProTrainer(
         model=model,
-        inference_clients=inference_clients,
+        vllm_router=vllm_router,
         path_config=path_config,
         train_config=train_config,
         prompt_config=prompt_config,
