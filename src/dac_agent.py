@@ -188,7 +188,14 @@ class AgentNode:
                 print(message_string(last_message, indent=self.current_depth))
 
             # Extract tasks from the response
-            response = ChatMessage.model_validate(choice.message, from_attributes=True)
+            try:
+                response = ChatMessage.model_validate(choice.message, from_attributes=True)
+            except Exception as e:
+                # TODO: this still sometimes occur, even though we patch the completion
+                print(completion)
+                patch_completion(completion)
+                print(completion)
+                raise e
             tasks = self._parse_tasks(response)
 
             if should_break or len(tasks) == 0:

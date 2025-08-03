@@ -4,8 +4,6 @@ from pydantic import BaseModel, Field
 
 
 # TODO: test following settings:
-# Does it matter if we import original model or unsloth model?
-# Does optimizations differ between original and unsloth models?
 # There are also 8-bit quantized versions of models, test them.
 
 
@@ -27,6 +25,7 @@ class VllmConfig(BaseModel, frozen=False, extra="allow"):
         )
         self.openai_config["server_args"]["port"] = port  # type: ignore
         self.openai_config["engine_args"]["enable_lora"] = True  # type: ignore
+        self.openai_config["engine_args"]["seed"] = 0  # type: ignore
         return self
 
 

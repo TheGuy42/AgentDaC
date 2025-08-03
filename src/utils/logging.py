@@ -47,6 +47,7 @@ def _configure_logger(logger: logging.Logger, level: int, fmt: logging.Formatter
         handler.setLevel(level)
         handler.setFormatter(fmt)
         logger.addHandler(handler)
+        logger.propagate = False
 
 
 def setup_logging(level: int, *, is_global: bool = False) -> None:

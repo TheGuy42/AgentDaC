@@ -40,7 +40,6 @@ class VllmClient:
             max_retries=3,
         )
 
-        # TODO: what if we dont patch?
         self.openai_client = patch_openai(self.openai_client)
 
     @staticmethod
@@ -71,8 +70,10 @@ class VllmClient:
         """
         try:
             await self.openai_client.models.retrieve(self.get_inference_name())
+        except openai.APIConnectionError:
+            return False
         except Exception as e:
-            logger.error(f"Failed to connect to VLLM server: {e}")
+            logger.error(f"[{self.base_url}] Failed to connect to VLLM server: {e}")
             return False
         return True
 
@@ -82,16 +83,18 @@ class VllmClient:
         resp = await self.http_client.post("/load_lora_adapter", json=payload)
         resp.raise_for_status()
         self.model_name = lora_name  # Update the inference name to the loaded LORA
+        logger.info(f"[{self.base_url}] Loaded LORA adapter: {lora_name} at path: {lora_path}")
 
     @art.utils.retry(max_attempts=3)
     async def unload_lora(self, lora_name: str):
         if lora_name == self.base_model:
-            logger.warning("Cannot unload the base model. Use a different LORA name.")
+            logger.warning(f"[{self.base_url}] Cannot unload the base model. Use a different LORA name.")
             return
 
         payload = {"lora_name": lora_name}
         response = await self.http_client.post("/unload_lora_adapter", json=payload)
         response.raise_for_status()
+        logger.info(f"[{self.base_url}] Unloaded LORA adapter: {lora_name}")
 
         # Reset the inference name to the base model
         if lora_name == self.get_inference_name():
@@ -105,8 +108,7 @@ class VllmClient:
         model_list = result.data
 
         if len(model_list) == 0:
-            logger.warning("No models found on the VLLM server.")
-            return []
+            logger.warning(f"[{self.base_url}] No models found on the VLLM server.")
 
         return model_list
 
