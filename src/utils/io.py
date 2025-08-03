@@ -28,10 +28,8 @@ def save_base_model(
     if path.exists():
         raise FileExistsError(f"File '{path}' already exists.")
 
-    path.write_text(
-        model.model_dump_json(indent=4, **kwargs),
-        encoding="utf-8",
-    )
+    path.write_text(model.model_dump_json(indent=4, **kwargs), encoding="utf-8")
+    logger.info(f"Saved {type(model).__name__} to '{path}'.")
 
 
 T = TypeVar("T", bound=BaseModel)
@@ -75,7 +73,9 @@ def load_base_model(
 
     try:
         data = path.read_text(encoding="utf-8")
-        return model_class.model_validate_json(data, **kwargs)
+        model = model_class.model_validate_json(data, **kwargs)
+        logger.info(f"Loaded {type(model).__name__} from '{path}'.")
+        return model
     except Exception as e:
         if do_raise:
             raise e
@@ -103,14 +103,13 @@ def save_object(
     if path.exists():
         raise FileExistsError(f"File '{path}' already exists.")
 
-    path.write_text(
-        json.dumps(obj, indent=4, **kwargs),
-        encoding="utf-8",
-    )
+    path.write_text(json.dumps(obj, indent=4, **kwargs), encoding="utf-8")
+    logger.info(f"Saved {type(obj).__name__} to '{path}'.")
 
 
 def load_object(
     path: str | Path,
+    do_raise: bool = True,
     **kwargs,
 ) -> object:
     """
@@ -123,6 +122,12 @@ def load_object(
         raise FileNotFoundError(f"Object file '{path}' does not exist.")
 
     try:
-        return json.loads(path.read_text(encoding="utf-8"), **kwargs)
+        obj = json.loads(path.read_text(encoding="utf-8"), **kwargs)
+        logger.info(f"Loaded {type(obj).__name__} from '{path}'.")
+        return obj
     except Exception as e:
-        raise e
+        if do_raise:
+            raise e
+        else:
+            logger.error(f"Failed to load object from '{path}': {e}")
+            return None

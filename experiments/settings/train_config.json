@@ -1,0 +1,16 @@
+{
+    "epochs": 100,
+    "num_groups": 5,
+    "group_size": 50,
+    "min_reward_stdev": null,
+    "log_every": 1,
+    "eval_every": 2,
+    "eval_size": 250,
+    "art_config": {
+        "learning_rate": 0.00001,
+        "beta": 0.0
+    },
+    "dev_art_config": null,
+    "verbose": false,
+    "max_exceptions": 0
+}

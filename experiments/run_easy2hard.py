@@ -71,6 +71,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--config_dir",
         type=str,
+        default="experiments/settings",
         help="Directory containing experiment configuration files.",
     )
 
@@ -146,12 +147,11 @@ async def main(args: argparse.Namespace):
     )
 
     # Load configurations if provided
-    if args.config_dir:
-        config_dict = load_configs(args.config_dir)
-        art_config = config_dict.get("art_config", art_config)
-        train_config = config_dict.get("train_config", train_config)
-        prompt_config = config_dict.get("prompt_config", prompt_config)
-        stop_criteria = config_dict.get("stop_criteria", stop_criteria)
+    config_dict = load_configs(args.config_dir)
+    art_config = config_dict.get("art_config", art_config)
+    train_config = config_dict.get("train_config", train_config)
+    prompt_config = config_dict.get("prompt_config", prompt_config)
+    stop_criteria = config_dict.get("stop_criteria", stop_criteria)
 
     # load model
     model = await load_art_model(

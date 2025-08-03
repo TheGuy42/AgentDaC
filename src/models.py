@@ -1,5 +1,6 @@
 from datetime import datetime
 from pydantic import BaseModel
+from pathlib import Path
 
 import art
 from art.utils import output_dirs
@@ -8,6 +9,7 @@ from art.local import LocalBackend
 from src.configs import art_configs
 from src.configs import vllm_configs
 from src.utils.logging import create_logger
+from src.utils.io import save_base_model
 
 
 logger = create_logger(__name__)
@@ -26,6 +28,12 @@ class PathConfig(BaseModel, frozen=False):
 
         if not self.run_name:
             self.run_name = self._generate_run_name(self.base_model)
+
+    def save(self, dir_name: str, file_name: str = "path_config.json") -> None:
+        """
+        Save the path configuration to a JSON file.
+        """
+        save_base_model(self, Path(dir_name) / file_name)
 
     @property
     def model_output_dir(self) -> str:
@@ -57,7 +65,6 @@ class PathConfig(BaseModel, frozen=False):
         Get the checkpoint directory for a specific step.
         """
         return output_dirs.get_step_checkpoint_dir(model_output_dir=self.model_output_dir, step=step)
-
 
 async def load_art_model(
     path_config: PathConfig,
