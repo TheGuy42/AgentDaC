@@ -71,7 +71,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--config_dir",
         type=str,
-        default="experiments/defaults",
+        default="experiments/mmlu_pro/defaults",
         help="Directory containing experiment configuration files.",
     )
 

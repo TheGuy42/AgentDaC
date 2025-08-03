@@ -92,8 +92,9 @@ add_config(
 add_config(
     "unsloth/Qwen2.5-14B-Instruct",
     engine_args=EngineArgs(
-        # max_num_seqs=64,
+        # max_num_seqs=128,
         max_model_len=8192,
+        # max_num_batched_tokens=2 * 8192,
         gpu_memory_utilization=0.8,
     ),
 )

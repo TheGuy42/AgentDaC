@@ -1,10 +1,10 @@
 {
     "epochs": 100,
-    "num_groups": 5,
-    "group_size": 50,
+    "num_groups": 3,
+    "group_size": 40,
     "min_reward_stdev": null,
     "log_every": 1,
-    "eval_every": 2,
+    "eval_every": 3,
     "eval_size": 250,
     "art_config": {
         "learning_rate": 0.00001,
@@ -12,5 +12,5 @@
     },
     "dev_art_config": null,
     "verbose": false,
-    "max_exceptions": 0
+    "max_exceptions": 0.025
 }

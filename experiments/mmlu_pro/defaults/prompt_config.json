@@ -1,0 +1,6 @@
+{
+    "system_root": "dac_sys_prompt_gilad_root",
+    "system_inter": "dac_sys_prompt_gilad_inter",
+    "system_leaf": "dac_sys_prompt_gilad_leaf",
+    "tasks_depleted": "tasks_depleted"
+}
