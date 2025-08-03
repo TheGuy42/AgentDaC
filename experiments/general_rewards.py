@@ -74,14 +74,7 @@ def _hill_func(x: float, steepness: float, midpoint: float) -> float:
 
 
 def behavior_reward(trajectory: art.Trajectory) -> float:
-    total_tasks = 0
-    for item in trajectory.messages_and_choices:
-        if isinstance(item, Choice):
-            msg = ChatMessage.model_validate(item.message, from_attributes=True)
-            tasks = text_utils.extract_tasks(msg.content)
-            total_tasks += len(tasks)
-
-    if total_tasks == 0:
+    num_tasks = trajectory.metrics["direct_tasks"]
+    if num_tasks == 0:
         return 0.0
-
-    return -1.0 * _hill_func(total_tasks, steepness=4, midpoint=4)
+    return -1.0 * _hill_func(num_tasks, steepness=4, midpoint=4)

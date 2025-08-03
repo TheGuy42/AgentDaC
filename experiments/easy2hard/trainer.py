@@ -2,7 +2,8 @@ from src.dac_agent import AgentNode
 from src.dac_agent_single import SingleAgentNode
 from src.trainer import Trainer
 from src.dac_agent import ChatMessage
-from src.utils.text import extract_answer
+from src.configs.markers import Markers
+from src.utils.text import extract_answer, extract_between
 
 from experiments.general_rewards import format_reward, behavior_reward
 from experiments.easy2hard.rewards import answer_reward, verify
@@ -56,6 +57,7 @@ class Easy2HardTrainer(Trainer):
         problem = sample["problem"].strip()
         answer = sample["answer"].strip()
         agent_answer = extract_answer(ans_message.content)
+        num_answers = len(extract_between(ans_message.content, Markers.ANSWER_START, Markers.ANSWER_END))
 
         # Update metrics
         trajectory.metrics.update(
@@ -65,6 +67,7 @@ class Easy2HardTrainer(Trainer):
                 "behavior_reward": bhv_reward,
                 "total_reward": trajectory.reward,
                 "is_correct": int(verify(answer, agent_answer)),
+                "gave_answer": int(num_answers > 0),
             }
         )
 

@@ -28,7 +28,7 @@ class TrainingConfig(BaseModel, extra="allow", strict=True):
     group_size: int = 10
     min_reward_stdev: float | None = None
 
-    log_every: int | None = None  # log training results every `log_every` steps
+    log_every: int | None = 1  # log training results every `log_every` steps
     eval_every: int | None = None  # evaluate on eval dataset every `eval_every` steps
     eval_size: int | None = None  # if None then use the entire eval dataset
 

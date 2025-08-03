@@ -71,7 +71,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--config_dir",
         type=str,
-        default="experiments/settings",
+        default="experiments/defaults",
         help="Directory containing experiment configuration files.",
     )
 

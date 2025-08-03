@@ -57,7 +57,7 @@ def parse_args() -> argparse.Namespace:
         type=int,
         nargs="+",
         default=[0],
-        help=f"The ID of the GPU(s) to use (e.g., 0 or '0,1'). Available GPUs: {list(range(torch.cuda.device_count()))}",
+        help=f"The ID of the GPU(s) to use (e.g., 0 or 0 1). Available GPUs: {list(range(torch.cuda.device_count()))}",
     )
 
     parser.add_argument(
@@ -71,7 +71,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--config_dir",
         type=str,
-        default="experiments/settings",
+        default="experiments/defaults",
         help="Directory containing experiment configuration files.",
     )
 
