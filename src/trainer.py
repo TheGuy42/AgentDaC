@@ -138,7 +138,6 @@ class Trainer:
 
     async def train(self, train_dataset: list[dict], eval_dataset: list[dict]) -> art.TrainableModel:
         config = self.training_config
-        await self.sync_lora()
         self.log_hparams()
 
         # Training set iterator
@@ -163,10 +162,12 @@ class Trainer:
             use_tqdm=False,
         )
 
+        # Sync all vLLM clients with model weights
+        await self.sync_lora()
+
         for train_batch in train_iter:
             step_data = train_batch.items
             global_step = train_batch.step
-            await self.sync_lora(global_step)
 
             # Evaluate model
             if (config.eval_every is not None) and (global_step % config.eval_every == 0):
@@ -199,10 +200,6 @@ class Trainer:
                 logger.warning(f"No trajectories left to train on at step {global_step}. Skipping this step.")
                 continue
 
-            # Update checkpoints
-            metric_name = "eval/reward" if config.eval_every is not None else "train/reward"
-            await self.model.delete_checkpoints(metric_name)
-
             # Train step
             await self.model.train(
                 trajectory_groups,
@@ -211,14 +208,25 @@ class Trainer:
                 verbose=config.verbose,
             )
 
+            # Sync all vLLM clients with updated model
+            await self.sync_lora(global_step)
+
+            # Update checkpoints
+            metric_name = "eval/reward" if config.eval_every is not None else "train/reward"
+            await self.model.delete_checkpoints(metric_name)
+
         # Final evaluation after training
         eval_batch = next(eval_iter)
-        print("Evaluating final mode...")
         await self.rollout(eval_batch.items, split="eval", log=True)
 
         return self.model
 
-    async def predict(self, dataset: list[dict], max_exceptions: int = 0, **kwargs) -> list[str]:
+    async def predict(
+        self,
+        dataset: list[dict],
+        max_exceptions: int | float = 0,
+        **kwargs,
+    ) -> list[str]:
         """
         Perform predictions on a dataset using the model.
         Returns a list of predicted answers.
