@@ -19,13 +19,13 @@ class ArtConfig(BaseModel, frozen=False, extra="allow"):
     Configuration for an ART model.
     """
 
-    model_name: str
+    base_model: str
     internal_config: InternalModelConfig = Field(default_factory=InternalModelConfig)
     openai_config: OpenAIServerConfig | None = None
 
     def initialize(self, output_dir: str) -> ArtConfig:
         internal_config = get_model_config(
-            base_model=self.model_name,
+            base_model=self.base_model,
             output_dir=output_dir,
             config=self.internal_config,
         )
@@ -66,12 +66,12 @@ def add_config(
             raise ValueError(f"Configuration for model '{model_name}' already exists.")
 
         config = ArtConfig(
-            model_name=model_name,
+            base_model=model_name,
             internal_config=InternalModelConfig(**inter_args),
             openai_config=openai_config,
         )
 
-        CONFIGS[config.model_name] = config
+        CONFIGS[config.base_model] = config
 
 
 def available_configs() -> list[str]:

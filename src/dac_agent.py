@@ -17,11 +17,6 @@ from src.utils.logging import create_logger
 logger = create_logger(__name__)
 
 
-# TODO: think about the structure and the flow of the chat method, especially
-# of the chat() method. we should warn in advance if the task budget is about
-# to deplete, i.e instruct the model to provide a final answer.
-
-
 class ChatMessage(BaseModel, extra="allow", frozen=True, strict=True):
     role: str
     content: str
@@ -73,9 +68,18 @@ class StopCriteria(BaseModel):
         return False
 
 
-# TODO: add max-depth metric (and i guess current depth as well)
-# TODO: interesting idea: a global stop-criteria object, it makes sense to count global resource
-# usage in this overall system.
+def patch_completion(completion: ChatCompletion) -> ChatCompletion:
+    """
+    Sometimes the OpenAI API returns choices with None content.
+    It happens when the model response is immediately EOS.
+
+    This function patches the completion to ensure all choices have content.
+    If content is None, it sets it to an empty string.
+    """
+    for choice in completion.choices:
+        if choice.message.content is None:
+            choice.message.content = ""
+    return completion
 
 
 class AgentNode:
@@ -101,6 +105,7 @@ class AgentNode:
                 "total_calls": 0,
                 "direct_tasks": 0,
                 "total_tasks": 0,
+                "max_depth": 0,
             },
         )
 
@@ -182,17 +187,8 @@ class AgentNode:
                 last_message = self.trajectory.messages()[-1]
                 print(message_string(last_message, indent=self.current_depth))
 
-            try:
-                # Extract tasks from the response
-                # TODO: Sometimes crashes while validating:
-                # It happens when the model response is immediately EOS
-                # at that case the content field is None (this is expected from OpenAI API)
-                # we should handle this case gracefully
-                response = ChatMessage.model_validate(choice.message, from_attributes=True)
-            except Exception as e:
-                print("Error validating choice message:", choice)
-                raise e
-            
+            # Extract tasks from the response
+            response = ChatMessage.model_validate(choice.message, from_attributes=True)
             tasks = self._parse_tasks(response)
 
             if should_break or len(tasks) == 0:
@@ -220,6 +216,7 @@ class AgentNode:
                     # update metrics from sub-agent
                     self.metrics["total_tasks"] += sub_agent.metrics["total_tasks"]
                     self.metrics["total_calls"] += sub_agent.metrics["total_calls"]
+                    self.metrics["max_depth"] = max(1 + sub_agent.metrics["max_depth"], self.metrics["max_depth"])
 
             # Update metrics
             self.metrics["direct_tasks"] += len(tasks)
@@ -280,12 +277,14 @@ class AgentNode:
             messages (list[Message]): The list of messages to send to the API.
             **kwargs: Additional keyword arguments to pass to the API call.
         """
-        return await self.openai_client.chat.completions.create(
+        completion = await self.openai_client.chat.completions.create(
             model=self.model,
             messages=messages,
             logprobs=True,
             **kwargs,
         )
+
+        return patch_completion(completion)
 
     def _parse_answer(self, message: ChatMessage) -> ChatMessage:
         if message.role != "assistant":

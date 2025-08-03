@@ -14,15 +14,15 @@ class VllmConfig(BaseModel, frozen=False, extra="allow"):
     Configuration for a served vLLM model.
     """
 
-    model_name: str
+    base_model: str
     openai_config: OpenAIServerConfig = Field(default_factory=OpenAIServerConfig)
 
-    def initialize(self, port: int, lora_path: str | None = None) -> VllmConfig:
+    def initialize(self, port: int) -> VllmConfig:
         self.openai_config = get_openai_server_config(
-            model_name=self.model_name,
-            base_model=self.model_name,
+            model_name=self.base_model,
+            base_model=self.base_model,
             log_file="",
-            lora_path=lora_path,
+            lora_path=None,
             config=self.openai_config,
         )
         self.openai_config["server_args"]["port"] = port  # type: ignore
@@ -56,7 +56,7 @@ def add_config(
             raise ValueError(f"Configuration for model '{model_name}' already exists.")
 
         config = VllmConfig(
-            model_name=model_name,
+            base_model=model_name,
             openai_config=OpenAIServerConfig(**args),
             **kwargs,
         )

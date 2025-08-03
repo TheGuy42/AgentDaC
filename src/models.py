@@ -12,15 +12,9 @@ from src.utils.logging import create_logger
 
 logger = create_logger(__name__)
 
-# TODO: rename parameters to match ones of art
-# they have:
-
-# model_name - the name of the run
-# base_model - the actual name of the model
-# project_name
 
 class PathConfig(BaseModel, frozen=False):
-    model_name: str
+    base_model: str
     project_name: str
     run_name: str = ""
     art_path: str = ""
@@ -31,7 +25,7 @@ class PathConfig(BaseModel, frozen=False):
             self.art_path = output_dirs.get_default_art_path()
 
         if not self.run_name:
-            self.run_name = self._generate_run_name(self.model_name)
+            self.run_name = self._generate_run_name(self.base_model)
 
     @property
     def model_output_dir(self) -> str:
@@ -50,13 +44,13 @@ class PathConfig(BaseModel, frozen=False):
             model_output_dir=self.model_output_dir,
         )
 
-    def _generate_run_name(self, model_name: str) -> str:
+    def _generate_run_name(self, base_model: str) -> str:
         """
         Generate a run name based on the model name and current date.
         """
-        model_name = self.model_name.split("/")[-1]
+        base_model = self.base_model.split("/")[-1]
         date_str = datetime.now().strftime("%m_%d_%H_%M")
-        return f"{model_name}_{date_str}"
+        return f"{base_model}_{date_str}"
 
     def get_step_checkpoint_dir(self, step: int) -> str:
         """
@@ -71,17 +65,17 @@ async def load_art_model(
     print_full: bool = False,
 ) -> art.TrainableModel:
     if art_config is None:
-        if path_config.model_name not in art_configs.CONFIGS:
+        if path_config.base_model not in art_configs.CONFIGS:
             raise ValueError(
-                f"No configuration found for model: {path_config.model_name}. "
+                f"No configuration found for model: {path_config.base_model}. "
                 f"Available configs: {art_configs.available_configs()}"
             )
 
-        logger.info(f"Loading default config for {path_config.model_name}...")
-        art_config = art_configs.CONFIGS[path_config.model_name]
+        logger.info(f"Loading default config for {path_config.base_model}...")
+        art_config = art_configs.CONFIGS[path_config.base_model]
 
-    if path_config.model_name != art_config.model_name:
-        raise ValueError(f"Model name mismatch: {path_config.model_name} != {art_config.model_name}.")
+    if path_config.base_model != art_config.base_model:
+        raise ValueError(f"Model name mismatch: {path_config.base_model} != {art_config.base_model}.")
 
     if not print_full:
         print("Art Config:")
@@ -96,7 +90,7 @@ async def load_art_model(
     model = art.TrainableModel(
         name=path_config.run_name,
         project=path_config.project_name,
-        base_model=path_config.model_name,
+        base_model=path_config.base_model,
         _internal_config=art_config.internal_config,
     )
 
@@ -120,8 +114,8 @@ def load_vllm_model(
         logger.info(f"Loading default config for {model_name}...")
         vllm_config = vllm_configs.CONFIGS[model_name]
 
-    if vllm_config.model_name != model_name:
-        raise ValueError(f"Model name mismatch: {vllm_config.model_name} != {model_name}.")
+    if vllm_config.base_model != model_name:
+        raise ValueError(f"Model name mismatch: {vllm_config.base_model} != {model_name}.")
 
     if not print_full:
         print("vLLM Config:")

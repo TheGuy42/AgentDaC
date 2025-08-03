@@ -109,7 +109,7 @@ async def main(args: argparse.Namespace):
     prepare_environment()
 
     path_config = PathConfig(
-        model_name=args.model,
+        base_model=args.model,
         project_name=args.project_name,
         run_name=args.run_name,
     )
