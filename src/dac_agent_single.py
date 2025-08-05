@@ -4,6 +4,7 @@ from art.types import Message
 from src.dac_agent import AgentNode
 from src.configs.markers import Markers
 
+
 class SingleAgentNode(AgentNode):
     def create_sub_agent(self):
         return SingleAgentNode(
@@ -15,11 +16,16 @@ class SingleAgentNode(AgentNode):
         )
 
     async def _call(self, messages: list[Message], **kwargs) -> ChatCompletion:
+        # format kwargs
+        extra_body = kwargs.pop("extra_body", {})
+        extra_body.setdefault("include_stop_str_in_output", True)
+        stop = kwargs.pop("stop", [Markers.TASK_END, Markers.ANSWER_END])
+
         return await self.openai_client.chat.completions.create(
             model=self.model,
             messages=messages,
             logprobs=True,
-            stop=[Markers.TASK_END, Markers.ANSWER_END],
-            extra_body={"include_stop_str_in_output": True},
+            stop=stop,
+            extra_body=extra_body,
             **kwargs,
         )
