@@ -47,9 +47,9 @@ class MmluProTrainer(Trainer):
         trajectory = await agent.chat(message, **kwargs)
         return trajectory
 
-    async def rollout_step(self, sample: dict) -> art.Trajectory:
+    async def rollout_step(self, sample: dict, **kwargs) -> art.Trajectory:
         # Perform a forward step to get the trajectory
-        trajectory = await self.forward_step(sample)
+        trajectory = await self.forward_step(sample, **kwargs)
         ans_message = ChatMessage.model_validate(trajectory.messages()[-1], from_attributes=True)
 
         # Compute rewards
@@ -67,21 +67,20 @@ class MmluProTrainer(Trainer):
         num_answers = len(extract_between(ans_message.content, Markers.ANSWER_START, Markers.ANSWER_END))
 
         # Update metrics
-        trajectory.metrics.update({
-            "answer_reward": ans_reward,
-            "format_reward": fmt_reward,
-            "behavior_reward": bhv_reward,
-            "total_reward": trajectory.reward,
-            "is_correct": int(verify(answer, agent_answer)),
-            "gave_answer": int(num_answers > 0),
-        })
+        trajectory.metrics.update(
+            {
+                "answer_reward": ans_reward,
+                "format_reward": fmt_reward,
+                "behavior_reward": bhv_reward,
+                "total_reward": trajectory.reward,
+                "is_correct": int(verify(answer, agent_answer)),
+                "gave_answer": int(num_answers > 0),
+            }
+        )
 
         # Update metadata
-        trajectory.metadata.update({
-            "problem": problem,
-            "answer": answer,
-            "agent_answer": agent_answer,
-            "category": sample["category"]
-        })
+        trajectory.metadata.update(
+            {"problem": problem, "answer": answer, "agent_answer": agent_answer, "category": sample["category"]}
+        )
 
         return trajectory

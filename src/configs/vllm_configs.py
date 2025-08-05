@@ -1,5 +1,5 @@
 from __future__ import annotations
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from pathlib import Path
 from art.dev import ServerArgs, EngineArgs, OpenAIServerConfig, get_openai_server_config
 from src.utils.io import save_base_model
@@ -14,8 +14,18 @@ class VllmConfig(BaseModel, frozen=False, extra="allow"):
     Configuration for a served vLLM model.
     """
 
+    id: str = ""  # NOTE: not supported yet
     base_model: str
     openai_config: OpenAIServerConfig = Field(default_factory=OpenAIServerConfig)
+
+    @model_validator(mode="after")
+    def validate_identifier(self) -> VllmConfig:
+        """
+        Validate that the identifier is set to the base model name if not provided.
+        """
+        if not self.id:
+            self.id = self.base_model
+        return self
 
     def initialize(self, port: int) -> VllmConfig:
         self.openai_config = get_openai_server_config(
@@ -38,7 +48,8 @@ CONFIGS: dict[str, VllmConfig] = {}
 
 
 def add_config(
-    *model_names: str,
+    model_name: str,
+    config_id: str = "",
     server_args: ServerArgs | None = None,
     engine_args: EngineArgs | None = None,
     **kwargs,
@@ -55,17 +66,17 @@ def add_config(
     args = {k: v for k, v in args.items() if v is not None}
     args.update(kwargs)
 
-    for model_name in model_names:
-        if model_name in CONFIGS:
-            raise ValueError(f"Configuration for model '{model_name}' already exists.")
+    config = VllmConfig(
+        id=config_id or model_name,
+        base_model=model_name,
+        openai_config=OpenAIServerConfig(**args),
+        **kwargs,
+    )
 
-        config = VllmConfig(
-            base_model=model_name,
-            openai_config=OpenAIServerConfig(**args),
-            **kwargs,
-        )
+    if config.id in CONFIGS:
+        raise ValueError(f"Configuration for '{config.id}' already exists.")
 
-        CONFIGS[model_name] = config
+    CONFIGS[config.id] = config
 
 
 def available_configs() -> list[str]:
@@ -81,7 +92,7 @@ def available_configs() -> list[str]:
 
 
 add_config(
-    "unsloth/Qwen2.5-32B-Instruct",
+    model_name="unsloth/Qwen2.5-32B-Instruct",
     engine_args=EngineArgs(
         max_num_seqs=128,
         max_model_len=10000,

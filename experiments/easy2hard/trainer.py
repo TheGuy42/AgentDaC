@@ -40,9 +40,9 @@ class Easy2HardTrainer(Trainer):
         batch = sorted(batch, key=lambda x: x["item_difficulty"])
         return [batch[i : i + group_size] for i in range(0, len(batch), group_size)]
 
-    async def rollout_step(self, sample: dict) -> art.Trajectory:
+    async def rollout_step(self, sample: dict, **kwargs) -> art.Trajectory:
         # Perform a forward step to get the trajectory
-        trajectory = await self.forward_step(sample)
+        trajectory = await self.forward_step(sample, **kwargs)
         ans_message = ChatMessage.model_validate(trajectory.messages()[-1], from_attributes=True)
 
         # Compute rewards

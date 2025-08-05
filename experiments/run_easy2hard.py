@@ -127,8 +127,8 @@ async def main(args: argparse.Namespace):
         epochs=10,
         num_groups=2,
         group_size=10,
-        log_every=1,
-        eval_every=2,
+        train_log_steps=1,
+        eval_log_steps=2,
         eval_size=250,
         art_config=art.types.TrainConfig(learning_rate=1e-5),
     )

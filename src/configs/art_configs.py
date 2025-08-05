@@ -10,7 +10,7 @@ from art.dev import (
     OpenAIServerConfig,
 )
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from pathlib import Path
 from art.dev.get_model_config import get_model_config
 from src.utils.io import save_base_model
@@ -21,9 +21,19 @@ class ArtConfig(BaseModel, frozen=False, extra="allow"):
     Configuration for an ART model.
     """
 
+    id: str = ""  # NOTE: not supported yet
     base_model: str
     internal_config: InternalModelConfig = Field(default_factory=InternalModelConfig)
     openai_config: OpenAIServerConfig | None = None
+
+    @model_validator(mode="after")
+    def validate_identifier(self) -> ArtConfig:
+        """
+        Validate that the identifier is set to the base model name if not provided.
+        """
+        if not self.id:
+            self.id = self.base_model
+        return self
 
     def initialize(self, output_dir: str) -> ArtConfig:
         self.internal_config = get_model_config(
@@ -42,7 +52,8 @@ CONFIGS: dict[str, ArtConfig] = {}
 
 
 def add_config(
-    *model_names: str,
+    model_name: str,
+    config_id: str = "",
     init_args: InitArgs | None = None,
     engine_args: EngineArgs | None = None,
     peft_args: PeftArgs | None = None,
@@ -66,17 +77,17 @@ def add_config(
     inter_args = {k: v for k, v in inter_args.items() if v is not None}
     inter_args.update(kwargs)
 
-    for model_name in model_names:
-        if model_name in CONFIGS:
-            raise ValueError(f"Configuration for model '{model_name}' already exists.")
+    config = ArtConfig(
+        id=config_id,
+        base_model=model_name,
+        internal_config=InternalModelConfig(**inter_args),
+        openai_config=openai_config,
+    )
 
-        config = ArtConfig(
-            base_model=model_name,
-            internal_config=InternalModelConfig(**inter_args),
-            openai_config=openai_config,
-        )
+    if config.id in CONFIGS:
+        raise ValueError(f"Configuration for '{config.id}' already exists.")
 
-        CONFIGS[config.base_model] = config
+    CONFIGS[config.id] = config
 
 
 def available_configs() -> list[str]:
