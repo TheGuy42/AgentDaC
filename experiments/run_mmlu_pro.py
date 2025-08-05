@@ -107,9 +107,7 @@ def load_configs(config_dir: str | pathlib.Path) -> dict[str, Any]:
 async def main(args: argparse.Namespace):
     """
     Main function to run the training process.
-    """
-    prepare_environment()
-    
+    """    
     print()
     print(f"Current working directory: {os.getcwd()}")
     print()
@@ -198,6 +196,7 @@ async def main(args: argparse.Namespace):
 
 
 if __name__ == "__main__":
+    prepare_environment()
     setup_logging(logging.INFO)
     args = parse_args()
     asyncio.run(main(args))

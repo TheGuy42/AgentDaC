@@ -19,6 +19,12 @@ def prepare_environment(tokens_folder: str = "./api_keys"):
     hf_token = token_from_file(folder_path / "HF_KEY.txt")
     if hf_token:
         os.environ["HF_TOKEN"] = hf_token
+        
+    openai_token = token_from_file(folder_path / "OPENAI_KEY.txt")
+    if not openai_token:
+        openai_token = "default"
+        
+    os.environ["OPENAI_API_KEY"] = openai_token
 
     # os.environ["TORCHINDUCTOR_MAX_AUTOTUNE"] = "1"
     # os.environ["OMP_NUM_THREADS"] = "1"  # Set OMP_NUM_THREADS to 1 to avoid multithreading issues with vLLM

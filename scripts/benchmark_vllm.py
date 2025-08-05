@@ -2,9 +2,9 @@ import logging
 import argparse
 import sys
 import pathlib
-import pprint
+import os
 
-from art.dev import EngineArgs
+from art.dev import EngineArgs, ServerArgs
 from vllm.benchmarks import serve as serve_benchmark
 
 # set pythonpath to the main module directory
@@ -14,12 +14,13 @@ if str(module_dir) not in sys.path:
 
 from src.utils.logging import create_logger, setup_logging
 from src.configs import vllm_configs
+from src.utils.env import prepare_environment
 
 
 logger = create_logger(__name__)
 
 
-def parse_args():
+def parse_args() -> tuple[argparse.Namespace, list[str]]:
     parser = argparse.ArgumentParser(
         description="Benchmark vLLM server.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -39,12 +40,19 @@ def parse_args():
         help="The port on which the vLLM server is running (e.g., '8200').",
     )
 
-    return parser.parse_args()
+    parser.add_argument(
+        "--result_dir",
+        type=str,
+        default="benchmark_results",
+    )
+
+    return parser.parse_known_args()
 
 
-def main(args: argparse.Namespace):
+def main(args: argparse.Namespace, extra_args: list[str]) -> None:
     model_name: str = args.model
     port: int = args.port
+    result_dir: str = args.result_dir
 
     if model_name not in vllm_configs.available_configs():
         logger.error(f"Model '{model_name}' is not available. Available models are: {vllm_configs.available_configs()}")
@@ -53,46 +61,54 @@ def main(args: argparse.Namespace):
     config = vllm_configs.CONFIGS[model_name]
     config = config.initialize(port)
     engine_args: EngineArgs = config.openai_config["engine_args"]  # type: ignore
+    server_args: ServerArgs = config.openai_config["server_args"]  # type: ignore
 
     dummy_parser = argparse.ArgumentParser()
     serve_benchmark.add_cli_args(dummy_parser)
 
     dummy_parser.set_defaults(
-        model=model_name,
         endpoint_type="vllm",
-        host="0.0.0.0",
-        port=port,
-        logprobs=-1,
-        results_dir="benchmark_results",
+        host=server_args.get("host", "0.0.0.0"),
+        port=server_args.get("port", port),
+        result_dir=result_dir,
         metric_percentiles="25,50,75,99",
         seed=0,
     )
 
-    random_input_len = 256
-    max_model_len = engine_args.get("max_model_len", 4096)
+    DEFAULT_INPUT_LEN = 256
+    DEFAULT_MODEL_LEN = 2048
+    DEFAULT_CONCURRENCY = 128
+
+    max_model_len = engine_args.get("max_model_len", DEFAULT_MODEL_LEN)
     if max_model_len is None:
-        max_model_len = 4096
-    random_output_len = (max_model_len - 2 * random_input_len) // 4
-    max_concurrency = engine_args.get("max_num_seqs", 64)
+        max_model_len = DEFAULT_MODEL_LEN
+    
+    max_concurrency = engine_args.get("max_num_seqs", DEFAULT_CONCURRENCY)
+    if max_concurrency is None:
+        max_concurrency = DEFAULT_CONCURRENCY
+
+    random_output_len = (max_model_len - 2 * DEFAULT_INPUT_LEN) // 4
+    
 
     dummy_parser.set_defaults(
-        num_prompts=1024,
+        num_prompts=max_concurrency * 5,
         max_concurrency=max_concurrency,
         dataset_name="random",
-        random_input_len=random_input_len,
+        random_input_len=DEFAULT_INPUT_LEN,
         random_output_len=random_output_len,
         random_range_ratio=0.85,
     )
 
-    bench_args = dummy_parser.parse_args(args=[])
+    bench_args = dummy_parser.parse_args(args=["--model", model_name] + extra_args)
 
-    pprint.pprint("Benchmarking Args:")
-    pprint.pprint(vars(bench_args), indent=4)
+    if server_args.get("api_key"):
+        os.environ["OPENAI_API_KEY"] = server_args["api_key"]
 
     serve_benchmark.main(bench_args)
 
 
 if __name__ == "__main__":
+    prepare_environment()
     setup_logging(logging.WARNING)
-    args = parse_args()
-    main(args)
+    args, extra_args = parse_args()
+    main(args, extra_args)

@@ -59,7 +59,6 @@ def parse_args() -> tuple[argparse.Namespace, list[str]]:
 
 
 def main(args: argparse.Namespace, extra_args: list[str]) -> None:
-    prepare_environment()
 
     print()
     print(f"Current working directory: {os.getcwd()}")
@@ -100,6 +99,7 @@ def main(args: argparse.Namespace, extra_args: list[str]) -> None:
 
 
 if __name__ == "__main__":
+    prepare_environment()
     setup_logging(logging.WARNING)
     args, extra_args = parse_args()
     main(args, extra_args)
