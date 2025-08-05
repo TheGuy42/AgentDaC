@@ -195,20 +195,15 @@ class AgentNode:
             # Update metrics
             self.metrics["total_calls"] += 1
             self.metrics["direct_calls"] += 1
+            if completion.usage:
+                self.metrics["total_tokens"] = completion.usage.total_tokens
 
             if verbose:
                 last_message = self.trajectory.messages()[-1]
                 print(message_string(last_message, indent=self.current_depth))
 
             # Extract tasks from the response
-            try:
-                response = ChatMessage.model_validate(choice.message, from_attributes=True)
-            except Exception as e:
-                # TODO: this still sometimes occur, even though we patch the completion
-                print(completion)
-                patch_completion(completion)
-                print(completion)
-                raise e
+            response = ChatMessage.model_validate(choice.message, from_attributes=True)
             tasks = self._parse_tasks(response)
 
             if should_break or len(tasks) == 0:

@@ -1,7 +1,7 @@
 from openai.types.chat.chat_completion import ChatCompletion
 from art.types import Message
 
-from src.dac_agent import AgentNode
+from src.dac_agent import AgentNode, patch_completion
 from src.configs.markers import Markers
 
 
@@ -21,7 +21,7 @@ class SingleAgentNode(AgentNode):
         extra_body.setdefault("include_stop_str_in_output", True)
         stop = kwargs.pop("stop", [Markers.TASK_END, Markers.ANSWER_END])
 
-        return await self.openai_client.chat.completions.create(
+        completion = await self.openai_client.chat.completions.create(
             model=self.model,
             messages=messages,
             logprobs=True,
@@ -29,3 +29,5 @@ class SingleAgentNode(AgentNode):
             extra_body=extra_body,
             **kwargs,
         )
+
+        return patch_completion(completion)
