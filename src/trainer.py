@@ -1,7 +1,7 @@
 from abc import abstractmethod
 import sys
 
-import wandb
+from wandb.sdk.wandb_run import Run as WandbRun
 from pydantic import BaseModel, Field
 import numpy as np
 from pathlib import Path
@@ -67,7 +67,7 @@ class Trainer:
         self.default_kwargs = default_kwargs
 
     @property
-    def wandb_run(self) -> wandb.Run | None:
+    def wandb_run(self) -> WandbRun | None:
         try:
             backend: LocalBackend = self.model.backend()  # type: ignore
             return backend._get_wandb_run(self.model)
