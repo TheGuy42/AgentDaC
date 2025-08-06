@@ -2,7 +2,6 @@ from __future__ import annotations
 import os
 import logging
 
-logging.Logger.manager
 
 LOG_FORMAT = "%(levelname)s %(asctime)s [%(filename)s:%(lineno)d] %(message)s"
 LOG_DATEFMT = "%m-%d %H:%M:%S"
