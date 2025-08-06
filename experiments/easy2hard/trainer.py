@@ -7,6 +7,7 @@ from src.utils.text import extract_answer, extract_between
 
 from experiments.general_rewards import format_reward, behavior_reward
 from experiments.easy2hard.rewards import answer_reward, verify
+from experiments.easy2hard.format import format_prompt
 
 import art
 
@@ -22,16 +23,7 @@ class Easy2HardTrainer(Trainer):
         )
 
     async def forward_step(self, sample: dict, **kwargs) -> art.Trajectory:
-        instruction = (
-            "The final answer should be written as valid LaTeX equation, starting with $ and ending with $. "
-            "It should contain only the final result, without any additional text or explanation. "
-            "Final answer format examples: $42$, $1,2,3,4$, $(1,2)$, $x^2$, $y=1$, $\\frac{1}{2}$, $\\sqrt{2} \\pi$, $\\text{Michael}$, $\\text{no}$, and so on."
-        )
-        
-        instruction = "" # TODO: compare performance with and without instruction
-
-        problem = sample["problem"].strip()
-        content = f"{problem}\n{instruction}"
+        content = format_prompt(sample)
         agent = self.create_agent()
         message = ChatMessage(role="user", content=content)
         trajectory = await agent.chat(message, **kwargs)
@@ -56,7 +48,7 @@ class Easy2HardTrainer(Trainer):
         bhv_reward = behavior_reward(trajectory)
         trajectory.reward += bhv_reward
 
-        problem = sample["problem"].strip()
+        problem = format_prompt(sample)
         answer = sample["answer"].strip()
         agent_answer = extract_answer(ans_message.content)
         num_answers = len(extract_between(ans_message.content, Markers.ANSWER_START, Markers.ANSWER_END))

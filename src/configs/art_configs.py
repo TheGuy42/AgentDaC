@@ -8,6 +8,7 @@ from art.dev import (
     TrainerArgs,
     TorchtuneArgs,
     OpenAIServerConfig,
+    ServerArgs,
 )
 
 from pydantic import BaseModel, Field, model_validator
@@ -109,7 +110,6 @@ add_config(
         load_in_4bit=False,
         gpu_memory_utilization=0.7,
     ),
-    trainer_args=TrainerArgs(vllm_gpu_memory_utilization=0.7),
 )
 
 
@@ -130,23 +130,23 @@ add_config(
         max_seq_length=10000,
         gpu_memory_utilization=0.8,
     ),
-    trainer_args=TrainerArgs(vllm_gpu_memory_utilization=0.8),
 )
-
-# TODO: there are two places with engine_args. The first place is OpenAIServerConfig, which is passed
-# to the backend and used to initialize vllm. The second is in InternalModelConfig. What happens when
-# these configs disagree with each other? which config is used for what?
 
 add_config(
     "unsloth/Qwen2.5-14B-Instruct",
     init_args=InitArgs(
         load_in_4bit=False,
-        max_seq_length=4096,
+        max_seq_length=4096 * 2,
         gpu_memory_utilization=0.8,
     ),
     engine_args=EngineArgs(
-        max_num_batched_tokens=4096 * 4,
-        max_seq_len_to_capture=4096,
+        max_num_batched_tokens=4096 * 4 * 2,
+        max_seq_len_to_capture=4096 * 2,
+    ),
+    openai_config=OpenAIServerConfig(
+        server_args=ServerArgs(
+            port=8001,
+        ),
     ),
 )
 

@@ -7,6 +7,7 @@ from src.utils.text import extract_answer, extract_between
 
 from experiments.general_rewards import format_reward, behavior_reward
 from experiments.mmlu_pro.rewards import answer_reward, verify
+from experiments.mmlu_pro.format import format_prompt
 
 import art
 
@@ -21,27 +22,8 @@ class MmluProTrainer(Trainer):
             stop_criteria=self.stop_criteria,
         )
 
-    def format_prompt(self, sample: dict) -> str:
-        question = sample["question"].strip()
-        category = sample["category"].strip()
-        options: list = sample["options"]
-        letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
-
-        instruction = (
-            f"The following is a multiple choice question (with answers) about {category}. Only one answer is correct. "
-            f"Answer with X where X is the correct letter choice. The final answer should contain only a letter choice."
-        )
-
-        fmt_options = "Options are:\n"
-        for option, letter in zip(options, letters):
-            fmt_options += f"({letter}): {option}" + "\n"
-
-        fmt_question = f"Q: {question}\n{fmt_options}"
-        content = f"{instruction}\n{fmt_question}".strip()
-        return content
-
     async def forward_step(self, sample: dict, **kwargs) -> art.Trajectory:
-        content = self.format_prompt(sample)
+        content = format_prompt(sample)
         agent = self.create_agent()
         message = ChatMessage(role="user", content=content)
         trajectory = await agent.chat(message, **kwargs)
@@ -61,7 +43,7 @@ class MmluProTrainer(Trainer):
         bhv_reward = behavior_reward(trajectory)
         trajectory.reward += bhv_reward
 
-        problem = self.format_prompt(sample)
+        problem = format_prompt(sample)
         answer = sample["answer"].strip()
         agent_answer = extract_answer(ans_message.content)
         num_answers = len(extract_between(ans_message.content, Markers.ANSWER_START, Markers.ANSWER_END))
@@ -80,7 +62,12 @@ class MmluProTrainer(Trainer):
 
         # Update metadata
         trajectory.metadata.update(
-            {"problem": problem, "answer": answer, "agent_answer": agent_answer, "category": sample["category"]}
+            {
+                "problem": problem,
+                "answer": answer,
+                "agent_answer": agent_answer,
+                "category": sample["category"],
+            }
         )
 
         return trajectory
