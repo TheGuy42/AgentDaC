@@ -15,10 +15,10 @@ class MmluProTrainer(Trainer):
     def create_agent(self) -> AgentNode:
         client = self.vllm_router.next()
         return SingleAgentNode(
-            model_name=self.inference_name,
+            model_name=self.model.get_inference_name(),
             openai_client=client.openai_client,
             prompt_config=self.prompt_config,
-            stop_criteria=self.stop_criteria.clone(),
+            stop_criteria=self.stop_criteria,
         )
 
     def format_prompt(self, sample: dict) -> str:

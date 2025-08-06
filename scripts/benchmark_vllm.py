@@ -82,13 +82,12 @@ def main(args: argparse.Namespace, extra_args: list[str]) -> None:
     max_model_len = engine_args.get("max_model_len", DEFAULT_MODEL_LEN)
     if max_model_len is None:
         max_model_len = DEFAULT_MODEL_LEN
-    
+
     max_concurrency = engine_args.get("max_num_seqs", DEFAULT_CONCURRENCY)
     if max_concurrency is None:
         max_concurrency = DEFAULT_CONCURRENCY
 
     random_output_len = (max_model_len - 2 * DEFAULT_INPUT_LEN) // 4
-    
 
     dummy_parser.set_defaults(
         num_prompts=max_concurrency * 5,
@@ -101,8 +100,8 @@ def main(args: argparse.Namespace, extra_args: list[str]) -> None:
 
     bench_args = dummy_parser.parse_args(args=["--model", model_name] + extra_args)
 
-    if server_args.get("api_key"):
-        os.environ["OPENAI_API_KEY"] = server_args["api_key"]
+    if openai_key := server_args.get("api_key", "default"):
+        os.environ["OPENAI_API_KEY"] = openai_key
 
     serve_benchmark.main(bench_args)
 

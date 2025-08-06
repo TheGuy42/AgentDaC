@@ -1,19 +1,18 @@
 from abc import abstractmethod
 import sys
 
-from wandb.sdk.wandb_run import Run
+import wandb
 from pydantic import BaseModel, Field
 import numpy as np
 from pathlib import Path
 
 import art
-from art.dev import InternalModelConfig
 from art.utils import iterate_dataset
 from art.local import LocalBackend
 
 from src.vllm_client import VllmRouter
 from src.models import PathConfig
-from src.dac_agent import AgentNode, ChatMessage, PromptConfig, StopCriteria
+from src.dac_agent import ChatMessage, PromptConfig, StopCriteria
 from src.utils import text as text_utils
 from src.utils.logging import create_logger
 from src.utils.io import save_base_model
@@ -50,86 +49,59 @@ class TrainingConfig(BaseModel, extra="allow"):
 class Trainer:
     def __init__(
         self,
-        model: art.TrainableModel,
+        model: art.Model,
         vllm_router: VllmRouter,
         path_config: PathConfig,
-        train_config: TrainingConfig,
         prompt_config: PromptConfig,
         stop_criteria: StopCriteria,
+        default_kwargs: dict | None = None,
     ):
+        if default_kwargs is None:
+            default_kwargs = {}
+
         self.model = model
         self.path_config = path_config
-        self.training_config = train_config
         self.vllm_router = vllm_router
         self.prompt_config = prompt_config
         self.stop_criteria = stop_criteria
+        self.default_kwargs = default_kwargs
 
     @property
-    def model_config(self) -> InternalModelConfig:
-        config = self.model._internal_config
-        if config is None:
-            raise ValueError("Model configuration is not set.")
-        return config
-
-    @property
-    def logger_run(self) -> Run:
-        backend: LocalBackend = self.model.backend()  # type: ignore
-        return backend._get_wandb_run(self.model)  # type: ignore
-
-    @property
-    def inference_name(self) -> str:
-        """
-        Returns the inference name of the model.
-        This is used to identify the model in the vLLM router.
-        """
-        return self.model.get_inference_name()
+    def wandb_run(self) -> wandb.Run | None:
+        try:
+            backend: LocalBackend = self.model.backend()  # type: ignore
+            return backend._get_wandb_run(self.model)
+        except Exception as e:
+            logger.warning(f"Failed to get wandb run: {e}")
+            return None
 
     def close(self):
         try:
-            self.logger_run.finish()
+            run = self.wandb_run
+            if run is not None:
+                run.finish()
         except Exception as e:
-            logger.error(f"Failed to finish logger run: {e}")
+            logger.error(f"Failed to finish wandb run: {e}")
+
         try:
-            # NOTE: for the base class Backend, close() method is async
-            # but as a result of a bug, for LocalBackend it is not async
-            backend: LocalBackend = self.model.backend()  # type: ignore
-            backend.close()
+            backend: None | art.Backend = self.model._backend  # type: ignore
+            if backend is not None:
+                backend.close()  # type: ignore
         except Exception as e:
             logger.error(f"Failed to close model backend: {e}")
 
-    def log_hparams(self):
+    def log_hparams(self, d: dict):
         """
         Logs hyperparameters to wandb.
 
-        Note: Inheriting classes should override this method to log additional hyperparameters.
+        Args:
+            d (dict): Dictionary of hyperparameters to log.
         """
-        run = self.logger_run
+        run = self.wandb_run
         if run is None:
             logger.warning("No wandb run found. Skipping hyperparameter logging.")
             return
-
-        run.config.update(
-            {
-                "model": self.model.model_dump(),
-                "path_config": self.path_config.model_dump(),
-                "training_config": self.training_config.model_dump(),
-                "prompt_config": self.prompt_config.model_dump(),
-                "stop_criteria": self.stop_criteria.model_dump(),
-            },
-            allow_val_change=True,
-        )
-
-    def create_agent(self) -> AgentNode:
-        """
-        Create a new instance of the AgentNode with the current model and configuration.
-        """
-        client = self.vllm_router.next()
-        return AgentNode(
-            model_name=self.inference_name,
-            openai_client=client.openai_client,
-            prompt_config=self.prompt_config,
-            stop_criteria=self.stop_criteria.clone(),
-        )
+        run.config.update(d, allow_val_change=True)
 
     async def sync_lora(self, step: int | None = None):
         """
@@ -140,15 +112,37 @@ class Trainer:
                 If None, the current model step will be used.
         """
         if step is None:
+            if not isinstance(self.model, art.TrainableModel):
+                raise ValueError("Model must be a TrainableModel to get step.")
             step = await self.model.get_step()
 
         await self.vllm_router.unload_all_loras()
         curr_checkpoint_dir = self.path_config.get_step_checkpoint_dir(step)
-        await self.vllm_router.load_lora(self.inference_name, curr_checkpoint_dir)
+        await self.vllm_router.load_lora(self.model.get_inference_name(), curr_checkpoint_dir)
 
-    async def train(self, train_dataset: list[dict], eval_dataset: list[dict]) -> art.TrainableModel:
-        config = self.training_config
-        self.log_hparams()
+    async def train(
+        self,
+        config: TrainingConfig,
+        train_dataset: list[dict],
+        eval_dataset: list[dict] | None = None,
+    ) -> art.TrainableModel:
+        if not isinstance(self.model, art.TrainableModel):
+            raise ValueError("Model must be an `art.TrainableModel` to train.")
+
+        if eval_dataset is None:
+            eval_dataset = train_dataset
+
+        # Log hyperparameters
+        self.log_hparams(
+            {
+                "model": self.model.model_dump(),
+                "path_config": self.path_config.model_dump(),
+                "prompt_config": self.prompt_config.model_dump(),
+                "stop_criteria": self.stop_criteria.model_dump(),
+                "training_config": config.model_dump(),
+                "default_kwargs": self.default_kwargs,
+            }
+        )
 
         # Training set iterator
         train_batch_size = config.num_groups * config.group_size
@@ -178,25 +172,26 @@ class Trainer:
             step_data = train_batch.items
             global_step = train_batch.step
 
-            # Evaluate model
+            # Evaluate and log
             if (config.eval_log_steps is not None) and (global_step % config.eval_log_steps == 0):
-                await self.rollout(
+                trajectories = await self.rollout(
                     dataset=next(eval_iter).items,
-                    split="eval",
                     max_exceptions=config.max_exceptions,
-                    log=True,
                     **config.rollout_kwargs,
                 )
+                await self.model.log(trajectories, split="eval")
 
-            # Perform Rollout
-            log_step = (config.train_log_steps is not None) and (global_step % config.train_log_steps == 0)
+            # Perform training rollout
             trajectory_groups = await self.rollout(
                 step_data,
-                split="train",
+                group_size=config.group_size,
                 max_exceptions=config.max_exceptions,
-                log=log_step,
                 **config.rollout_kwargs,
             )
+
+            # Log training trajectories
+            if (config.train_log_steps is not None) and (global_step % config.train_log_steps == 0):
+                await self.model.log(trajectory_groups, split="train")
 
             # Filter groups with low reward standard deviation
             filtered_groups = []
@@ -248,6 +243,8 @@ class Trainer:
         Returns:
             list[str]: List of predicted answers for each sample in the dataset.
         """
+        if not kwargs:
+            kwargs = self.default_kwargs
 
         trajectories = await self.forward(dataset, max_exceptions=max_exceptions, **kwargs)
 
@@ -285,12 +282,16 @@ class Trainer:
         Returns:
             list[art.Trajectory]: List of trajectories generated by the model for the dataset.
         """
+        if not kwargs:
+            kwargs = self.default_kwargs
+
         forward_tasks = [self.forward_step(sample, **kwargs) for sample in dataset]
 
         trajectories = await art.gather_trajectories(
             forward_tasks,
             pbar_desc="forward",
             max_exceptions=max_exceptions,
+            pbar_total_completion_tokens=False,
         )
 
         filtered = [tr for tr in trajectories if isinstance(tr, art.Trajectory)]
@@ -324,9 +325,8 @@ class Trainer:
     async def rollout(
         self,
         dataset: list[dict],
-        split: str = "train",
+        group_size: int | None = None,
         max_exceptions: int | float = 0,
-        log: bool = False,
         **kwargs,
     ) -> list[art.TrajectoryGroup]:
         """
@@ -335,28 +335,31 @@ class Trainer:
 
         Args:
             dataset (list[dict]): List of samples to process.
-            split (str): The split name for logging purposes (e.g., "train", "eval").
+            group_size (int | None): Size of each group to split the dataset into.
+                If None, the entire dataset is treated as a single group.
             max_exceptions (int | float): Maximum number of failed trajectories to allow before failing.
                 If float, then it is treated as a fraction of the dataset size.
-            log (bool): Whether to log the rollout results.
             **kwargs: Additional keyword arguments for the rollout step.
 
         Returns:
             list[art.TrajectoryGroup]: List of trajectory groups generated by the model for the dataset.
         """
+        if not kwargs:
+            kwargs = self.default_kwargs
+
+        if group_size is None:
+            group_size = len(dataset)
+
         groups = [
             art.TrajectoryGroup([self.rollout_step(sample, **kwargs) for sample in data])
-            for data in self.split_into_groups(dataset, self.training_config.group_size)
+            for data in self.split_into_groups(dataset, group_size)
         ]
 
         trajectory_groups = await art.gather_trajectory_groups(
             groups,
-            pbar_desc=f"{split}-rollout",
             max_exceptions=max_exceptions,
+            pbar_total_completion_tokens=False,
         )
-
-        if log:
-            await self.model.log(trajectory_groups, split=split)
 
         return trajectory_groups
 

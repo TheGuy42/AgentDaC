@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import cast
 from openai import AsyncOpenAI
 from openai.types.chat.chat_completion import ChatCompletion
 
@@ -21,6 +22,9 @@ logger = create_logger(__name__)
 class ChatMessage(BaseModel, extra="allow", frozen=True, strict=True):
     role: str
     content: str
+
+    def as_openai(self) -> Message:
+        return cast(Message, {"role": self.role, "content": self.content})
 
 
 class PromptConfig(BaseModel):
@@ -123,7 +127,7 @@ class AgentNode:
         )
 
         if sys_msg := self._create_system_message():
-            self.trajectory.messages_and_choices.append(sys_msg.model_dump())
+            self.trajectory.messages_and_choices.append(sys_msg.as_openai())
 
     @property
     def metrics(self) -> dict[str, float | int | bool]:
@@ -178,7 +182,7 @@ class AgentNode:
         if prompt.role != "user":
             raise ValueError("Prompt role must be 'user' to start the conversation.")
 
-        self.trajectory.messages_and_choices.append(prompt.model_dump())
+        self.trajectory.messages_and_choices.append(prompt.as_openai())
 
         if verbose:
             last_message = self.trajectory.messages()[-1]
@@ -245,7 +249,7 @@ class AgentNode:
 
             # Create a new message with the tasks' answers
             tasks_message = ChatMessage(role="user", content="\n".join(task_answers))
-            self.trajectory.messages_and_choices.append(tasks_message.model_dump())
+            self.trajectory.messages_and_choices.append(tasks_message.as_openai())
 
             if verbose:
                 last_message = self.trajectory.messages()[-1]
@@ -280,7 +284,7 @@ class AgentNode:
             openai_client=self.openai_client,
             model_name=self.model,
             prompt_config=self.prompt_config,
-            stop_criteria=self.stop_criteria.clone(),
+            stop_criteria=self.stop_criteria,
             current_depth=self.current_depth + 1,
         )
 

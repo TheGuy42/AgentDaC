@@ -11,7 +11,7 @@ class SingleAgentNode(AgentNode):
             openai_client=self.openai_client,
             model_name=self.model,
             prompt_config=self.prompt_config,
-            stop_criteria=self.stop_criteria.clone(),
+            stop_criteria=self.stop_criteria,
             current_depth=self.current_depth + 1,
         )
 

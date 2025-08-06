@@ -179,7 +179,6 @@ async def main(args: argparse.Namespace):
         model=model,
         vllm_router=vllm_router,
         path_config=path_config,
-        train_config=train_config,
         prompt_config=prompt_config,
         stop_criteria=stop_criteria,
     )
@@ -187,6 +186,7 @@ async def main(args: argparse.Namespace):
     # start training
     try:
         await trainer.train(
+            config=train_config,
             train_dataset=train_data.to_list(),
             eval_dataset=test_data.to_list(),
         )

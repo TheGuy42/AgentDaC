@@ -58,7 +58,7 @@ def message_string(message: Message, indent: int = 0) -> str:
     role_line = f"{spaces}{bold_role_label} {Colors.GREEN}{message['role']}{Colors.RESET}"
 
     # Format content with colors and proper indentation
-    content = colorize_markers(message["content"])
+    content = colorize_markers(message.get("content", ""))
     bold_content_label = f"{Colors.BOLD}Content:{Colors.RESET}"
     content_first_line = f"{spaces}{bold_content_label} "
 

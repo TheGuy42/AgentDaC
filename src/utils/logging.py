@@ -29,7 +29,7 @@ def parse_log_level(value: str, default: int = logging.INFO) -> int:
     return name_to_level[value]
 
 
-CURRENT_LEVEL: int = parse_log_level(os.environ.get(LOG_LEVEL_ENV, "INFO"))
+CURRENT_LEVEL: int = parse_log_level(os.getenv(LOG_LEVEL_ENV, "INFO"))
 ACTIVE_LOGGERS: dict[str, logging.Logger] = {}
 
 
