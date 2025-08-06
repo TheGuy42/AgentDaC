@@ -177,6 +177,7 @@ class Trainer:
                 trajectories = await self.rollout(
                     dataset=next(eval_iter).items,
                     max_exceptions=config.max_exceptions,
+                    pbar_desc="rollout-eval",
                     **config.rollout_kwargs,
                 )
                 await self.model.log(trajectories, split="eval")
@@ -186,6 +187,7 @@ class Trainer:
                 step_data,
                 group_size=config.group_size,
                 max_exceptions=config.max_exceptions,
+                pbar_desc="rollout-train",
                 **config.rollout_kwargs,
             )
 
@@ -228,6 +230,7 @@ class Trainer:
         self,
         dataset: list[dict],
         max_exceptions: int | float = 0,
+        pbar_desc: str = "predict",
         **kwargs,
     ) -> list[str]:
         """
@@ -238,6 +241,7 @@ class Trainer:
             dataset (list[dict]): List of samples to predict.
             max_exceptions (int | float): Maximum number of failed trajectories to allow before failing.
                 If float, then it is treated as a fraction of the dataset size.
+            pbar_desc (str): Description for the progress bar.
             **kwargs: Additional keyword arguments for the prediction step.
 
         Returns:
@@ -246,7 +250,12 @@ class Trainer:
         if not kwargs:
             kwargs = self.default_kwargs
 
-        trajectories = await self.forward(dataset, max_exceptions=max_exceptions, **kwargs)
+        trajectories = await self.forward(
+            dataset,
+            max_exceptions=max_exceptions,
+            pbar_desc=pbar_desc,
+            **kwargs,
+        )
 
         answers = []
         for tr in trajectories:
@@ -268,6 +277,7 @@ class Trainer:
         self,
         dataset: list[dict],
         max_exceptions: int | float = 0,
+        pbar_desc: str = "forward",
         **kwargs,
     ) -> list[art.Trajectory]:
         """
@@ -277,6 +287,7 @@ class Trainer:
             dataset (list[dict]): List of samples to process.
             max_exceptions (int | float): Maximum number of failed trajectories to allow before failing.
                 If float, then it is treated as a fraction of the dataset size.
+            pbar_desc (str): Description for the progress bar.
             **kwargs: Additional keyword arguments for the forward step.
 
         Returns:
@@ -289,7 +300,7 @@ class Trainer:
 
         trajectories = await art.gather_trajectories(
             forward_tasks,
-            pbar_desc="forward",
+            pbar_desc=pbar_desc,
             max_exceptions=max_exceptions,
             pbar_total_completion_tokens=False,
         )
@@ -327,6 +338,7 @@ class Trainer:
         dataset: list[dict],
         group_size: int | None = None,
         max_exceptions: int | float = 0,
+        pbar_desc: str = "rollout",
         **kwargs,
     ) -> list[art.TrajectoryGroup]:
         """
@@ -339,6 +351,7 @@ class Trainer:
                 If None, the entire dataset is treated as a single group.
             max_exceptions (int | float): Maximum number of failed trajectories to allow before failing.
                 If float, then it is treated as a fraction of the dataset size.
+            pbar_desc (str): Description for the progress bar.
             **kwargs: Additional keyword arguments for the rollout step.
 
         Returns:
@@ -357,6 +370,7 @@ class Trainer:
 
         trajectory_groups = await art.gather_trajectory_groups(
             groups,
+            pbar_desc=pbar_desc,
             max_exceptions=max_exceptions,
             pbar_total_completion_tokens=False,
         )
