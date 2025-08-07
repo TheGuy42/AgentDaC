@@ -95,7 +95,7 @@ def available_configs() -> list[str]:
     """
     Returns a list of available model configurations.
     """
-    return list(CONFIGS.keys())
+    return sorted(list(CONFIGS.keys()))
 
 
 ################################################################
@@ -109,26 +109,6 @@ add_config(
     init_args=InitArgs(
         load_in_4bit=False,
         gpu_memory_utilization=0.7,
-    ),
-)
-
-
-add_config(
-    "Qwen/Qwen2.5-32B-Instruct",
-    init_args=InitArgs(
-        load_in_4bit=False,
-        max_seq_length=10000,
-        gpu_memory_utilization=0.85,
-    ),
-)
-
-
-add_config(
-    "unsloth/Qwen2.5-32B-Instruct",
-    init_args=InitArgs(
-        load_in_4bit=False,
-        max_seq_length=10000,
-        gpu_memory_utilization=0.8,
     ),
 )
 
@@ -196,30 +176,21 @@ add_config(
 )
 
 add_config(
+    "unsloth/Qwen2.5-32B-Instruct",
+    init_args=InitArgs(
+        load_in_4bit=False,
+        max_seq_length=10000,
+        gpu_memory_utilization=0.8,
+    ),
+)
+
+add_config(
     "unsloth/Qwen3-14B",
     init_args=InitArgs(
         load_in_4bit=False,
         max_seq_length=15000,
         gpu_memory_utilization=0.65,
-    ),
-)
-
-add_config(
-    "unsloth/Qwen3-14B-bnb-4bit",
-    init_args=InitArgs(
-        load_in_4bit=True,
-        max_seq_length=20000,
-        gpu_memory_utilization=0.65,
-    ),
-)
-
-add_config(
-    "unsloth/Llama-4-Scout-17B-16E-Instruct-unsloth-dynamic-bnb-4bit",
-    init_args=InitArgs(
-        load_in_4bit=True,
-        max_seq_length=10000,
-        gpu_memory_utilization=0.85,
-    ),
+    ),  
 )
 
 add_config(
@@ -230,3 +201,14 @@ add_config(
         gpu_memory_utilization=0.85,
     ),
 )
+
+
+add_config(
+    "unsloth/Llama-4-Scout-17B-16E-Instruct-unsloth-dynamic-bnb-4bit",
+    init_args=InitArgs(
+        load_in_4bit=True,
+        max_seq_length=10000,
+        gpu_memory_utilization=0.85,
+    ),
+)
+

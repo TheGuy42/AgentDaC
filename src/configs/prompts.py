@@ -215,7 +215,8 @@ Final Answer Requirements:
 
 Formatting:
 - Sub-task must appear exactly as: <task> full task text and description </task>.
-- Final answers or clarification requests must appear exactly as: <answer> final answer text </answer>.
+- Final answers must appear exactly as: <answer> final answer text </answer>.
+- Each response must always contain a block, either a task block or a final answer block.
 - Only one block per turn, and it must be the last thing in your message.
 
 By following these rules strictly, you ensure clear, efficient, and unambiguous task delegation and final answer synthesis, and you may iteratively decompose complex tasks over multiple turns as needed.
@@ -252,6 +253,7 @@ Final Answer Requirements:
 Formatting:
 - Sub-task must appear exactly as: <task> full task text and description </task>.
 - Final answers or clarification requests must appear exactly as: <answer> final answer text </answer>.
+- Each response must always contain a block, either a task block or a final answer block.
 - Only one block per turn, and it must be the last thing in your message.
 
 By following these rules strictly, you ensure clear, efficient, and unambiguous task delegation and final answer synthesis, and you may iteratively decompose complex tasks over multiple turns as needed.
@@ -272,6 +274,7 @@ Final Answer Requirements:
 
 Formatting:
 - Final answers or clarification requests must appear exactly as: <answer> final answer text </answer>.
+- Each response must always contain a block, either a task block or a final answer block.
 - Only one block per turn, and it must be the last thing in your message.
 
 By following these rules strictly, you ensure clear, efficient, and unambiguous task delegation and final answer synthesis, and you may iteratively decompose complex tasks over multiple turns as needed.
