@@ -1,3 +1,5 @@
+from src.configs.markers import Markers
+
 def format_prompt(sample: dict) -> str:
     # base model doesn't work well with this instruction
     # instruction = (
@@ -18,7 +20,10 @@ def format_prompt(sample: dict) -> str:
     
     # official Qwen instruction for math problems: https://huggingface.co/Qwen/Qwen3-8B
     # increase by 0.75% the accuracy over no instruction
-    instruction = "Please reason step by step, and put your final answer within \\boxed{}."
+    # instruction = "Please reason step by step, and put your final answer within \\boxed{}."
+
+    # for some reason leads to 5% accuracy drop compared to the official Qwen instruction.
+    instruction = f"Please reason step by step, and put your final answer within {Markers.ANSWER_START} $ LaTeX-here $ {Markers.ANSWER_END}."
 
     problem = sample["problem"].strip()
     content = f"{problem}\n{instruction}"
