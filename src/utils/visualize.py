@@ -7,24 +7,28 @@ import re
 class Colors:
     """ANSI color codes for terminal output."""
 
+    RED = "\033[91m"
     GREEN = "\033[92m"
+    YELLOW = "\033[93m"
     BLUE = "\033[94m"
+    PURPLE = "\033[95m"
     CYAN = "\033[96m"
     BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
     RESET = "\033[0m"
 
 
 def colorize_markers(content: str) -> str:
     """Add color formatting to special markers in content."""
     marker_colors = {
-        Markers.TASK_START: Colors.CYAN,
-        Markers.TASK_END: Colors.CYAN,
+        Markers.TASK_START: Colors.PURPLE,
+        Markers.TASK_END: Colors.PURPLE,
         Markers.ANSWER_START: Colors.BLUE,
         Markers.ANSWER_END: Colors.BLUE,
     }
 
     for marker, color in marker_colors.items():
-        colored = f"{color}{marker}{Colors.RESET}"
+        colored = f"{Colors.BOLD}{color}{marker}{Colors.RESET}"
         content = content.replace(marker, colored)
 
     return content
@@ -55,7 +59,7 @@ def message_string(message: Message, indent: int = 0) -> str:
 
     # Format role line with bold formatting
     bold_role_label = f"{Colors.BOLD}Role:{Colors.RESET}"
-    role_line = f"{spaces}{bold_role_label} {Colors.GREEN}{message['role']}{Colors.RESET}"
+    role_line = f"{spaces}{bold_role_label} {Colors.GREEN}{message['role'].upper()}{Colors.RESET}"
 
     # Format content with colors and proper indentation
     content = colorize_markers(message.get("content", ""))

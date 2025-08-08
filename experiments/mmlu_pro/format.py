@@ -6,22 +6,18 @@ LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N",
 
 def format_prompt(sample: dict) -> str:
     question = sample["question"].strip()
-    category = sample["category"].strip()
     options: list = sample["options"]
 
     instruction = (
-        f"The following is a multiple choice question (with answers) about {category}. Only one answer is correct. "
-        f"Answer with X where X is the correct letter choice. The final answer should contain only a letter choice."
-    )
-
-    instruction = (
-        f"The following is a multiple choice question (with answers) about {category}. Only one answer is correct. "
-        f"Think step by step and answer with {Markers.ANSWER_START} X {Markers.ANSWER_END} where X is the correct letter choice. "
+        "The following is a multiple choice question (with answers). Only one answer is correct. "
+        f"Think, and then give your final answer in the format {Markers.ANSWER_START} X {Markers.ANSWER_END}, where X is the letter of the correct answer. "
     )
 
     # Formatting follows official MMLU-Pro format https://github.com/TIGER-AI-Lab/MMLU-Pro/blob/main/evaluate_from_local.py
     options_str = "Options:\n"
     for option, letter in zip(options, LETTERS):
+        if option == "N/A":
+            continue
         options_str += f"{letter}. {option}\n"
     prompt_str = f"Question:\n{question}\n{options_str}"
 
