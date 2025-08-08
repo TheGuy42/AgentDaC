@@ -199,6 +199,9 @@ async def main(args: argparse.Namespace):
         prompt_config=prompt_config,
         stop_criteria=stop_criteria,
     )
+    
+    # log code files
+    trainer.wandb_run.log_code(root="experiments/easy2hard") # type: ignore
 
     # start training
     try:

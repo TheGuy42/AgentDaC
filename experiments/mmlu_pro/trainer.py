@@ -54,7 +54,6 @@ class MmluProTrainer(Trainer):
                 "answer_reward": ans_reward,
                 "format_reward": fmt_reward,
                 "behavior_reward": bhv_reward,
-                "total_reward": trajectory.reward,
                 "is_correct": int(verify(answer, agent_answer)),
                 "gave_answer": int(num_answers > 0),
             }
