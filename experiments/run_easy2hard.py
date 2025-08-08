@@ -75,7 +75,23 @@ def parse_args() -> argparse.Namespace:
         help="Directory containing experiment configuration files.",
     )
 
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    # verify the config directory exists
+    if args.config_dir != parser.get_default("config_dir"):
+        if not pathlib.Path(args.config_dir).exists():
+            raise FileNotFoundError(f"Configuration directory '{args.config_dir}' does not exist.")
+
+    # verify valid GPU IDs
+    if not all(0 <= gpu < torch.cuda.device_count() for gpu in args.gpu):
+        raise ValueError(f"Invalid GPU IDs provided: {args.gpu}. Available GPUs: {list(range(torch.cuda.device_count()))}")
+
+    # print the parsed arguments
+    print("Parsed arguments:")
+    for arg, value in vars(args).items():
+        print(f"  {arg}: {value}")
+
+    return args
 
 
 def load_data() -> tuple[Dataset, Dataset]:
@@ -145,6 +161,7 @@ async def main(args: argparse.Namespace):
     )
 
     # Load configurations if provided
+
     config_dict = load_configs(args.config_dir)
     art_config = config_dict.get("art_config", art_config)
     train_config = config_dict.get("train_config", train_config)

@@ -188,9 +188,18 @@ add_config(
     "unsloth/Qwen3-14B",
     init_args=InitArgs(
         load_in_4bit=False,
-        max_seq_length=15000,
-        gpu_memory_utilization=0.65,
-    ),  
+        max_seq_length=4096 * 2,
+        gpu_memory_utilization=0.8,
+    ),
+    engine_args=EngineArgs(
+        max_num_batched_tokens=4096 * 4 * 2,
+        max_seq_len_to_capture=4096 * 2,
+    ),
+    openai_config=OpenAIServerConfig(
+        server_args=ServerArgs(
+            port=8001,
+        ),
+    ), 
 )
 
 add_config(

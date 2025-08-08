@@ -73,8 +73,10 @@ def _hill_func(x: float, steepness: float, midpoint: float) -> float:
     return val / (1 + val)
 
 
+# TODO: clarification requests will have a specific format <clarify> ... </clarify>
+# and then also penalize for every clarification. 
 def behavior_reward(trajectory: art.Trajectory) -> float:
     num_tasks = trajectory.metrics["direct_tasks"]
     if num_tasks == 0:
         return 0.0
-    return -1.0 * _hill_func(num_tasks, steepness=4, midpoint=4)
+    return -1.5 * _hill_func(num_tasks, steepness=4, midpoint=3)

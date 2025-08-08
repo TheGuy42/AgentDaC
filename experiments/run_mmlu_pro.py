@@ -74,8 +74,24 @@ def parse_args() -> argparse.Namespace:
         default="experiments/mmlu_pro/defaults",
         help="Directory containing experiment configuration files.",
     )
+    
+    args = parser.parse_args()
+    
+    # verify the config directory exists
+    if args.config_dir != parser.get_default("config_dir"):
+        if not pathlib.Path(args.config_dir).exists():
+            raise FileNotFoundError(f"Configuration directory '{args.config_dir}' does not exist.")
 
-    return parser.parse_args()
+    # verify valid GPU IDs
+    if not all(0 <= gpu < torch.cuda.device_count() for gpu in args.gpu):
+        raise ValueError(f"Invalid GPU IDs provided: {args.gpu}. Available GPUs: {list(range(torch.cuda.device_count()))}")
+
+    # print the parsed arguments
+    print("Parsed arguments:")
+    for arg, value in vars(args).items():
+        print(f"  {arg}: {value}")
+
+    return args
 
 
 def load_data() -> tuple[Dataset, Dataset]:

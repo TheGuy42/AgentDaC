@@ -7,7 +7,9 @@ from src.dac_agent import ChatMessage
 
 def verify(answer: str, pred_answer: str) -> bool:
     answer = f"${answer}$"
-    return mv.verify(mv.parse(answer), mv.parse(pred_answer))
+    parsed_answer = mv.parse(answer, raise_on_error=False)
+    parsed_prediction = mv.parse(pred_answer, raise_on_error=False)
+    return mv.verify(parsed_answer, parsed_prediction, raise_on_error=False)
 
 
 def answer_reward(sample: dict[str, str], last_message: ChatMessage) -> float:

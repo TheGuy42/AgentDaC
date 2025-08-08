@@ -8,7 +8,7 @@ def format_prompt(sample: dict) -> str:
     #     "Final answer format examples: $42$, $1,2,3,4$, $(1,2)$, $x^2$, $y=1$, $\\frac{1}{2}$, $\\sqrt{2} \\pi$, $\\text{Michael}$, $\\text{no}$, and so on."
     # )
 
-    # instruction = ""
+    instruction = ""
 
     # TODO: find a unified instruction that works for both base model and task agents.
     
@@ -23,7 +23,7 @@ def format_prompt(sample: dict) -> str:
     # instruction = "Please reason step by step, and put your final answer within \\boxed{}."
 
     # for some reason leads to 5% accuracy drop compared to the official Qwen instruction.
-    instruction = f"Please reason step by step, and put your final answer within {Markers.ANSWER_START} $ LaTeX-here $ {Markers.ANSWER_END}."
+    # instruction = f"Please reason step by step, and put your final answer within {Markers.ANSWER_START} $ LaTeX-here $ {Markers.ANSWER_END}."
 
     problem = sample["problem"].strip()
     content = f"{problem}\n{instruction}"

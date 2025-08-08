@@ -23,7 +23,7 @@ logger = create_logger(__name__)
 
 class TrainingConfig(BaseModel, extra="allow"):
     epochs: int = 10
-    num_groups: int = 5
+    num_groups: int = 12
     group_size: int = 10
     min_reward_stdev: float | None = None
 
@@ -145,11 +145,10 @@ class Trainer:
         )
 
         # Training set iterator
-        train_batch_size = config.num_groups * config.group_size
         train_step = await self.model.get_step()
         train_iter = iterate_dataset(
             dataset=train_dataset,
-            groups_per_step=train_batch_size,
+            groups_per_step=config.num_groups,
             num_epochs=config.epochs,
             initial_step=train_step,
             use_tqdm=True,
@@ -169,13 +168,13 @@ class Trainer:
         await self.sync_lora()  # Sync all vLLM clients with model weights
 
         for train_batch in train_iter:
-            step_data = train_batch.items
             global_step = train_batch.step
 
             # Evaluate and log
             if (config.eval_log_steps is not None) and (global_step % config.eval_log_steps == 0):
                 trajectories = await self.rollout(
                     dataset=next(eval_iter).items,
+                    group_size=1,
                     max_exceptions=config.max_exceptions,
                     pbar_desc="rollout-eval",
                     **config.rollout_kwargs,
@@ -184,7 +183,7 @@ class Trainer:
 
             # Perform training rollout
             trajectory_groups = await self.rollout(
-                step_data,
+                dataset=train_batch.items,
                 group_size=config.group_size,
                 max_exceptions=config.max_exceptions,
                 pbar_desc="rollout-train",
@@ -336,7 +335,7 @@ class Trainer:
     async def rollout(
         self,
         dataset: list[dict],
-        group_size: int | None = None,
+        group_size: int,
         max_exceptions: int | float = 0,
         pbar_desc: str = "rollout",
         **kwargs,
@@ -347,8 +346,7 @@ class Trainer:
 
         Args:
             dataset (list[dict]): List of samples to process.
-            group_size (int | None): Size of each group to split the dataset into.
-                If None, the entire dataset is treated as a single group.
+            group_size (int): Number of rollouts for each sample.
             max_exceptions (int | float): Maximum number of failed trajectories to allow before failing.
                 If float, then it is treated as a fraction of the dataset size.
             pbar_desc (str): Description for the progress bar.
@@ -360,13 +358,10 @@ class Trainer:
         if not kwargs:
             kwargs = self.default_kwargs
 
-        if group_size is None:
-            group_size = len(dataset)
-
-        groups = [
-            art.TrajectoryGroup([self.rollout_step(sample, **kwargs) for sample in data])
-            for data in self.split_into_groups(dataset, group_size)
-        ]
+        groups = []
+        for sample in dataset:
+            group = art.TrajectoryGroup([self.rollout_step(sample, **kwargs) for _ in range(group_size)])
+            groups.append(group)
 
         trajectory_groups = await art.gather_trajectory_groups(
             groups,
@@ -376,9 +371,6 @@ class Trainer:
         )
 
         return trajectory_groups
-
-    def split_into_groups(self, batch: list[dict], group_size: int) -> list[list[dict]]:
-        return [batch[i : i + group_size] for i in range(0, len(batch), group_size)]
 
     @abstractmethod
     async def rollout_step(

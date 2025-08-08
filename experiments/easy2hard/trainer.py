@@ -29,11 +29,6 @@ class Easy2HardTrainer(Trainer):
         trajectory = await agent.chat(message, **kwargs)
         return trajectory
 
-    def split_into_groups(self, batch: list[dict], group_size: int) -> list[list[dict]]:
-        # We split into groups according to difficulty
-        batch = sorted(batch, key=lambda x: x["item_difficulty"])
-        return [batch[i : i + group_size] for i in range(0, len(batch), group_size)]
-
     async def rollout_step(self, sample: dict, **kwargs) -> art.Trajectory:
         # Perform a forward step to get the trajectory
         trajectory = await self.forward_step(sample, **kwargs)

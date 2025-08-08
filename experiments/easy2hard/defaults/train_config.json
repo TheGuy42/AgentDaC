@@ -1,13 +1,16 @@
 {
     "epochs": 10,
-    "num_groups": 3,
-    "group_size": 40,
+    "num_groups": 12,
+    "group_size": 10,
     "min_reward_stdev": null,
     "train_log_steps": 1,
     "eval_log_steps": 3,
     "eval_size": 250,
     "checkpoint_metric": "reward",
     "rollout_kwargs": {
+        "temperature": 1.0,
+        "top_p": 0.9,
+        "max_completion_tokens": 1500
     },
     "art_config": {
         "learning_rate": 0.00001,
@@ -15,5 +18,5 @@
     },
     "dev_art_config": null,
     "verbose": false,
-    "max_exceptions": 0.025
+    "max_exceptions": 4
 }

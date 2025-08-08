@@ -96,6 +96,7 @@ def patch_completion(completion: ChatCompletion) -> ChatCompletion:
     for choice in completion.choices:
         if choice.message.content is None:
             choice.message.content = ""
+            logger.warning("Patched choice with None 'message.content' to empty string.")
     return completion
 
 
