@@ -6,7 +6,7 @@ from src.configs.markers import Markers
 from src.dac_agent import ChatMessage
 
 
-def _message_format_reward(message: ChatMessage) -> float:
+def _single_message_format_reward(message: ChatMessage) -> float:
     role = message.role
     content = message.content
 
@@ -55,7 +55,8 @@ def format_reward(trajectory: art.Trajectory) -> float:
     for item in trajectory.messages_and_choices:
         if isinstance(item, Choice):
             msg = ChatMessage.model_validate(item.message, from_attributes=True)
-            total_reward += _message_format_reward(msg)
+            total_reward += _single_message_format_reward(msg)
+
     return total_reward
 
 
@@ -74,9 +75,23 @@ def _hill_func(x: float, steepness: float, midpoint: float) -> float:
 
 
 # TODO: clarification requests will have a specific format <clarify> ... </clarify>
-# and then also penalize for every clarification. 
+# and then also penalize for every clarification.
 def behavior_reward(trajectory: art.Trajectory) -> float:
+    total_reward = 0.0
+
+    # conversation must end with an answer
+    last_choice = trajectory.messages()[-1]
+    if not isinstance(last_choice, Choice):
+        raise ValueError("Expected the last message to be a Choice, got something else.")
+    
+    last_message = ChatMessage.model_validate(last_choice.message, from_attributes=True)
+    num_answers = len(text_utils.extract_between(last_message.content, Markers.ANSWER_START, Markers.ANSWER_END))
+    if num_answers == 0:
+        total_reward -= 5.0
+
+    return total_reward
+
+    # penalize for number of task created
     num_tasks = trajectory.metrics["direct_tasks"]
-    if num_tasks == 0:
-        return 0.0
-    return -1.5 * _hill_func(num_tasks, steepness=4, midpoint=3)
+    total_reward -= 1.0 * _hill_func(num_tasks, steepness=4, midpoint=3.5)
+    return total_reward

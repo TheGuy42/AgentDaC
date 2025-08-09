@@ -1,15 +1,14 @@
 import math_verify as mv
 
 from src.utils import text as text_utils
-from src.configs.markers import Markers
 from src.dac_agent import ChatMessage
 
 
-def verify(answer: str, pred_answer: str) -> bool:
-    answer = f"${answer}$"
-    parsed_answer = mv.parse(answer, raise_on_error=False)
-    parsed_prediction = mv.parse(pred_answer, raise_on_error=False)
-    return mv.verify(parsed_answer, parsed_prediction, raise_on_error=False)
+def verify(gold_answer: str, pred_answer: str) -> bool:
+    gold_answer = f"${gold_answer}$"
+    parsed_gold = mv.parse(gold_answer, raise_on_error=False)
+    parsed_pred = mv.parse(pred_answer, raise_on_error=False)
+    return mv.verify(parsed_gold, parsed_pred, raise_on_error=False)
 
 
 def answer_reward(sample: dict[str, str], last_message: ChatMessage) -> float:
@@ -19,12 +18,7 @@ def answer_reward(sample: dict[str, str], last_message: ChatMessage) -> float:
     if role != "assistant":
         raise ValueError(f"Expected role 'assistant', got '{role}'")
 
-    answer_list = text_utils.extract_between(content, Markers.ANSWER_START, Markers.ANSWER_END)
-
-    if len(answer_list) == 0:
-        return 0.0
-
-    answer = sample["answer"]
-    llm_answer = answer_list[-1].strip()
-
-    return 3.0 if verify(answer, llm_answer) else 0.0
+    gold_answer = sample["answer"]
+    pred_answer = text_utils.extract_answer(content)
+    
+    return 3.0 if verify(gold_answer, pred_answer) else 0.0
