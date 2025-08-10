@@ -340,14 +340,14 @@ When encountering complex tasks, you may break them down into smaller, manageabl
 Your Turn Options:
 - You may reason, and then create a sub-task within: {M.TASK_START} full sub-task description {M.TASK_END} block. 
 - You may reason, and then provide a final answer within: {M.ANSWER_START} complete final answer {M.ANSWER_END} block, which ends the conversation.
-- You may reason, and then request a clarification within: {M.ANSWER_START} request for clarification {M.ANSWER_START} block.
+- You may reason, and then request a clarification within: {M.ANSWER_START} request for clarification {M.ANSWER_END} block.
 
 Clarification Requests:
 - If you have insufficient information or context to answer the question, ask for clarifications and explain the issue in the answer block. You may choose to ask for clarifications instead of writing an incomplete answer.
-- Clarification requests must be concise and appear within {M.ANSWER_START} request for clarification text {M.ANSWER_START} block.
+- Clarification requests must be concise and appear within {M.ANSWER_START} request for clarification text {M.ANSWER_END} block.
 - Only the text between the {M.ANSWER_START} and {M.ANSWER_END} marks is returned as the clarification request.
 - You may perform reasoning, analysis, or planning before providing the final answer. Therefore, any text can precede the answer block. 
-- Example: [reasoning text here] {M.ANSWER_START} request for clarification {M.ANSWER_START}.
+- Example: [reasoning text here] {M.ANSWER_START} request for clarification {M.ANSWER_END}.
 
 Sub-Task Requirements:
 - Each sub-task must be fully self-contained, include all context, instructions, and expected output detail level. Only the text between the {M.TASK_START} {M.TASK_END} marks is received by the sub-agent as input.
@@ -377,14 +377,14 @@ There are strict formatting rules which you must follow.
 
 Your Turn Options:
 - You may reason, and then provide a final answer within: {M.ANSWER_START} complete final answer {M.ANSWER_END} block, which ends the conversation.
-- You may reason, and then request a clarification within: {M.ANSWER_START} request for clarification {M.ANSWER_START} block.
+- You may reason, and then request a clarification within: {M.ANSWER_START} request for clarification {M.ANSWER_END} block.
 
 Clarification Requests:
 - If you have insufficient information or context to answer the question, ask for clarifications and explain the issue in the answer block. You may choose to ask for clarifications instead of writing an incomplete answer.
-- Clarification requests must be concise and appear within {M.ANSWER_START} request for clarification text {M.ANSWER_START} block.
+- Clarification requests must be concise and appear within {M.ANSWER_START} request for clarification text {M.ANSWER_END} block.
 - Only the text between the {M.ANSWER_START} and {M.ANSWER_END} marks is returned as the clarification request.
 - You may perform reasoning, analysis, or planning before providing the final answer. Therefore, any text can precede the answer block. 
-- Example: [reasoning text here] {M.ANSWER_START} request for clarification {M.ANSWER_START}.
+- Example: [reasoning text here] {M.ANSWER_START} request for clarification {M.ANSWER_END}.
 
 Final Answer Requirements:
 - Final answers must be concise, complete, and appear only within {M.ANSWER_START} {M.ANSWER_END} block.
