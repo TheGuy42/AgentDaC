@@ -21,4 +21,4 @@ def answer_reward(sample: dict[str, str], last_message: ChatMessage) -> float:
     gold_answer = sample["answer"]
     pred_answer = text_utils.extract_answer(content)
     
-    return 3.0 if verify(gold_answer, pred_answer) else 0.0
+    return 10.0 if verify(gold_answer, pred_answer) else 0.0

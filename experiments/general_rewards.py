@@ -80,11 +80,7 @@ def behavior_reward(trajectory: art.Trajectory) -> float:
     total_reward = 0.0
 
     # conversation must end with an answer
-    last_choice = trajectory.messages()[-1]
-    if not isinstance(last_choice, Choice):
-        raise ValueError("Expected the last message to be a Choice, got something else.")
-    
-    last_message = ChatMessage.model_validate(last_choice.message, from_attributes=True)
+    last_message = ChatMessage.model_validate(trajectory.messages()[-1], from_attributes=True)
     num_answers = len(text_utils.extract_between(last_message.content, Markers.ANSWER_START, Markers.ANSWER_END))
     if num_answers == 0:
         total_reward -= 5.0
