@@ -1,4 +1,5 @@
 import art
+from art.utils import trajectory_logging as art_logging
 import polars as pl
 
 
@@ -34,10 +35,15 @@ def to_dataframe(trajectories: list[art.Trajectory]) -> pl.DataFrame:
     """
     if not trajectories:
         return pl.DataFrame()
-
     data = []
     for tr in trajectories:
-        row = {**tr.metadata, **tr.metrics, "reward": tr.reward}
+        row = art_logging.trajectory_to_dict(tr)
         data.append(row)
-
     return pl.DataFrame(data)
+
+
+def read_trajectory_groups(file_path: str) -> list[art.TrajectoryGroup]:
+    assert file_path.endswith(".jsonl"), "File must be a JSONL file."
+    with open(file_path, "r") as f:
+        trajectory_groups = art_logging.deserialize_trajectory_groups(f.read())
+    return trajectory_groups

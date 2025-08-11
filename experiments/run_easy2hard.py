@@ -84,7 +84,9 @@ def parse_args() -> argparse.Namespace:
 
     # verify valid GPU IDs
     if not all(0 <= gpu < torch.cuda.device_count() for gpu in args.gpu):
-        raise ValueError(f"Invalid GPU IDs provided: {args.gpu}. Available GPUs: {list(range(torch.cuda.device_count()))}")
+        raise ValueError(
+            f"Invalid GPU IDs provided: {args.gpu}. Available GPUs: {list(range(torch.cuda.device_count()))}"
+        )
 
     # print the parsed arguments
     print("Parsed arguments:")
@@ -199,9 +201,12 @@ async def main(args: argparse.Namespace):
         prompt_config=prompt_config,
         stop_criteria=stop_criteria,
     )
-    
+
     # log code files
-    trainer.wandb_run.log_code(root="experiments/easy2hard") # type: ignore
+    if trainer.wandb_run is not None:
+        trainer.wandb_run.log_code(
+            root="experiments/easy2hard", include_fn=lambda path, root: path.endswith(".py") or path.endswith(".json")
+        )
 
     # start training
     try:

@@ -74,9 +74,9 @@ def parse_args() -> argparse.Namespace:
         default="experiments/mmlu_pro/defaults",
         help="Directory containing experiment configuration files.",
     )
-    
+
     args = parser.parse_args()
-    
+
     # verify the config directory exists
     if args.config_dir != parser.get_default("config_dir"):
         if not pathlib.Path(args.config_dir).exists():
@@ -84,7 +84,9 @@ def parse_args() -> argparse.Namespace:
 
     # verify valid GPU IDs
     if not all(0 <= gpu < torch.cuda.device_count() for gpu in args.gpu):
-        raise ValueError(f"Invalid GPU IDs provided: {args.gpu}. Available GPUs: {list(range(torch.cuda.device_count()))}")
+        raise ValueError(
+            f"Invalid GPU IDs provided: {args.gpu}. Available GPUs: {list(range(torch.cuda.device_count()))}"
+        )
 
     # print the parsed arguments
     print("Parsed arguments:")
@@ -123,7 +125,7 @@ def load_configs(config_dir: str | pathlib.Path) -> dict[str, Any]:
 async def main(args: argparse.Namespace):
     """
     Main function to run the training process.
-    """    
+    """
     print()
     print(f"Current working directory: {os.getcwd()}")
     print()
@@ -199,9 +201,12 @@ async def main(args: argparse.Namespace):
         prompt_config=prompt_config,
         stop_criteria=stop_criteria,
     )
-    
+
     # log code files
-    trainer.wandb_run.log_code(root="experiments/mmlu_pro") # type: ignore
+    if trainer.wandb_run is not None:
+        trainer.wandb_run.log_code(
+            root="experiments/mmlu_pro", include_fn=lambda path, root: path.endswith(".py") or path.endswith(".json")
+        )
 
     # start training
     try:
