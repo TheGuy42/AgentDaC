@@ -30,6 +30,7 @@ class TrainingConfig(BaseModel, extra="allow"):
     train_log_steps: int | None = 1
     eval_log_steps: int | None = None
     eval_size: int | None = None
+    delete_checkpoints: bool = False
     checkpoint_metric: str = "reward"
 
     rollout_kwargs: dict = Field(default_factory=dict)
@@ -218,9 +219,10 @@ class Trainer:
             await self.sync_lora()  # Sync all vLLM clients with updated model
 
             # Update checkpoints
-            split_name = "eval" if config.eval_log_steps is not None else "train"
-            metric_name = f"{split_name}/{config.checkpoint_metric}"
-            await self.model.delete_checkpoints(best_checkpoint_metric=metric_name)
+            if config.delete_checkpoints:
+                split_name = "eval" if config.eval_log_steps is not None else "train"
+                metric_name = f"{split_name}/{config.checkpoint_metric}"
+                await self.model.delete_checkpoints(best_checkpoint_metric=metric_name)
 
         await self.sync_lora()
         return self.model

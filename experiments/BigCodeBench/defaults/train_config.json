@@ -6,6 +6,7 @@
     "train_log_steps": 1,
     "eval_log_steps": 3,
     "eval_size": 25,
+    "delete_checkpoints": false,
     "checkpoint_metric": "reward",
     "rollout_kwargs": {
         "temperature": 1.0,
