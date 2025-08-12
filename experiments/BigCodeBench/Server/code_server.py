@@ -2,12 +2,16 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import subprocess
 import sys
+import os
+from pathlib import Path
 import argparse
 import uvicorn
 from typing import Optional
 
 app = FastAPI(title="Code Execution Server", description="A server for executing Python code remotely")
-
+current_dir = Path(__file__).parent.resolve()
+trash_dir = os.path.join(current_dir, "trash")
+os.makedirs(trash_dir, exist_ok=True)
 
 class CodeRequest(BaseModel):
     code: str
@@ -24,11 +28,13 @@ class ServerConfig:
 @app.post("/execute")
 async def execute_code(request: CodeRequest):
     try:
+        # Run the code in a subprocess
         result = subprocess.run(
             [sys.executable, "-c", request.code],
             capture_output=True,
             text=True,
             timeout=request.timeout,
+            cwd=trash_dir,
         )
 
         return {

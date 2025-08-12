@@ -1,5 +1,5 @@
 {
-    "epochs": 10,
+    "epochs": 100,
     "num_groups": 10,
     "group_size": 10,
     "min_reward_stdev": null,
@@ -11,10 +11,10 @@
     "rollout_kwargs": {
         "temperature": 1.0,
         "top_p": 0.9,
-        "max_completion_tokens": 1500
+        "max_completion_tokens": 3500
     },
     "art_config": {
-        "learning_rate": 0.00001,
+        "learning_rate": 1e-5,
         "beta": 0.0
     },
     "dev_art_config": null,

@@ -52,9 +52,10 @@ class BigCodeBenchTrainer(Trainer):
         # Execute the agent's answer code
         result = client.execute_code(agent_test_code, execution_timeout=60)
 
+        train_step = await self.model.get_step() # type: TrainableModel
         # Compute rewards
         trajectory.reward = 0.0
-        ans_reward = answer_reward(ans_message, result)
+        ans_reward = answer_reward(ans_message, result) if train_step > 5 else 0.0
         trajectory.reward += ans_reward
         fmt_reward = format_reward(trajectory)
         trajectory.reward += fmt_reward
