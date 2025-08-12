@@ -3,7 +3,7 @@ import os
 import logging
 
 
-LOG_FORMAT = "%(levelname)s %(asctime)s [%(filename)s:%(lineno)d] %(message)s"
+LOG_FORMAT = "%(levelname)s %(asctime)s [%(name)s:%(lineno)d] %(message)s"
 LOG_DATEFMT = "%m-%d %H:%M:%S"
 LOG_LEVEL_ENV = "DAC_LOG_LEVEL"
 
