@@ -1,10 +1,12 @@
 from abc import abstractmethod
+import random
 import sys
 
 from wandb.sdk.wandb_run import Run as WandbRun
 from pydantic import BaseModel, Field
 import numpy as np
 from pathlib import Path
+import asyncio
 
 import art
 from art.utils import iterate_dataset
@@ -27,8 +29,8 @@ class TrainingConfig(BaseModel, extra="allow"):
     group_size: int = 10
     min_reward_stdev: float | None = None
 
-    train_log_steps: int | None = 1
-    eval_log_steps: int | None = None
+    train_log_steps: int = 1
+    eval_log_steps: int = 5
     eval_size: int | None = None
     delete_checkpoints: bool = False
     checkpoint_metric: str = "reward"
@@ -130,8 +132,13 @@ class Trainer:
         if not isinstance(self.model, art.TrainableModel):
             raise ValueError("Model must be an `art.TrainableModel` to train.")
 
+        # prepare evaluation set
         if eval_dataset is None:
             eval_dataset = train_dataset
+        rng = random.Random(0)
+        rng.shuffle(eval_dataset)
+        if config.eval_size is not None:
+            eval_dataset = eval_dataset[:config.eval_size]
 
         # Log hyperparameters
         self.log_hparams(
@@ -146,71 +153,67 @@ class Trainer:
         )
 
         # Training set iterator
-        train_step = await self.model.get_step()
         train_iter = iterate_dataset(
             dataset=train_dataset,
             groups_per_step=config.num_groups,
             num_epochs=config.epochs,
-            initial_step=train_step,
+            initial_step=await self.model.get_step(),
             use_tqdm=True,
-        )
-
-        # Evaluation set iterator
-        eval_batch_size = config.eval_size if config.eval_size else len(eval_dataset)
-        eval_step = train_step // config.eval_log_steps if config.eval_log_steps else 0
-        eval_iter = iterate_dataset(
-            dataset=eval_dataset,
-            groups_per_step=eval_batch_size,
-            num_epochs=sys.maxsize,
-            initial_step=eval_step,
-            use_tqdm=False,
         )
 
         await self.sync_lora()  # Sync all vLLM clients with model weights
 
         for train_batch in train_iter:
-            global_step = train_batch.step
+            if train_batch.step % config.eval_log_steps == 0:
+                # Perform evaluation and training rollout
+                eval_groups, train_groups = await asyncio.gather(
+                    self.rollout(
+                        dataset=eval_dataset,
+                        group_size=1,
+                        max_exceptions=config.max_exceptions,
+                        pbar_desc="rollout-eval",
+                        **config.rollout_kwargs,
+                    ),
+                    self.rollout(
+                        dataset=train_batch.items,
+                        group_size=config.group_size,
+                        max_exceptions=config.max_exceptions,
+                        pbar_desc="rollout-train",
+                        **config.rollout_kwargs,
+                    ),
+                )
+                await self.model.log(eval_groups, split="eval")
 
-            # Evaluate and log
-            if (config.eval_log_steps is not None) and (global_step % config.eval_log_steps == 0):
-                trajectories = await self.rollout(
-                    dataset=next(eval_iter).items,
-                    group_size=1,
+            else:
+                # Perform training rollout
+                train_groups = await self.rollout(
+                    dataset=train_batch.items,
+                    group_size=config.group_size,
                     max_exceptions=config.max_exceptions,
-                    pbar_desc="rollout-eval",
+                    pbar_desc="rollout-train",
                     **config.rollout_kwargs,
                 )
-                await self.model.log(trajectories, split="eval")
-
-            # Perform training rollout
-            trajectory_groups = await self.rollout(
-                dataset=train_batch.items,
-                group_size=config.group_size,
-                max_exceptions=config.max_exceptions,
-                pbar_desc="rollout-train",
-                **config.rollout_kwargs,
-            )
 
             # Log training trajectories
-            if (config.train_log_steps is not None) and (global_step % config.train_log_steps == 0):
-                await self.model.log(trajectory_groups, split="train")
+            if train_batch.step % config.train_log_steps == 0:
+                await self.model.log(train_groups, split="train")
 
             # Filter groups with low reward standard deviation
             filtered_groups = []
-            for group in trajectory_groups:
+            for group in train_groups:
                 rewards = [tr.reward for tr in group.trajectories]
                 if config.min_reward_stdev is None or np.std(rewards) >= config.min_reward_stdev:
                     filtered_groups.append(group)
 
-            trajectory_groups = filtered_groups
+            train_groups = filtered_groups
 
-            if not trajectory_groups:
-                logger.warning(f"No trajectories left to train on at step {global_step}. Skipping this step.")
+            if not train_groups:
+                logger.warning(f"No trajectories left to train on at step {train_batch.step}. Skipping this step.")
                 continue
 
             # Train step
             await self.model.train(
-                trajectory_groups,
+                train_groups,
                 config=config.art_config,
                 _config=config.dev_art_config,
                 verbose=config.verbose,
@@ -220,8 +223,7 @@ class Trainer:
 
             # Update checkpoints
             if config.delete_checkpoints:
-                split_name = "eval" if config.eval_log_steps is not None else "train"
-                metric_name = f"{split_name}/{config.checkpoint_metric}"
+                metric_name = f"eval/{config.checkpoint_metric}"
                 await self.model.delete_checkpoints(best_checkpoint_metric=metric_name)
 
         await self.sync_lora()

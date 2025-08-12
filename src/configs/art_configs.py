@@ -189,11 +189,15 @@ add_config(
     init_args=InitArgs(
         load_in_4bit=False,
         gpu_memory_utilization=0.8,
+        max_lora_rank=16,
     ),
     engine_args=EngineArgs(
-        # max_num_batched_tokens=1024 * 64,
-        # max_seq_len_to_capture=1024 * 16,
+        max_model_len=1024 * 16,
         gpu_memory_utilization=0.8,
+        max_lora_rank=16,
+    ),
+    peft_args=PeftArgs(
+        r=16,
     ),
     openai_config=OpenAIServerConfig(
         server_args=ServerArgs(
