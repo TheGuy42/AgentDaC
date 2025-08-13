@@ -148,8 +148,8 @@ async def main(args: argparse.Namespace):
         num_groups=2,
         group_size=10,
         train_log_steps=1,
-        eval_log_steps=2,
-        eval_size=250,
+        val_log_steps=2,
+        val_size=250,
         art_config=art.types.TrainConfig(learning_rate=1e-5),
     )
 
@@ -214,7 +214,7 @@ async def main(args: argparse.Namespace):
         await trainer.train(
             config=train_config,
             train_dataset=train_data.to_list(),
-            eval_dataset=test_data.to_list(),
+            val_dataset=test_data.to_list(),
         )
     finally:
         trainer.close()

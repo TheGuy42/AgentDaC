@@ -1,6 +1,5 @@
 from abc import abstractmethod
 import random
-import sys
 
 from wandb.sdk.wandb_run import Run as WandbRun
 from pydantic import BaseModel, Field
@@ -30,8 +29,9 @@ class TrainingConfig(BaseModel, extra="allow"):
     min_reward_stdev: float | None = None
 
     train_log_steps: int = 1
-    eval_log_steps: int = 5
-    eval_size: int | None = None
+    train_size: int | None = None
+    val_log_steps: int = 5
+    val_size: int | None = None
     delete_checkpoints: bool = False
     checkpoint_metric: str = "reward"
 
@@ -127,18 +127,23 @@ class Trainer:
         self,
         config: TrainingConfig,
         train_dataset: list[dict],
-        eval_dataset: list[dict] | None = None,
+        val_dataset: list[dict] | None = None,
     ) -> art.TrainableModel:
         if not isinstance(self.model, art.TrainableModel):
             raise ValueError("Model must be an `art.TrainableModel` to train.")
 
-        # prepare evaluation set
-        if eval_dataset is None:
-            eval_dataset = train_dataset
-        rng = random.Random(0)
-        rng.shuffle(eval_dataset)
-        if config.eval_size is not None:
-            eval_dataset = eval_dataset[:config.eval_size]
+        # Prepare datasets
+        if val_dataset is None:
+            val_dataset = train_dataset.copy()
+
+        random.Random(0).shuffle(val_dataset)
+        random.Random(1).shuffle(train_dataset)
+
+        if config.val_size is not None:
+            val_dataset = val_dataset[: config.val_size]
+
+        if config.train_size is not None:
+            train_dataset = train_dataset[: config.train_size]
 
         # Log hyperparameters
         self.log_hparams(
@@ -164,14 +169,14 @@ class Trainer:
         await self.sync_lora()  # Sync all vLLM clients with model weights
 
         for train_batch in train_iter:
-            if train_batch.step % config.eval_log_steps == 0:
-                # Perform evaluation and training rollout
-                eval_groups, train_groups = await asyncio.gather(
+            if train_batch.step % config.val_log_steps == 0:
+                # Perform validation and training rollout
+                val_groups, train_groups = await asyncio.gather(
                     self.rollout(
-                        dataset=eval_dataset,
+                        dataset=val_dataset,
                         group_size=1,
                         max_exceptions=config.max_exceptions,
-                        pbar_desc="rollout-eval",
+                        pbar_desc="rollout-val",
                         **config.rollout_kwargs,
                     ),
                     self.rollout(
@@ -182,7 +187,7 @@ class Trainer:
                         **config.rollout_kwargs,
                     ),
                 )
-                await self.model.log(eval_groups, split="eval")
+                await self.model.log(val_groups, split="val")
 
             else:
                 # Perform training rollout
@@ -223,7 +228,7 @@ class Trainer:
 
             # Update checkpoints
             if config.delete_checkpoints:
-                metric_name = f"eval/{config.checkpoint_metric}"
+                metric_name = f"val/{config.checkpoint_metric}"
                 await self.model.delete_checkpoints(best_checkpoint_metric=metric_name)
 
         await self.sync_lora()

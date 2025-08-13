@@ -1,21 +1,22 @@
 {
     "epochs": 10,
-    "num_groups": 12,
-    "group_size": 10,
+    "num_groups": 8,
+    "group_size": 16,
     "min_reward_stdev": null,
     "train_log_steps": 1,
-    "eval_log_steps": 3,
-    "eval_size": 250,
+    "train_size": null,
+    "val_log_steps": 5,
+    "val_size": 512,
     "delete_checkpoints": false,
     "checkpoint_metric": "reward",
     "rollout_kwargs": {
-        "temperature": 1.0,
+        "temperature": 0.7,
         "top_p": 0.9,
-        "max_completion_tokens": 1500
+        "max_completion_tokens": 2000
     },
     "art_config": {
-        "learning_rate": 0.00001,
-        "beta": 0.0
+        "learning_rate": 0.000001,
+        "beta": 0.001
     },
     "dev_art_config": null,
     "verbose": false,

@@ -126,6 +126,9 @@ async def main(args: argparse.Namespace):
     """
     Main function to run the training process.
     """
+    # Set the GPU environment variable
+    os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, args.gpu))
+
     print()
     print(f"Current working directory: {os.getcwd()}")
     print()
@@ -144,8 +147,8 @@ async def main(args: argparse.Namespace):
         num_groups=2,
         group_size=10,
         train_log_steps=1,
-        eval_log_steps=2,
-        eval_size=250,
+        val_log_steps=2,
+        val_size=250,
         art_config=art.types.TrainConfig(learning_rate=1e-5),
     )
 
@@ -169,6 +172,10 @@ async def main(args: argparse.Namespace):
     train_config = config_dict.get("train_config", train_config)
     prompt_config = config_dict.get("prompt_config", prompt_config)
     stop_criteria = config_dict.get("stop_criteria", stop_criteria)
+
+    if "Qwen3" in args.model:
+        # Automatically disable thinking for Qwen3 models
+        train_config.rollout_kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": False}}
 
     # load model
     model = await load_art_model(
@@ -213,7 +220,7 @@ async def main(args: argparse.Namespace):
         await trainer.train(
             config=train_config,
             train_dataset=train_data.to_list(),
-            eval_dataset=test_data.to_list(),
+            val_dataset=test_data.to_list(),
         )
     finally:
         trainer.close()
