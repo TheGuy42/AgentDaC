@@ -23,6 +23,7 @@ from src.vllm_client import VllmClient, ArtClient, VllmRouter
 from src.trainer import TrainingConfig, PromptConfig, StopCriteria
 from src.configs.art_configs import available_configs, ArtConfig
 from experiments.easy2hard.trainer import Easy2HardTrainer
+from experiments.find_files import find_files
 
 
 def parse_args() -> argparse.Namespace:
@@ -77,11 +78,6 @@ def parse_args() -> argparse.Namespace:
 
     args = parser.parse_args()
 
-    # verify the config directory exists
-    if args.config_dir != parser.get_default("config_dir"):
-        if not pathlib.Path(args.config_dir).exists():
-            raise FileNotFoundError(f"Configuration directory '{args.config_dir}' does not exist.")
-
     # verify valid GPU IDs
     if not all(0 <= gpu < torch.cuda.device_count() for gpu in args.gpu):
         raise ValueError(
@@ -103,23 +99,21 @@ def load_data() -> tuple[Dataset, Dataset]:
         split=None,
     )  # type: ignore
 
-    train_data: Dataset = dataset_dict["train"]
-    test_data: Dataset = dataset_dict["eval"]
-    return train_data, test_data
+    ds_train: Dataset = dataset_dict["train"]
+    ds_val: Dataset = dataset_dict["eval"]
+    return ds_train, ds_val
 
 
 def load_configs(config_dir: str | pathlib.Path) -> dict[str, Any]:
     if isinstance(config_dir, str):
         config_dir = pathlib.Path(config_dir)
 
-    configs = {
+    return {
         "art_config": load_base_model(ArtConfig, config_dir / "art_config.json", do_raise=False),
-        "train_config": load_base_model(TrainingConfig, config_dir / "train_config.json", do_raise=False),
-        "prompt_config": load_base_model(PromptConfig, config_dir / "prompt_config.json", do_raise=False),
-        "stop_criteria": load_base_model(StopCriteria, config_dir / "stop_criteria.json", do_raise=False),
+        "train_config": load_base_model(TrainingConfig, config_dir / "train_config.json", do_raise=True),
+        "prompt_config": load_base_model(PromptConfig, config_dir / "prompt_config.json", do_raise=True),
+        "stop_criteria": load_base_model(StopCriteria, config_dir / "stop_criteria.json", do_raise=True),
     }
-
-    return {k: v for k, v in configs.items() if v is not None}
 
 
 async def main(args: argparse.Namespace):
@@ -139,39 +133,12 @@ async def main(args: argparse.Namespace):
         run_name=args.run,
     )
 
-    # Defaults
-    art_config: ArtConfig | None = None
-
-    train_config: TrainingConfig = TrainingConfig(
-        epochs=10,
-        num_groups=2,
-        group_size=10,
-        train_log_steps=1,
-        val_log_steps=2,
-        val_size=250,
-        art_config=art.types.TrainConfig(learning_rate=1e-5),
-    )
-
-    prompt_config: PromptConfig = PromptConfig(
-        system_root="dac_sys_prompt_gilad_root",
-        system_inter="dac_sys_prompt_gilad_inter",
-        system_leaf="dac_sys_prompt_gilad_leaf",
-        tasks_depleted="tasks_depleted",
-    )
-
-    stop_criteria: StopCriteria = StopCriteria(
-        max_depth=1,
-        max_tasks=5,
-        max_rounds=5,
-    )
-
-    # Load configurations if provided
-
+    # Load configurations
     config_dict = load_configs(args.config_dir)
-    art_config = config_dict.get("art_config", art_config)
-    train_config = config_dict.get("train_config", train_config)
-    prompt_config = config_dict.get("prompt_config", prompt_config)
-    stop_criteria = config_dict.get("stop_criteria", stop_criteria)
+    art_config: ArtConfig | None = config_dict["art_config"]
+    train_config: TrainingConfig = config_dict["train_config"]
+    prompt_config: PromptConfig = config_dict["prompt_config"]
+    stop_criteria: StopCriteria = config_dict["stop_criteria"]
 
     if "Qwen3" in args.model:
         # Automatically disable thinking for Qwen3 models
@@ -185,7 +152,7 @@ async def main(args: argparse.Namespace):
     )
 
     # load dataset
-    train_data, test_data = load_data()
+    ds_train, ds_val = load_data()
 
     # create inference clients
     inference_clients = [ArtClient.from_art_model(model)]
@@ -211,23 +178,30 @@ async def main(args: argparse.Namespace):
 
     # log code files
     if trainer.wandb_run is not None:
-        trainer.wandb_run.log_code(
-            root="experiments/easy2hard", include_fn=lambda path, root: path.endswith(".py") or path.endswith(".json")
-        )
+        trainer.wandb_run.log_code(root="src", name="src")
+        trainer.wandb_run.log_code(root="scripts", name="scripts")
+        trainer.wandb_run.log_code(root="experiments", name="experiments")
 
     # start training
     try:
         await trainer.train(
             config=train_config,
-            train_dataset=train_data.to_list(),
-            val_dataset=test_data.to_list(),
+            train_dataset=ds_train.to_list(),
+            val_dataset=ds_val.to_list(),
         )
     finally:
         trainer.close()
 
 
 if __name__ == "__main__":
-    prepare_environment()
-    setup_logging(logging.INFO)
-    args = parse_args()
-    asyncio.run(main(args))
+    try:
+        prepare_environment()
+        setup_logging(logging.INFO)
+        args = parse_args()
+        asyncio.run(main(args))
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        logging.info("Training interrupted by user.")
+        sys.exit(0)

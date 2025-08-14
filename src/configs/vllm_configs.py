@@ -132,7 +132,7 @@ add_config(
     "unsloth/Qwen3-14B",
     engine_args=EngineArgs(
         max_model_len=1024*16,
-        gpu_memory_utilization=0.8,
+        gpu_memory_utilization=0.9,
     ),
 )
 
