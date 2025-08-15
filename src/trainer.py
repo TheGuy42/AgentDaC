@@ -10,6 +10,7 @@ import asyncio
 import art
 from art.utils import iterate_dataset
 from art.local import LocalBackend
+import art.rewards.ruler as ruler
 
 from src.vllm_client import VllmRouter
 from src.models import PathConfig
@@ -20,6 +21,13 @@ from src.utils.io import save_base_model
 
 
 logger = create_logger(__name__)
+
+
+class RulerConfig(BaseModel):
+    judge_model: str | None = None
+    extra_litellm_params: dict | None = None
+    rubric: str = ruler.DEFAULT_RUBRIC
+    swallow_exceptions: bool = True
 
 
 class TrainingConfig(BaseModel, extra="allow"):
@@ -38,6 +46,7 @@ class TrainingConfig(BaseModel, extra="allow"):
     rollout_kwargs: dict = Field(default_factory=dict)
     art_config: art.types.TrainConfig = Field(default_factory=art.types.TrainConfig)
     dev_art_config: art.dev.train.TrainConfig | None = None
+    ruler_config: RulerConfig | None = Field(default_factory=RulerConfig)
 
     verbose: bool = False
     max_exceptions: int | float = 0
@@ -184,6 +193,7 @@ class Trainer:
                         group_size=config.group_size,
                         max_exceptions=config.max_exceptions,
                         pbar_desc="rollout-train",
+                        ruler_config=config.ruler_config,
                         **config.rollout_kwargs,
                     ),
                 )
@@ -196,6 +206,7 @@ class Trainer:
                     group_size=config.group_size,
                     max_exceptions=config.max_exceptions,
                     pbar_desc="rollout-train",
+                    ruler_config=config.ruler_config,
                     **config.rollout_kwargs,
                 )
 
@@ -346,6 +357,7 @@ class Trainer:
         dataset: list[dict],
         group_size: int,
         max_exceptions: int | float = 0,
+        ruler_config: RulerConfig | None = None,
         pbar_desc: str = "rollout",
         **kwargs,
     ) -> list[art.TrajectoryGroup]:
@@ -358,6 +370,7 @@ class Trainer:
             group_size (int): Number of rollouts for each sample.
             max_exceptions (int | float): Maximum number of failed trajectories to allow before failing.
                 If float, then it is treated as a fraction of the dataset size.
+            ruler_config (RulerConfig | None): Configuration for the Ruler reward model.
             pbar_desc (str): Description for the progress bar.
             **kwargs: Additional keyword arguments for the rollout step.
 
@@ -372,11 +385,25 @@ class Trainer:
             group = art.TrajectoryGroup([self.rollout_step(sample, **kwargs) for _ in range(group_size)])
             groups.append(group)
 
+        async def ruler_func(group: art.TrajectoryGroup) -> art.TrajectoryGroup | None:
+            if ruler_config is None or ruler_config.judge_model is None:
+                return group
+
+            return await ruler.ruler_score_group(
+                group,
+                judge_model=ruler_config.judge_model,
+                rubric=ruler_config.rubric,
+                extra_litellm_params=ruler_config.extra_litellm_params,
+                swallow_exceptions=ruler_config.swallow_exceptions,
+                debug=kwargs.get("debug", False) or kwargs.get("verbose", False),
+            )
+
         trajectory_groups = await art.gather_trajectory_groups(
             groups,
             pbar_desc=pbar_desc,
             max_exceptions=max_exceptions,
             pbar_total_completion_tokens=False,
+            after_each=ruler_func,
         )
 
         return trajectory_groups
