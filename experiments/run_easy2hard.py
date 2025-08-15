@@ -23,7 +23,6 @@ from src.vllm_client import VllmClient, ArtClient, VllmRouter
 from src.trainer import TrainingConfig, PromptConfig, StopCriteria
 from src.configs.art_configs import available_configs, ArtConfig
 from experiments.easy2hard.trainer import Easy2HardTrainer
-from experiments.find_files import find_files
 
 
 def parse_args() -> argparse.Namespace:

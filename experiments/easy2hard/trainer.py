@@ -66,6 +66,9 @@ class Easy2HardTrainer(Trainer):
                 "answer": answer,
                 "agent_answer": agent_answer,
                 "item_difficulty": sample["item_difficulty"],
+                "rating": sample["rating"],
+                "rating_quantile": sample["rating_quantile"],
+                "contest": sample["contest"],
             }
         )
 

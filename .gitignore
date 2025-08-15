@@ -12,3 +12,6 @@ api_keys/*
 .venv
 .art
 unsloth_compiled_cache
+
+# Other
+tmux.inner.conf

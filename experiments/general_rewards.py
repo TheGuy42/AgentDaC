@@ -51,6 +51,7 @@ def format_reward(trajectory: art.Trajectory) -> float:
     Reward factor which penalizes for improper message formatting and conversation structure.
     It does not provide positive rewards or incentives for good formatting or structure.
     """
+    return 0.0  # TODO: testing
     total_reward = 0.0
     for item in trajectory.messages_and_choices:
         if isinstance(item, Choice):
@@ -77,6 +78,7 @@ def _hill_func(x: float, steepness: float, midpoint: float) -> float:
 # TODO: clarification requests will have a specific format <clarify> ... </clarify>
 # and then also penalize for every clarification.
 def behavior_reward(trajectory: art.Trajectory) -> float:
+    return 0.0  # TODO: testing
     total_reward = 0.0
 
     # conversation must end with an answer
