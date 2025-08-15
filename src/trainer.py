@@ -25,7 +25,7 @@ logger = create_logger(__name__)
 
 class RulerConfig(BaseModel):
     judge_model: str | None = None
-    extra_litellm_params: dict | None = None
+    litellm_params: dict | None = None
     rubric: str = ruler.DEFAULT_RUBRIC
     swallow_exceptions: bool = True
 
@@ -393,7 +393,7 @@ class Trainer:
                 group,
                 judge_model=ruler_config.judge_model,
                 rubric=ruler_config.rubric,
-                extra_litellm_params=ruler_config.extra_litellm_params,
+                extra_litellm_params=ruler_config.litellm_params,
                 swallow_exceptions=ruler_config.swallow_exceptions,
                 debug=kwargs.get("debug", False) or kwargs.get("verbose", False),
             )
