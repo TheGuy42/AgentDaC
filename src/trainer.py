@@ -10,7 +10,7 @@ import asyncio
 import art
 from art.utils import iterate_dataset
 from art.local import LocalBackend
-import art.rewards.ruler as ruler
+from art.rewards import ruler_score_group
 
 from src.vllm_client import VllmRouter
 from src.models import PathConfig
@@ -26,8 +26,9 @@ logger = create_logger(__name__)
 class RulerConfig(BaseModel):
     judge_model: str | None = None
     litellm_params: dict | None = None
-    rubric: str = ruler.DEFAULT_RUBRIC
+    rubric: str | None = None
     swallow_exceptions: bool = True
+    debug: bool = False
 
 
 class TrainingConfig(BaseModel, extra="allow"):
@@ -389,13 +390,13 @@ class Trainer:
             if ruler_config is None or ruler_config.judge_model is None:
                 return group
 
-            return await ruler.ruler_score_group(
-                group,
+            return await ruler_score_group(
+                group=group,
                 judge_model=ruler_config.judge_model,
-                rubric=ruler_config.rubric,
+                # rubric=ruler_config.rubric or art_ruler.DEFAULT_RUBRIC,  # TODO: currently broken in art, cant access art.rewards.ruler.DEFAULT_RUBRIC
                 extra_litellm_params=ruler_config.litellm_params,
                 swallow_exceptions=ruler_config.swallow_exceptions,
-                debug=kwargs.get("debug", False) or kwargs.get("verbose", False),
+                debug=ruler_config.debug,
             )
 
         trajectory_groups = await art.gather_trajectory_groups(
