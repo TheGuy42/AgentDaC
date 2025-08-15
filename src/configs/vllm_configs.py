@@ -1,6 +1,7 @@
 from __future__ import annotations
 from pydantic import BaseModel, Field, model_validator
 from pathlib import Path
+import os
 from art.dev import ServerArgs, EngineArgs, OpenAIServerConfig, get_openai_server_config
 from src.utils.io import save_base_model
 
@@ -36,6 +37,8 @@ class VllmConfig(BaseModel, frozen=False, extra="allow"):
             config=self.openai_config,
         )
         self.openai_config["server_args"]["port"] = port  # type: ignore
+        if api_key := os.getenv("OPENAI_API_KEY"):
+            self.openai_config["server_args"]["api_key"] = api_key  # type: ignore
         self.openai_config["engine_args"]["enable_lora"] = True  # type: ignore
         self.openai_config["engine_args"].setdefault("seed", 0)  # type: ignore
         return self

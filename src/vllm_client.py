@@ -2,6 +2,7 @@ from __future__ import annotations
 import openai
 import httpx
 import asyncio
+import os
 
 import art
 from art.openai import patch_openai
@@ -17,9 +18,15 @@ class VllmClient:
         base_url: str | httpx.URL,
         base_model: str,
         model_name: str | None = None,
-        api_key: str | None = "default",
+        api_key: str | None = None,
         timeout: float | httpx.Timeout | None = httpx.Timeout(timeout=1200, connect=5.0),
     ):
+        if api_key is None:
+            api_key = os.getenv("OPENAI_API_KEY")
+            if api_key is None:
+                api_key = "default"
+                logger.info(f"No OpenAI API key provided, using '{api_key}' key.")
+
         self.base_url = base_url
         self.base_model = base_model
         self.model_name = model_name if model_name else base_model
@@ -48,7 +55,7 @@ class VllmClient:
         base_model: str,
         model_name: str | None = None,
         host: str = "0.0.0.0",
-        api_key: str | None = "default",
+        api_key: str | None = None,
         timeout: float | httpx.Timeout | None = httpx.Timeout(timeout=1200, connect=5.0),
         **kwargs,
     ) -> VllmClient:

@@ -11,6 +11,7 @@ from art.dev import (
     ServerArgs,
 )
 
+import os
 from pydantic import BaseModel, Field, model_validator
 from pathlib import Path
 from art.dev.get_model_config import get_model_config
@@ -42,7 +43,16 @@ class ArtConfig(BaseModel, frozen=False, extra="allow"):
             output_dir=output_dir,
             config=self.internal_config,
         )
+
+        if self.openai_config is None:
+            self.openai_config = OpenAIServerConfig()
+        self.openai_config.setdefault("server_args", ServerArgs())
+        self.openai_config.setdefault("engine_args", EngineArgs())
+
         self.internal_config["engine_args"].setdefault("seed", 0)  # type: ignore
+        if api_key := os.getenv("OPENAI_API_KEY"):
+            self.openai_config["server_args"]["api_key"] = api_key  # type: ignore
+
         return self
 
     def save(self, dir_name: str, file_name: str = "art_config.json") -> None:
