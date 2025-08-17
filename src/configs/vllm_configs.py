@@ -140,6 +140,20 @@ add_config(
 )
 
 add_config(
+    "unsloth/Qwen3-32B",
+    engine_args=EngineArgs(
+        gpu_memory_utilization=0.95,
+    ),
+)
+
+add_config(
+    "unsloth/Qwen3-32B-unsloth-bnb-4bit",
+    engine_args=EngineArgs(
+        gpu_memory_utilization=0.95,
+    ),
+)
+
+add_config(
     "unsloth/Llama-4-Scout-17B-16E-Instruct",
     engine_args=EngineArgs(
         max_num_seqs=128,

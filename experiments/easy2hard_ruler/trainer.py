@@ -5,8 +5,8 @@ from src.configs.markers import Markers
 from src.utils.text import extract_answer, extract_between
 
 from experiments.general_rewards import format_reward, behavior_reward
-from experiments.easy2hard.rewards import answer_reward, verify
-from experiments.easy2hard.format import format_prompt
+from experiments.easy2hard_ruler.rewards import answer_reward, verify
+from experiments.easy2hard_ruler.format import format_prompt
 
 import art
 
@@ -46,9 +46,9 @@ class Easy2HardRulerTrainer(Trainer):
         # Update metrics
         trajectory.metrics.update(
             {
-                "answer_reward": ans_reward,
-                "format_reward": fmt_reward,
-                "behavior_reward": bhv_reward,
+                "reward_answer": ans_reward,
+                "reward_format": fmt_reward,
+                "reward_behavior": bhv_reward,
                 "is_correct": int(verify(answer, agent_answer)),
                 "gave_answer": int(num_answers > 0),
             }
@@ -70,4 +70,10 @@ class Easy2HardRulerTrainer(Trainer):
         return trajectory
 
     async def score_group(self, group: art.TrajectoryGroup) -> art.TrajectoryGroup:
+        for tr in group.trajectories:
+            tr.reward = 0.0
+            tr.reward += tr.metrics.get("reward_answer", 0.0)
+            # tr.reward += tr.metrics.get("reward_format", 0.0)
+            # tr.reward += tr.metrics.get("reward_behavior", 0.0)
+            tr.reward += tr.metrics.get("ruler_score", 0.0)
         return group

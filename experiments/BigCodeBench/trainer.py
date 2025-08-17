@@ -15,35 +15,24 @@ from experiments.BigCodeBench.Server.code_client import CodeClient, ExecutionRes
 
 
 class BigCodeBenchTrainer(Trainer):
-    def create_agent(self) -> AgentNode:
+    async def forward_step(self, sample: dict, **kwargs) -> art.Trajectory:
         client = self.vllm_router.next()
-        return SingleAgentNode(
+        agent = SingleAgentNode(
             model_name=self.model.get_inference_name(),
             openai_client=client.openai_client,
             prompt_config=self.prompt_config,
             stop_criteria=self.stop_criteria,
         )
-        # return AgentNode(
-        #     model_name=self.model.get_inference_name(),
-        #     openai_client=client.openai_client,
-        #     prompt_config=self.prompt_config,
-        #     stop_criteria=self.stop_criteria,
-        # )
 
-    async def forward_step(self, sample: dict, **kwargs) -> art.Trajectory:
         content = format_prompt(sample)
-        agent = self.create_agent()
         message = ChatMessage(role="user", content=content)
         trajectory = await agent.chat(message, **kwargs)
         return trajectory
 
-    async def rollout_step(self, sample: dict, **kwargs) -> art.Trajectory:
-        # Perform a forward step to get the trajectory
-        trajectory = await self.forward_step(sample, **kwargs)
+    async def score_trajectory(self, sample: dict, trajectory: art.Trajectory) -> art.Trajectory:
         ans_message = ChatMessage.model_validate(trajectory.messages()[-1], from_attributes=True)
-
         problem = format_prompt(sample)
-        answer = sample['canonical_solution']#sample["answer"].strip()
+        answer = sample["canonical_solution"]  # sample["answer"].strip()
         agent_answer = extract_answer(ans_message.content)
         num_answers = len(extract_between(ans_message.content, Markers.ANSWER_START, Markers.ANSWER_END))
 
@@ -52,7 +41,10 @@ class BigCodeBenchTrainer(Trainer):
         # Execute the agent's answer code
         result = client.execute_code(agent_test_code, execution_timeout=60)
 
-        train_step = await self.model.get_step() # type: TrainableModel
+        if not isinstance(self.model, art.TrainableModel):
+            raise ValueError("Model must be an instance of TrainableModel for scoring.")
+
+        train_step = await self.model.get_step()
         # Compute rewards
         trajectory.reward = 0.0
         ans_reward = answer_reward(ans_message, result) if train_step > 5 else 0.0
@@ -86,3 +78,5 @@ class BigCodeBenchTrainer(Trainer):
 
         return trajectory
 
+    async def score_group(self, group: art.TrajectoryGroup) -> art.TrajectoryGroup:
+        return group

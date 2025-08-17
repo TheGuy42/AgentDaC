@@ -1,4 +1,3 @@
-from src.dac_agent import AgentNode
 from src.dac_agent_single import SingleAgentNode
 from src.trainer import Trainer
 from src.dac_agent import ChatMessage
@@ -13,25 +12,21 @@ import art
 
 
 class MmluProTrainer(Trainer):
-    def create_agent(self) -> AgentNode:
+    async def forward_step(self, sample: dict, **kwargs) -> art.Trajectory:
         client = self.vllm_router.next()
-        return SingleAgentNode(
+        agent = SingleAgentNode(
             model_name=self.model.get_inference_name(),
             openai_client=client.openai_client,
             prompt_config=self.prompt_config,
             stop_criteria=self.stop_criteria,
         )
 
-    async def forward_step(self, sample: dict, **kwargs) -> art.Trajectory:
         content = format_prompt(sample)
-        agent = self.create_agent()
         message = ChatMessage(role="user", content=content)
         trajectory = await agent.chat(message, **kwargs)
         return trajectory
 
-    async def rollout_step(self, sample: dict, **kwargs) -> art.Trajectory:
-        # Perform a forward step to get the trajectory
-        trajectory = await self.forward_step(sample, **kwargs)
+    async def score_trajectory(self, sample: dict, trajectory: art.Trajectory) -> art.Trajectory:
         ans_message = ChatMessage.model_validate(trajectory.messages()[-1], from_attributes=True)
 
         # Compute rewards
@@ -70,3 +65,6 @@ class MmluProTrainer(Trainer):
         )
 
         return trajectory
+
+    async def score_group(self, group: art.TrajectoryGroup) -> art.TrajectoryGroup:
+        return group
