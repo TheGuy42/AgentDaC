@@ -94,7 +94,7 @@ def patch_completion(completion: ChatCompletion) -> ChatCompletion:
     If content is None, it sets it to an empty string.
     """
     for choice in completion.choices:
-        if choice.message.content is None:
+        if choice.message.content is None and choice.finish_reason in ["stop", "length"]:
             choice.message.content = ""
             logger.warning("Patched choice with None 'message.content' to empty string.")
     return completion

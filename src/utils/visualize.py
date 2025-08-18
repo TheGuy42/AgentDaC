@@ -39,14 +39,20 @@ def normalize_newlines(text: str) -> str:
     return re.sub(r"\r\n|\r|\n|\u000B|\u000C|\u0085|\u2028|\u2029", "\n", text)
 
 
+def format_field(name: str, lines: list[str], indent: int) -> str:
+    """Format a field with a name and multiple lines."""
+    if not lines:
+        return ""
+
+    spaces = (" " * 4) * indent
+    fmt_name = f"{spaces}{Colors.BOLD}{name.title()}:{Colors.RESET}"
+    fmt_lines = [f"{spaces}{line}" for line in lines]
+    return "\n".join([fmt_name] + fmt_lines)
+
+
 def message_string(message: Message, indent: int = 0) -> str:
     """
-    Format a message with proper indentation.
-
-    Output format:
-        **role:** [role text]
-        **content:** [content text line 1]
-        [content text line 2] (if newlines exist in content)
+    Format a message with proper indentation and colorization.
 
     Args:
         message: The message to format
@@ -55,32 +61,39 @@ def message_string(message: Message, indent: int = 0) -> str:
     Returns:
         Formatted message string with proper indentation
     """
-    spaces = "    " * indent
+    texts = []
 
-    # Format role line with bold formatting
-    bold_role_label = f"{Colors.BOLD}Role:{Colors.RESET}"
-    role_line = f"{spaces}{bold_role_label} {Colors.GREEN}{message['role'].upper()}{Colors.RESET}"
+    role_text = format_field("role", [message["role"].upper()], indent)
+    texts.append(role_text)
 
-    # Format content with colors and proper indentation
-    content = colorize_markers(message.get("content", ""))
-    bold_content_label = f"{Colors.BOLD}Content:{Colors.RESET}"
-    content_first_line = f"{spaces}{bold_content_label} "
+    if content := message.get("content"):
+        if not isinstance(content, str):
+            raise ValueError("Message content must be a string.")
+        content = colorize_markers(content)
+        content_lines = normalize_newlines(content).strip().split("\n")
+        content_text = format_field("content", content_lines, indent)
+        texts.append(content_text)
 
-    # Handle multi-line content properly
-    lines = normalize_newlines(content).split("\n")
-    content_lines = []
+    if refusal := message.get("refusal"):
+        if not isinstance(refusal, str):
+            raise ValueError("Message refusal must be a string.")
+        refusal = colorize_markers(refusal)
+        refusal_lines = normalize_newlines(refusal).strip().split("\n")
+        refusal_text = format_field("refusal", refusal_lines, indent)
+        texts.append(refusal_text)
 
-    for i, line in enumerate(lines):
-        if i == 0:
-            # First line gets the **content:** label
-            content_lines.append(content_first_line + line)
-        else:
-            # Subsequent lines get proper indentation
-            content_lines.append(spaces + line)
+    if tool_calls := message.get("tool_calls"):
+        if not isinstance(tool_calls, list):
+            raise ValueError("Message tool_calls must be a list.")
+        tool_lines = []
+        for tool_call in tool_calls:
+            fn_name = tool_call["function"]["name"]
+            fn_args = tool_call["function"]["arguments"]
+            tool_lines.append(f"{fn_name}({fn_args.strip()})")
+        tool_text = format_field("tool calls", tool_lines, indent)
+        texts.append(tool_text)
 
-    indented_content = "\n".join(content_lines)
-
-    return f"{role_line}\n{indented_content}\n"
+    return "\n".join(texts) + "\n\n"
 
 
 def trajectory_string(trajectory: Trajectory, indent: int = 0) -> str:

@@ -11,7 +11,7 @@ from experiments.easy2hard.format import format_prompt
 import art
 
 
-class Easy2HardRulerTrainer(Trainer):
+class Easy2HardTrainer(Trainer):
     async def forward_step(self, sample: dict, **kwargs) -> art.Trajectory:
         client = self.vllm_router.next()
         agent = SingleAgentNode(
