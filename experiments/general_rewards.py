@@ -3,17 +3,15 @@ from openai.types.chat.chat_completion import Choice
 
 from src.utils import text as text_utils
 from src.configs.markers import Markers
-from src.dac_agent import ChatMessage
+from src.types import Message
 
 
-def _single_message_format_reward(message: ChatMessage) -> float:
-    role = message.role
-    content = message.content
+def _single_message_format_reward(message: Message) -> float:
+    content = message.get("content")
+    assert message["role"] == "assistant", f"Expected role 'assistant', got '{message['role']}'"
+    assert isinstance(content, str), f"Expected content to be a string, got {type(content)}"
 
-    if role != "assistant":
-        raise ValueError(f"Expected role 'assistant', got '{role}'")
-
-    reward = 0.0
+    total_reward = 0.0
 
     # Conversation structure:
 
@@ -22,15 +20,15 @@ def _single_message_format_reward(message: ChatMessage) -> float:
 
     if num_tasks == 0 and num_answers == 0:
         # Penalize for no tasks or answers
-        reward -= 5.0
+        total_reward -= 5.0
 
     elif num_tasks == 0 and num_answers > 1:
         # Penalize for multiple answers
-        reward -= 0.25 ** (1 / (num_answers - 1))  # at most 1
+        total_reward -= 0.25 ** (1 / (num_answers - 1))  # at most 1
 
     elif num_tasks > 0 and num_answers > 0:
         # Agent answering his own tasks or creating both tasks and answers
-        reward -= 0.5 ** (1 / max(num_tasks, num_answers))  # at most 1
+        total_reward -= 0.5 ** (1 / max(num_tasks, num_answers))  # at most 1
 
     # Improper marker formatting:
 
@@ -38,12 +36,12 @@ def _single_message_format_reward(message: ChatMessage) -> float:
     answers_diff = abs(content.count(Markers.ANSWER_START) - content.count(Markers.ANSWER_END))
 
     if tasks_diff > 0:
-        reward -= 0.5 ** (1 / tasks_diff)  # at most 1
+        total_reward -= 0.5 ** (1 / tasks_diff)  # at most 1
 
     if answers_diff > 0:
-        reward -= 0.5 ** (1 / answers_diff)  # at most 1
+        total_reward -= 0.5 ** (1 / answers_diff)  # at most 1
 
-    return reward
+    return total_reward
 
 
 def format_reward(trajectory: art.Trajectory) -> float:
@@ -52,9 +50,8 @@ def format_reward(trajectory: art.Trajectory) -> float:
     It does not provide positive rewards or incentives for good formatting or structure.
     """
     total_reward = 0.0
-    for item in trajectory.messages_and_choices:
-        if isinstance(item, Choice):
-            msg = ChatMessage.model_validate(item.message, from_attributes=True)
+    for msg, choice in zip(trajectory.messages(), trajectory.messages_and_choices):
+        if isinstance(choice, Choice):
             total_reward += _single_message_format_reward(msg)
 
     return total_reward
@@ -74,14 +71,16 @@ def _hill_func(x: float, steepness: float, midpoint: float) -> float:
     return val / (1 + val)
 
 
-# TODO: clarification requests will have a specific format <clarify> ... </clarify>
-# and then also penalize for every clarification.
 def behavior_reward(trajectory: art.Trajectory) -> float:
+    # conversation must end with an answer
+    last_message = trajectory.messages()[-1]
+    last_content = last_message.get("content")
+    assert last_message["role"] == "assistant", f"Expected role 'assistant', got '{last_message['role']}'"
+    assert isinstance(last_content, str), f"Expected content to be a string, got {type(last_content)}"
+    
     total_reward = 0.0
 
-    # conversation must end with an answer
-    last_message = ChatMessage.model_validate(trajectory.messages()[-1], from_attributes=True)
-    num_answers = len(text_utils.extract_between(last_message.content, Markers.ANSWER_START, Markers.ANSWER_END))
+    num_answers = len(text_utils.extract_between(last_content, Markers.ANSWER_START, Markers.ANSWER_END))
     if num_answers == 0:
         total_reward -= 5.0
 

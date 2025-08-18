@@ -14,8 +14,7 @@ from art.rewards import ruler_score_group
 
 from src.vllm_client import VllmRouter
 from src.models import PathConfig
-from src.dac_agent import ChatMessage, PromptConfig, StopCriteria
-from src.utils import text as text_utils
+from src.dac_agent import PromptConfig, StopCriteria, AgentNode
 from src.utils.logging import create_logger
 from src.utils.io import save_base_model
 
@@ -300,17 +299,10 @@ class Trainer:
         Returns:
             (str): The extracted answer from the trajectory.
         """
-        last_messages = trajectory.messages()[-1]
-        last_chat = ChatMessage.model_validate(last_messages, from_attributes=True)
-
-        if last_chat.role != "assistant":
-            logger.warning(
-                f"Expected the last message to be from the assistant, but got {last_chat.role}. "
-                "Returning an empty answer."
-            )
-            return ""
-
-        return text_utils.extract_answer(last_chat.content)
+        answer_message = AgentNode.parse_answer(trajectory.messages()[-1])
+        content = answer_message.get("content")
+        assert isinstance(content, str), f"Expected content to be a string, got {type(content)}"
+        return content.strip()
 
     async def rollout(
         self,

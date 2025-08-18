@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from typing import cast
 from openai import AsyncOpenAI
-from openai.types.chat.chat_completion import ChatCompletion
+from openai.types.chat import ChatCompletion
 
 from art import Trajectory
-from art.types import Message
 from pydantic import BaseModel, Field
 from pathlib import Path
 
@@ -15,16 +13,10 @@ from src.configs.markers import Markers
 from src.configs.prompts import get_prompt
 from src.utils.logging import create_logger
 from src.utils.io import save_base_model
+from src.types import Message, SystemMessage, UserMessage, AssistantMessage
+
 
 logger = create_logger(__name__)
-
-
-class ChatMessage(BaseModel, extra="allow", frozen=True, strict=True):
-    role: str
-    content: str
-
-    def as_openai(self) -> Message:
-        return cast(Message, {"role": self.role, "content": self.content})
 
 
 class PromptConfig(BaseModel):
@@ -128,7 +120,7 @@ class AgentNode:
         )
 
         if sys_msg := self._create_system_message():
-            self.trajectory.messages_and_choices.append(sys_msg.as_openai())
+            self.trajectory.messages_and_choices.append(sys_msg)
 
     @property
     def metrics(self) -> dict[str, float | int | bool]:
@@ -137,7 +129,7 @@ class AgentNode:
     def __str__(self) -> str:
         return trajectory_string(self.trajectory)
 
-    def _create_system_message(self) -> ChatMessage | None:
+    def _create_system_message(self) -> SystemMessage | None:
         prompt_config = self.prompt_config
         max_depth = self.stop_criteria.max_depth
 
@@ -157,13 +149,13 @@ class AgentNode:
             content = get_prompt(prompt_config.system_inter)
 
         if content is not None:
-            return ChatMessage(role="system", content=content)
+            return SystemMessage(role="system", content=content)
 
         return None
 
     async def chat(
         self,
-        prompt: ChatMessage,
+        prompt: Message,
         verbose: bool = False,
         **kwargs,
     ) -> Trajectory:
@@ -171,22 +163,20 @@ class AgentNode:
         Start a conversation with the agent using the provided prompt.
 
         Args:
-            prompt (ChatMessage): The initial message to start the conversation.
+            prompt (Message): The initial message to start the conversation.
             verbose (bool): If True, print the conversation messages.
             **kwargs: Additional keyword arguments to pass to OpenAI API call.
 
         Returns:
-            Trajectory: The trajectory of the conversation, including messages and choices.
+            (Trajectory): The trajectory of the conversation, including messages and choices.
                 This trajectory is used to train an `art.TrainableModel` model.
         """
+        if prompt["role"] != "user":
+            logger.warning(f"Prompt role is expected to be 'user', but got {prompt['role']}.")
 
-        if prompt.role != "user":
-            raise ValueError("Prompt role must be 'user' to start the conversation.")
-
-        self.trajectory.messages_and_choices.append(prompt.as_openai())
+        self.trajectory.messages_and_choices.append(prompt)
 
         if verbose:
-            last_message = self.trajectory.messages()[-1]
             print(trajectory_string(self.trajectory, indent=self.current_depth))
 
         should_break = False
@@ -194,8 +184,7 @@ class AgentNode:
         while True:
             # Call the OpenAI API to get a response
             completion = await self._call(self.trajectory.messages(), **kwargs)
-            choice = completion.choices[0]
-            self.trajectory.messages_and_choices.append(choice)
+            self.trajectory.messages_and_choices.append(completion.choices[0])
 
             # Update metrics
             self.metrics["total_calls"] += 1
@@ -204,26 +193,24 @@ class AgentNode:
                 self.metrics["total_tokens"] = completion.usage.total_tokens
 
             if verbose:
-                last_message = self.trajectory.messages()[-1]
-                print(message_string(last_message, indent=self.current_depth))
+                print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
 
             # Extract tasks from the response
-            response = ChatMessage.model_validate(choice.message, from_attributes=True)
-            tasks = self._parse_tasks(response)
+            tasks = AgentNode.parse_tasks(self.trajectory.messages()[-1])
 
             if should_break or len(tasks) == 0:
                 break  # No tasks to delegate, so last message
 
-            task_responses = []
+            task_responses: list[AssistantMessage] = []
 
             if self.stop_criteria.should_stop(self.current_depth):
-                content = get_prompt(self.prompt_config.tasks_depleted)
-                if content is None:
+                mock_answer = get_prompt(self.prompt_config.tasks_depleted)
+                if mock_answer is None:
                     break
 
-                # Provide mock answers indicating no more tasks available
-                resp = ChatMessage(role="user", content=content)
-                task_responses = [resp] * len(tasks)
+                for task in tasks:
+                    # Provide mock answer indicating no more tasks available
+                    task_responses.append(AssistantMessage(role="assistant", content=mock_answer))
                 should_break = True
 
             else:
@@ -242,43 +229,34 @@ class AgentNode:
             self.metrics["direct_tasks"] += len(tasks)
             self.metrics["total_tasks"] += len(tasks)
 
-            # Format the task responses
-            task_answers = []
-            for resp in task_responses:
-                answer_text = f"{Markers.ANSWER_START} {resp.content} {Markers.ANSWER_END}"
-                task_answers.append(answer_text)
-
-            # Create a new message with the tasks' answers
-            tasks_message = ChatMessage(role="user", content="\n".join(task_answers))
-            self.trajectory.messages_and_choices.append(tasks_message.as_openai())
+            # Create a new message with all tasks' answers
+            tasks_answers = [
+                f"{Markers.ANSWER_START} {resp.get('content')} {Markers.ANSWER_END}" for resp in task_responses
+            ]
+            joined_message = UserMessage(role="user", content="\n".join(tasks_answers))
+            self.trajectory.messages_and_choices.append(joined_message)
 
             if verbose:
-                last_message = self.trajectory.messages()[-1]
-                print(message_string(last_message, indent=self.current_depth))
+                print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
 
             self.stop_criteria.update_round(num_tasks=len(tasks))
 
         self.trajectory.finish()
         return self.trajectory
 
-    async def answer(self, prompt: ChatMessage, verbose: bool = False, **kwargs) -> ChatMessage:
+    async def answer(self, prompt: Message, verbose: bool = False, **kwargs) -> AssistantMessage:
         """
         Answer a question using the agent.
 
         Args:
-            prompt (ChatMessage): The question to answer.
+            prompt (Message): The question to answer.
             verbose (bool): If True, print the conversation messages.
             **kwargs: Additional keyword arguments to pass to OpenAI API call.
         Returns:
-            ChatMessage: The answer message from the agent.
+            (AssistantMessage): The answer message from the agent.
         """
-
-        if prompt.role != "user":
-            raise ValueError("Prompt role must be 'user' to start the conversation.")
-
         trajectory = await self.chat(prompt, verbose=verbose, **kwargs)
-        last_message = ChatMessage.model_validate(trajectory.messages()[-1])
-        return self._parse_answer(last_message)
+        return AgentNode.parse_answer(trajectory.messages()[-1])
 
     def create_sub_agent(self) -> AgentNode:
         return AgentNode(
@@ -303,20 +281,31 @@ class AgentNode:
             logprobs=True,
             **kwargs,
         )
-
         return patch_completion(completion)
 
-    def _parse_answer(self, message: ChatMessage) -> ChatMessage:
-        if message.role != "assistant":
+    @staticmethod
+    def parse_answer(message: Message) -> AssistantMessage:
+        if message["role"] != "assistant":
+            logger.error(f"Expected message role 'assistant', got {message['role']}")
             raise ValueError("Message role must be 'assistant' to extract answer.")
 
-        answer = text_utils.extract_answer(message.content)
-        return ChatMessage(role="assistant", content=answer)
+        content = message.get("content")
+        if not isinstance(content, str):
+            logger.error(f"Expected message content to be a string, got {type(content)}")
+            raise ValueError("Message content must be a string.")
 
-    def _parse_tasks(self, message: ChatMessage) -> list[ChatMessage]:
-        if message.role != "assistant":
+        answer = text_utils.extract_answer(content)
+        return AssistantMessage(role="assistant", content=answer)
+
+    @staticmethod
+    def parse_tasks(message: Message) -> list[UserMessage]:
+        if message["role"] != "assistant":
             raise ValueError("Message role must be 'assistant' to extract tasks.")
 
-        tasks = text_utils.extract_tasks(message.content)
-        tasks_messages = [ChatMessage(role="user", content=task) for task in tasks]
-        return tasks_messages
+        content = message.get("content")
+        if not isinstance(content, str):
+            logger.error(f"Expected message content to be a string, got {type(content)}")
+            raise ValueError("Message content must be a string.")
+
+        tasks = text_utils.extract_tasks(content)
+        return [UserMessage(role="user", content=task) for task in tasks]

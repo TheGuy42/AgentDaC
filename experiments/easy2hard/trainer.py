@@ -1,6 +1,6 @@
 from src.dac_agent_single import SingleAgentNode
 from src.trainer import Trainer
-from src.dac_agent import ChatMessage
+from src.types import UserMessage
 from src.configs.markers import Markers
 from src.utils.text import extract_answer, extract_between
 
@@ -22,12 +22,15 @@ class Easy2HardTrainer(Trainer):
         )
 
         content = format_prompt(sample)
-        message = ChatMessage(role="user", content=content)
+        message = UserMessage(role="user", content=content)
         trajectory = await agent.chat(message, **kwargs)
         return trajectory
 
     async def score_trajectory(self, sample: dict, trajectory: art.Trajectory) -> art.Trajectory:
-        ans_message = ChatMessage.model_validate(trajectory.messages()[-1], from_attributes=True)
+        ans_message = trajectory.messages()[-1]
+        ans_content = ans_message.get("content")
+        assert ans_message["role"] == "assistant", f"Expected role 'assistant', got '{ans_message['role']}'"
+        assert isinstance(ans_content, str), f"Expected content to be a string, got {type(ans_content)}"
 
         # Compute rewards
         trajectory.reward = 0.0
@@ -40,8 +43,8 @@ class Easy2HardTrainer(Trainer):
 
         problem = format_prompt(sample)
         answer = sample["answer"].strip()
-        agent_answer = extract_answer(ans_message.content)
-        num_answers = len(extract_between(ans_message.content, Markers.ANSWER_START, Markers.ANSWER_END))
+        agent_answer = extract_answer(ans_content)
+        num_answers = len(extract_between(ans_content, Markers.ANSWER_START, Markers.ANSWER_END))
 
         # Update metrics
         trajectory.metrics.update(

@@ -1,6 +1,6 @@
 from src.utils.logging import create_logger
 from src.utils import text as text_utils
-from src.dac_agent import ChatMessage
+from art.types import Message
 import re
 
 
@@ -21,12 +21,10 @@ def verify(gold_answer: str, pred_answer: str) -> bool:
     return gold_answer.strip().lower() == last_match.strip().lower()
 
 
-def answer_reward(sample: dict[str, str], last_message: ChatMessage) -> float:
-    role = last_message.role
-    content = last_message.content
-
-    if role != "assistant":
-        raise ValueError(f"Expected role 'assistant', got '{role}'")
+def answer_reward(sample: dict[str, str], message: Message) -> float:
+    content = message.get("content")
+    assert message["role"] == "assistant", f"Expected role 'assistant', got '{message['role']}'"
+    assert isinstance(content, str), f"Expected content to be a string, got {type(content)}"
 
     gold_answer = sample["answer"]
     pred_answer = text_utils.extract_answer(content)

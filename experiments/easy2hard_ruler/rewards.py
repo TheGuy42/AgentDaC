@@ -1,7 +1,7 @@
 import math_verify as mv
 
 from src.utils import text as text_utils
-from src.dac_agent import ChatMessage
+from src.types import Message
 
 
 def verify(gold_answer: str, pred_answer: str) -> bool:
@@ -11,12 +11,10 @@ def verify(gold_answer: str, pred_answer: str) -> bool:
     return mv.verify(parsed_gold, parsed_pred, raise_on_error=False)
 
 
-def answer_reward(sample: dict[str, str], last_message: ChatMessage) -> float:
-    role = last_message.role
-    content = last_message.content
-
-    if role != "assistant":
-        raise ValueError(f"Expected role 'assistant', got '{role}'")
+def answer_reward(sample: dict[str, str], message: Message) -> float:
+    content = message.get("content")
+    assert message["role"] == "assistant", f"Expected role 'assistant', got '{message['role']}'"
+    assert isinstance(content, str), f"Expected content to be a string, got {type(content)}"
 
     gold_answer = sample["answer"]
     pred_answer = text_utils.extract_answer(content)
