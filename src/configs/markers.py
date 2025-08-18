@@ -5,3 +5,5 @@ class Markers:
     ANSWER_END = "</answer>"
     CLARIFY_START = "<clarify>"
     CLARIFY_END = "</clarify>"
+    TOOL_CALL_START = "<tool_call>"
+    TOOL_CALL_END = "</tool_call>"

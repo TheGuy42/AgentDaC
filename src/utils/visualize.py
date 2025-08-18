@@ -23,6 +23,8 @@ def colorize_markers(content: str) -> str:
     marker_colors = {
         Markers.TASK_START: Colors.PURPLE,
         Markers.TASK_END: Colors.PURPLE,
+        Markers.TOOL_CALL_START: Colors.PURPLE,
+        Markers.TOOL_CALL_END: Colors.PURPLE,
         Markers.ANSWER_START: Colors.BLUE,
         Markers.ANSWER_END: Colors.BLUE,
     }
@@ -93,7 +95,7 @@ def message_string(message: Message, indent: int = 0) -> str:
         tool_text = format_field("tool calls", tool_lines, indent)
         texts.append(tool_text)
 
-    return "\n".join(texts) + "\n\n"
+    return "\n".join(texts) + "\n"
 
 
 def trajectory_string(trajectory: Trajectory, indent: int = 0) -> str:

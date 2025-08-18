@@ -1,5 +1,7 @@
 from abc import abstractmethod
 import random
+import tqdm
+import tqdm.asyncio
 
 from wandb.sdk.wandb_run import Run as WandbRun
 from pydantic import BaseModel, Field
@@ -14,7 +16,7 @@ from art.rewards import ruler_score_group
 
 from src.vllm_client import VllmRouter
 from src.models import PathConfig
-from src.dac_agent import PromptConfig, StopCriteria, AgentNode
+from src.dac_agent import PromptConfig, StopCriteria
 from src.utils.logging import create_logger
 from src.utils.io import save_base_model
 
@@ -248,7 +250,6 @@ class Trainer:
     async def predict(
         self,
         dataset: list[dict],
-        max_exceptions: int | float = 0,
         pbar_desc: str = "predict",
         **kwargs,
     ) -> list[str] | BaseException:
@@ -258,8 +259,6 @@ class Trainer:
 
         Args:
             dataset (list[dict]): List of samples to predict.
-            max_exceptions (int | float): Maximum number of failed trajectories to allow before failing.
-                If float, then it is treated as a fraction of the dataset size.
             pbar_desc (str): Description for the progress bar.
             **kwargs: Additional keyword arguments for the prediction step.
 
@@ -269,40 +268,14 @@ class Trainer:
         if not kwargs:
             kwargs = self.default_kwargs
 
-        forward_tasks = [self.forward_step(sample, **kwargs) for sample in dataset]
+        tasks = [self.predict_step(sample, **kwargs) for sample in dataset]
 
-        trajectories = await art.gather_trajectories(
-            forward_tasks,
-            pbar_desc=pbar_desc,
-            max_exceptions=max_exceptions,
-            pbar_total_completion_tokens=False,
+        return await tqdm.asyncio.tqdm.gather(
+            *tasks,
+            desc=pbar_desc,
+            total=len(tasks),
+            leave=False,
         )
-
-        answers = []
-        for tr in trajectories:
-            if not isinstance(tr, art.Trajectory):
-                answers.append(tr)
-                continue
-
-            answer = self.extract_answer(tr)
-            answers.append(answer)
-
-        return answers
-
-    def extract_answer(self, trajectory: art.Trajectory) -> str:
-        """
-        Extract a final answer from a trajectory.
-
-        Args:
-            trajectory (art.Trajectory): The trajectory from which to extract the answer.
-
-        Returns:
-            (str): The extracted answer from the trajectory.
-        """
-        answer_message = AgentNode.parse_answer(trajectory.messages()[-1])
-        content = answer_message.get("content")
-        assert isinstance(content, str), f"Expected content to be a string, got {type(content)}"
-        return content.strip()
 
     async def rollout(
         self,
@@ -345,6 +318,25 @@ class Trainer:
         )
 
         return trajectory_groups
+
+    @abstractmethod
+    async def predict_step(
+        self,
+        sample: dict,
+        **kwargs,
+    ) -> str:
+        """
+        Perform a prediction step for a single sample.
+        This function is used to get the final answer from the model.
+
+        Args:
+            sample (dict): A single sample from the dataset.
+            **kwargs: Additional keyword arguments for the prediction step.
+
+        Returns:
+            (str): The predicted answer for the sample.
+        """
+        raise NotImplementedError("Subclasses must implement the predict_step method.")
 
     @abstractmethod
     async def forward_step(

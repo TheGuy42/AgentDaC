@@ -1,4 +1,4 @@
-from src.dac_agent_single import SingleAgentNode
+from src.dac_agent import AgentNode
 from src.trainer import Trainer
 from src.types import UserMessage
 from src.configs.markers import Markers
@@ -12,19 +12,33 @@ import art
 
 
 class Easy2HardTrainer(Trainer):
-    async def forward_step(self, sample: dict, **kwargs) -> art.Trajectory:
+    
+    def create_agent(self) -> AgentNode:
         client = self.vllm_router.next()
-        agent = SingleAgentNode(
+        return AgentNode(
             model_name=self.model.get_inference_name(),
             openai_client=client.openai_client,
             prompt_config=self.prompt_config,
             stop_criteria=self.stop_criteria,
         )
-
+        
+    async def forward_step(self, sample: dict, **kwargs) -> art.Trajectory:
+        agent = self.create_agent()
         content = format_prompt(sample)
         message = UserMessage(role="user", content=content)
         trajectory = await agent.chat(message, **kwargs)
         return trajectory
+    
+    async def predict_step(self, sample: dict, **kwargs) -> str:
+        agent = self.create_agent()
+        content = format_prompt(sample)
+        message = UserMessage(role="user", content=content)
+        answer_message = await agent.answer(message, **kwargs)
+        
+        answer = answer_message.get("content")
+        assert answer_message["role"] == "assistant", f"Expected role 'assistant', got '{answer_message['role']}'"
+        assert isinstance(answer, str), f"Expected content to be a string, got {type(answer)}"
+        return answer
 
     async def score_trajectory(self, sample: dict, trajectory: art.Trajectory) -> art.Trajectory:
         ans_message = trajectory.messages()[-1]

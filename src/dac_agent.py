@@ -196,9 +196,9 @@ class AgentNode:
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
 
             # Extract tasks from the response
-            tasks = AgentNode.parse_tasks(self.trajectory.messages()[-1])
+            tasks_inputs = AgentNode.parse_tasks(self.trajectory.messages()[-1])
 
-            if should_break or len(tasks) == 0:
+            if should_break or len(tasks_inputs) == 0:
                 break  # No tasks to delegate, so last message
 
             task_responses: list[AssistantMessage] = []
@@ -208,13 +208,13 @@ class AgentNode:
                 if mock_answer is None:
                     break
 
-                for task in tasks:
+                should_break = True
+                for task in tasks_inputs:
                     # Provide mock answer indicating no more tasks available
                     task_responses.append(AssistantMessage(role="assistant", content=mock_answer))
-                should_break = True
 
             else:
-                for task in tasks:
+                for task in tasks_inputs:
                     # create a sub-agent and get answer the task
                     sub_agent = self.create_sub_agent()
                     resp = await sub_agent.answer(task, verbose, **kwargs)
@@ -226,12 +226,13 @@ class AgentNode:
                     self.metrics["max_depth"] = max(1 + sub_agent.metrics["max_depth"], self.metrics["max_depth"])
 
             # Update metrics
-            self.metrics["direct_tasks"] += len(tasks)
-            self.metrics["total_tasks"] += len(tasks)
+            self.metrics["direct_tasks"] += len(tasks_inputs)
+            self.metrics["total_tasks"] += len(tasks_inputs)
 
             # Create a new message with all tasks' answers
             tasks_answers = [
-                f"{Markers.ANSWER_START} {resp.get('content')} {Markers.ANSWER_END}" for resp in task_responses
+                "{} {} {}".format(Markers.ANSWER_START, resp.get("content"), Markers.ANSWER_END)
+                for resp in task_responses
             ]
             joined_message = UserMessage(role="user", content="\n".join(tasks_answers))
             self.trajectory.messages_and_choices.append(joined_message)
@@ -239,7 +240,7 @@ class AgentNode:
             if verbose:
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
 
-            self.stop_criteria.update_round(num_tasks=len(tasks))
+            self.stop_criteria.update_round(num_tasks=len(tasks_inputs))
 
         self.trajectory.finish()
         return self.trajectory
@@ -275,6 +276,11 @@ class AgentNode:
             messages (list[Message]): The list of messages to send to the API.
             **kwargs: Additional keyword arguments to pass to the API call.
         """
+        # By default allow only a single task and answer in the response
+        extra_body = kwargs.setdefault("extra_body", {})
+        extra_body.setdefault("include_stop_str_in_output", True)
+        kwargs.setdefault("stop", [Markers.TASK_END, Markers.ANSWER_END])
+
         completion = await self.openai_client.chat.completions.create(
             model=self.model,
             messages=messages,
