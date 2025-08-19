@@ -11,10 +11,10 @@ module_dir = pathlib.Path(__file__).parent.resolve().parent
 if str(module_dir) not in sys.path:
     sys.path.append(str(module_dir))
 
-from src.models import load_vllm_model
+from src.utils.loaders import load_vllm_model
 from src.utils.env import prepare_environment
 from src.utils.logging import create_logger, setup_logging
-from src.configs.vllm_configs import available_configs, VllmConfig
+from src.configs.models.vllm import available_configs, VllmConfig
 
 
 logger = create_logger(__name__)

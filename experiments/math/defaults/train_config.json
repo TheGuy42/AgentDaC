@@ -1,0 +1,25 @@
+{
+    "epochs": 5,
+    "num_groups": 16,
+    "group_size": 8,
+    "min_reward_stdev": null,
+    "train_log_steps": 1,
+    "train_size": null,
+    "val_log_steps": 10,
+    "val_size": 512,
+    "delete_checkpoints": true,
+    "checkpoint_metric": "reward",
+    "rollout_kwargs": {
+        "temperature": 0.85,
+        "top_p": 0.9,
+        "max_completion_tokens": 2000
+    },
+    "art_config": {
+        "learning_rate": 0.000002,
+        "beta": 0.0
+    },
+    "dev_art_config": null,
+    "ruler_config": null,
+    "verbose": false,
+    "max_exceptions": 4
+}

@@ -13,8 +13,8 @@ if str(module_dir) not in sys.path:
     sys.path.append(str(module_dir))
 
 from src.utils.logging import create_logger, setup_logging
-from src.configs import vllm_configs
 from src.utils.env import prepare_environment
+from src.configs.models.vllm import available_configs, CONFIGS
 
 
 logger = create_logger(__name__)
@@ -54,11 +54,11 @@ def main(args: argparse.Namespace, extra_args: list[str]) -> None:
     port: int = args.port
     result_dir: str = args.result_dir
 
-    if model_name not in vllm_configs.available_configs():
-        logger.error(f"Model '{model_name}' is not available. Available models are: {vllm_configs.available_configs()}")
+    if model_name not in available_configs():
+        logger.error(f"Model '{model_name}' is not available. Available models are: {available_configs()}")
         sys.exit(1)
 
-    config = vllm_configs.CONFIGS[model_name]
+    config = CONFIGS[model_name]
     config = config.initialize(port)
     engine_args: EngineArgs = config.openai_config["engine_args"]  # type: ignore
     server_args: ServerArgs = config.openai_config["server_args"]  # type: ignore

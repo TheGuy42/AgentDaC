@@ -18,10 +18,10 @@ if str(module_dir) not in sys.path:
 from src.utils.env import prepare_environment
 from src.utils.logging import setup_logging
 from src.utils.io import load_base_model
-from src.models import load_art_model, PathConfig
+from src.utils.loaders import load_art_model
 from src.vllm_client import VllmClient, ArtClient, VllmRouter
-from src.trainer import TrainingConfig, PromptConfig, StopCriteria
-from src.configs.art_configs import available_configs, ArtConfig
+from src.configs.models.art import available_configs, ArtConfig
+from src.configs import PathConfig, TrainingConfig, PromptConfig, StopCriteria
 from experiments.mmlu_pro.trainer import MmluProTrainer
 
 

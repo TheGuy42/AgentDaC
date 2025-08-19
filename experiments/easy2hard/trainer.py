@@ -1,7 +1,7 @@
 from src.dac_agent import AgentNode
 from src.trainer import Trainer
-from src.types import UserMessage
-from src.configs.markers import Markers
+from src.openai_types import UserMessage
+from src.utils.markers import Markers
 from src.utils.text import extract_answer, extract_between
 
 from experiments.general_rewards import format_reward, behavior_reward

@@ -22,12 +22,12 @@ from src.utils.loaders import load_art_model
 from src.vllm_client import VllmClient, ArtClient, VllmRouter
 from src.configs.models.art import available_configs, ArtConfig
 from src.configs import PathConfig, TrainingConfig, PromptConfig, StopCriteria
-from experiments.easy2hard_ruler.trainer import Easy2HardRulerTrainer
+from experiments.easy2hard_tools.trainer import Easy2HardToolTrainer
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run the Easy2Hard experiment.",
+        description="Run the Easy2Hard experiment with tool use.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
@@ -41,7 +41,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--project",
         type=str,
-        default="easy2hard_dac_ruler",
+        default="easy2hard_dac_tools",
         help="The name of the project for saving results.",
     )
 
@@ -71,7 +71,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--config_dir",
         type=str,
-        default="experiments/easy2hard_ruler/defaults",
+        default="experiments/easy2hard_tools/defaults",
         help="Directory containing experiment configuration files.",
     )
 
@@ -167,7 +167,7 @@ async def main(args: argparse.Namespace):
     vllm_router = VllmRouter(inference_clients)
 
     # create and configure the trainer
-    trainer = Easy2HardRulerTrainer(
+    trainer = Easy2HardToolTrainer(
         model=model,
         vllm_router=vllm_router,
         path_config=path_config,

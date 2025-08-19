@@ -2,79 +2,18 @@ from __future__ import annotations
 
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion
-
 from art import Trajectory
-from pydantic import BaseModel, Field
-from pathlib import Path
 
 from src.utils import text as text_utils
 from src.utils.visualize import trajectory_string, message_string
-from src.configs.markers import Markers
-from src.configs.prompts import get_prompt
+from src.utils.markers import Markers
 from src.utils.logging import create_logger
-from src.utils.io import save_base_model
-from src.types import Message, SystemMessage, UserMessage, AssistantMessage
+from src.openai_types import Message, SystemMessage, UserMessage, AssistantMessage
+from src.configs import PromptConfig, StopCriteria
+from src.configs.prompts import get_prompt
 
 
 logger = create_logger(__name__)
-
-
-class PromptConfig(BaseModel):
-    system_root: str = ""
-    system_inter: str = ""
-    system_leaf: str = ""
-    tasks_depleted: str = ""
-
-    def save(self, dir_name: str, file_name: str = "prompt_config.json") -> None:
-        """
-        Save the prompt configuration to a JSON file.
-        """
-        save_base_model(self, Path(dir_name) / file_name)
-
-
-class StopCriteria(BaseModel):
-    max_depth: int | None = 1
-    max_tasks: int | None = 5
-    max_rounds: int | None = 5
-
-    # Internal counter fields
-    total_rounds: int = Field(default=0, exclude=True, init=False)
-    total_tasks: int = Field(default=0, exclude=True, init=False)
-
-    def clone(self) -> StopCriteria:
-        """Create a deep copy and reset the counters"""
-        new = self.model_copy(deep=True)
-        new.reset()
-        return new
-
-    def reset(self):
-        """Reset the internal counters"""
-        self.total_rounds = 0
-        self.total_tasks = 0
-
-    def update_round(self, num_tasks: int):
-        """Update round and task counters"""
-        self.total_rounds += 1
-        self.total_tasks += num_tasks
-
-    def should_stop(self, cur_depth: int) -> bool:
-        """Check if stopping criteria are met"""
-        if self.max_depth and cur_depth >= self.max_depth:
-            return True
-
-        if self.max_tasks and self.total_tasks >= self.max_tasks:
-            return True
-
-        if self.max_rounds and self.total_rounds >= self.max_rounds:
-            return True
-
-        return False
-
-    def save(self, dir_name: str, file_name: str = "stop_criteria.json") -> None:
-        """
-        Save the stop criteria configuration to a JSON file.
-        """
-        save_base_model(self, Path(dir_name) / file_name)
 
 
 def patch_completion(completion: ChatCompletion) -> ChatCompletion:
@@ -152,6 +91,36 @@ class AgentNode:
             return SystemMessage(role="system", content=content)
 
         return None
+
+    def create_sub_agent(self) -> AgentNode:
+        return AgentNode(
+            openai_client=self.openai_client,
+            model_name=self.model,
+            prompt_config=self.prompt_config,
+            stop_criteria=self.stop_criteria,
+            current_depth=self.current_depth + 1,
+        )
+
+    async def _call(self, messages: list[Message], **kwargs) -> ChatCompletion:
+        """
+        Call the OpenAI API to get a chat completion.
+
+        Args:
+            messages (list[Message]): The list of messages to send to the API.
+            **kwargs: Additional keyword arguments to pass to the API call.
+        """
+        # By default allow only a single task and answer in the response
+        extra_body = kwargs.setdefault("extra_body", {})
+        extra_body.setdefault("include_stop_str_in_output", True)
+        kwargs.setdefault("stop", [Markers.TASK_END, Markers.ANSWER_END])
+
+        completion = await self.openai_client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            logprobs=True,
+            **kwargs,
+        )
+        return patch_completion(completion)
 
     async def chat(
         self,
@@ -259,36 +228,6 @@ class AgentNode:
         trajectory = await self.chat(prompt, verbose=verbose, **kwargs)
         return AgentNode.parse_answer(trajectory.messages()[-1])
 
-    def create_sub_agent(self) -> AgentNode:
-        return AgentNode(
-            openai_client=self.openai_client,
-            model_name=self.model,
-            prompt_config=self.prompt_config,
-            stop_criteria=self.stop_criteria,
-            current_depth=self.current_depth + 1,
-        )
-
-    async def _call(self, messages: list[Message], **kwargs) -> ChatCompletion:
-        """
-        Call the OpenAI API to get a chat completion.
-
-        Args:
-            messages (list[Message]): The list of messages to send to the API.
-            **kwargs: Additional keyword arguments to pass to the API call.
-        """
-        # By default allow only a single task and answer in the response
-        extra_body = kwargs.setdefault("extra_body", {})
-        extra_body.setdefault("include_stop_str_in_output", True)
-        kwargs.setdefault("stop", [Markers.TASK_END, Markers.ANSWER_END])
-
-        completion = await self.openai_client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            logprobs=True,
-            **kwargs,
-        )
-        return patch_completion(completion)
-
     @staticmethod
     def parse_answer(message: Message) -> AssistantMessage:
         if message["role"] != "assistant":
@@ -297,7 +236,7 @@ class AgentNode:
 
         content = message.get("content")
         if not isinstance(content, str):
-            logger.error(f"Expected message content to be a string, got {type(content)}")
+            logger.error(f"Expected message content to be a string, got {type(content).__name__}")
             raise ValueError("Message content must be a string.")
 
         answer = text_utils.extract_answer(content)
@@ -310,7 +249,7 @@ class AgentNode:
 
         content = message.get("content")
         if not isinstance(content, str):
-            logger.error(f"Expected message content to be a string, got {type(content)}")
+            logger.error(f"Expected message content to be a string, got {type(content).__name__}")
             raise ValueError("Message content must be a string.")
 
         tasks = text_utils.extract_tasks(content)

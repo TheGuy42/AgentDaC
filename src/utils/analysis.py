@@ -43,7 +43,9 @@ def to_dataframe(trajectories: list[art.Trajectory]) -> pl.DataFrame:
 
 
 def read_trajectory_groups(file_path: str) -> list[art.TrajectoryGroup]:
-    assert file_path.endswith(".jsonl"), "File must be a JSONL file."
+    if not file_path.endswith(".jsonl"):
+        raise ValueError("File must be a JSONL file.")
+    
     with open(file_path, "r") as f:
         trajectory_groups = art_logging.deserialize_trajectory_groups(f.read())
     return trajectory_groups

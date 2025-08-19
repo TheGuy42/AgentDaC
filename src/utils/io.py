@@ -2,7 +2,6 @@ from pydantic import BaseModel
 from pathlib import Path
 from typing import TypeVar, overload, Literal
 import json
-
 from src.utils.logging import create_logger
 
 

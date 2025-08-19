@@ -7,3 +7,5 @@ class Markers:
     CLARIFY_END = "</clarify>"
     TOOL_CALL_START = "<tool_call>"
     TOOL_CALL_END = "</tool_call>"
+    THINK_START = "<think>"
+    THINK_END = "</think>"

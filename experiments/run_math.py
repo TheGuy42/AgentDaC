@@ -22,12 +22,12 @@ from src.utils.loaders import load_art_model
 from src.vllm_client import VllmClient, ArtClient, VllmRouter
 from src.configs.models.art import available_configs, ArtConfig
 from src.configs import PathConfig, TrainingConfig, PromptConfig, StopCriteria
-from experiments.easy2hard_ruler.trainer import Easy2HardRulerTrainer
+from experiments.easy2hard.trainer import Easy2HardTrainer
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run the Easy2Hard experiment.",
+        description="Run the MATH experiment.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
@@ -41,7 +41,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--project",
         type=str,
-        default="easy2hard_dac_ruler",
+        default="math_dac",
         help="The name of the project for saving results.",
     )
 
@@ -71,7 +71,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--config_dir",
         type=str,
-        default="experiments/easy2hard_ruler/defaults",
+        default="experiments/math/defaults",
         help="Directory containing experiment configuration files.",
     )
 
@@ -93,13 +93,13 @@ def parse_args() -> argparse.Namespace:
 
 def load_data() -> tuple[Dataset, Dataset]:
     dataset_dict: DatasetDict = load_dataset(
-        path="furonghuang-lab/Easy2Hard-Bench",
+        path="ankner/math-500",
         name="E2H-AMC",
         split=None,
     )  # type: ignore
 
     ds_train: Dataset = dataset_dict["train"]
-    ds_val: Dataset = dataset_dict["eval"]
+    ds_val: Dataset = dataset_dict["test"]
     return ds_train, ds_val
 
 
@@ -167,7 +167,7 @@ async def main(args: argparse.Namespace):
     vllm_router = VllmRouter(inference_clients)
 
     # create and configure the trainer
-    trainer = Easy2HardRulerTrainer(
+    trainer = Easy2HardTrainer(
         model=model,
         vllm_router=vllm_router,
         path_config=path_config,

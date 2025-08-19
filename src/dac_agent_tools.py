@@ -1,6 +1,4 @@
 from openai.types.chat.chat_completion import ChatCompletion
-from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
-
 from langchain_core.utils.function_calling import convert_to_openai_tool
 
 from art import Trajectory
@@ -8,30 +6,36 @@ from pydantic import BaseModel, Field
 
 from src.dac_agent import AgentNode
 from src.utils.visualize import trajectory_string, message_string
+from src.utils.markers import Markers
 from src.utils.logging import create_logger
-from src.types import Message, UserMessage, AssistantMessage, ToolMessage
+from src.openai_types import Message, UserMessage, AssistantMessage, ToolMessage
 
 
 logger = create_logger(__name__)
 
 
-class delegate_sub_task(BaseModel):
+class call_sub_agent(BaseModel):
     """
-    Calls a sub-agent LLM with the given input prompt. Used to delegate sub-tasks to a sub-agent.
-    Useful for breaking down complex tasks. Do not delegate the entire task to the sub-agent.
-    Use the sub-agent for task decomposition. You may use this tool multiple times.
+    Creates a new sub-agent LLM and calls it with the provided prompt.
 
     Returns:
         str: The output from the sub-agent.
     """
 
-    input: str = Field(description="Input prompt to the sub-agent")
+    prompt: str = Field(description="Input prompt to a sub-agent. All characters must be properly escaped.")
 
-
-SUB_TASK_TOOL: ChatCompletionToolParam = convert_to_openai_tool(delegate_sub_task, strict=True)  # type: ignore
+    def to_task(self) -> UserMessage:
+        """
+        Converts the tool call to a UserMessage for the sub-agent.
+        """
+        return UserMessage(role="user", content=self.prompt.strip())
 
 
 class AgentToolNode(AgentNode):
+    TOOLS = [
+        convert_to_openai_tool(call_sub_agent, strict=True),
+    ]
+
     def create_sub_agent(self):
         return AgentToolNode(
             openai_client=self.openai_client,
@@ -42,10 +46,15 @@ class AgentToolNode(AgentNode):
         )
 
     async def _call(self, messages: list[Message], **kwargs) -> ChatCompletion:
-        kwargs.setdefault("parallel_tool_calls", False)
+        # By default allow only a single tool call in the response
+        extra_body = kwargs.setdefault("extra_body", {})
+        extra_body.setdefault("include_stop_str_in_output", True)
+        kwargs.setdefault("stop", [Markers.TOOL_CALL_END, Markers.ANSWER_END, Markers.TASK_END])
+        kwargs.setdefault("parallel_tool_calls", False)  # NOTE: currently vLLM ignores this flag
+
         if not self.stop_criteria.should_stop(self.current_depth):
             tools = kwargs.setdefault("tools", [])
-            tools.append(SUB_TASK_TOOL)
+            tools.extend(self.TOOLS)
 
         return await super()._call(messages=messages, **kwargs)
 
@@ -114,7 +123,12 @@ class AgentToolNode(AgentNode):
 
             for tool_call, task_resp in zip(tool_calls, task_responses):
                 content = task_resp.get("content")
-                assert isinstance(content, str), f"Expected content to be a string, got {type(content)}"
+                if not isinstance(content, str):
+                    raise ValueError(
+                        f"Expected content to be a string, got {type(content).__name__}. "
+                        "Ensure the sub-agent's response is properly formatted."
+                    )
+
                 tool_message = ToolMessage(role="tool", tool_call_id=tool_call.id, content=content)
                 self.trajectory.messages_and_choices.append(tool_message)
 
@@ -138,13 +152,12 @@ class AgentToolNode(AgentNode):
             fn_name = tc["function"]["name"]
             fn_args = tc["function"]["arguments"]
 
-            if fn_name == delegate_sub_task.__name__:
-                content = delegate_sub_task.model_validate_json(fn_args).input.strip()
-                task = UserMessage(role="user", content=content)
-                tasks.append(task)
+            if fn_name == call_sub_agent.__name__:
+                tool_instance = call_sub_agent.model_validate_json(fn_args)
+                tasks.append(tool_instance.to_task())
 
             else:
                 logger.error(f"Unexpected tool call name: {tc['function']['name']}")
-                raise ValueError("Tool call must be 'call_sub_agent' to extract tasks.")
+                raise ValueError("Unrecognized tool call name.")
 
         return tasks

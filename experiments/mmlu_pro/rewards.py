@@ -1,6 +1,6 @@
 from src.utils.logging import create_logger
 from src.utils import text as text_utils
-from art.types import Message
+from src.openai_types import Message
 import re
 
 

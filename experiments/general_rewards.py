@@ -1,16 +1,11 @@
 import art
 from openai.types.chat.chat_completion import Choice
 
-from src.utils import text as text_utils
-from src.configs.markers import Markers
-from src.types import Message
+import src.utils.text as text_utils
+from src.utils.markers import Markers
 
 
-def _single_message_format_reward(message: Message) -> float:
-    content = message.get("content")
-    assert message["role"] == "assistant", f"Expected role 'assistant', got '{message['role']}'"
-    assert isinstance(content, str), f"Expected content to be a string, got {type(content)}"
-
+def _single_message_format_reward(content: str) -> float:
     total_reward = 0.0
 
     # Conversation structure:
@@ -50,10 +45,9 @@ def format_reward(trajectory: art.Trajectory) -> float:
     It does not provide positive rewards or incentives for good formatting or structure.
     """
     total_reward = 0.0
-    for msg, choice in zip(trajectory.messages(), trajectory.messages_and_choices):
-        if isinstance(choice, Choice):
-            total_reward += _single_message_format_reward(msg)
-
+    for item in trajectory.messages_and_choices:
+        if isinstance(item, Choice) and isinstance(item.message.content, str):
+            total_reward += _single_message_format_reward(item.message.content)
     return total_reward
 
 
@@ -77,7 +71,7 @@ def behavior_reward(trajectory: art.Trajectory) -> float:
     last_content = last_message.get("content")
     assert last_message["role"] == "assistant", f"Expected role 'assistant', got '{last_message['role']}'"
     assert isinstance(last_content, str), f"Expected content to be a string, got {type(last_content)}"
-    
+
     total_reward = 0.0
 
     num_answers = len(text_utils.extract_between(last_content, Markers.ANSWER_START, Markers.ANSWER_END))

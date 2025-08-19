@@ -1,6 +1,6 @@
 from art import Trajectory
-from art.types import Message
-from src.configs.markers import Markers
+from src.openai_types import Message
+from src.utils.markers import Markers
 import re
 
 
@@ -21,6 +21,8 @@ class Colors:
 def colorize_markers(content: str) -> str:
     """Add color formatting to special markers in content."""
     marker_colors = {
+        Markers.THINK_START: Colors.GREEN,
+        Markers.THINK_END: Colors.GREEN,
         Markers.TASK_START: Colors.PURPLE,
         Markers.TASK_END: Colors.PURPLE,
         Markers.TOOL_CALL_START: Colors.PURPLE,

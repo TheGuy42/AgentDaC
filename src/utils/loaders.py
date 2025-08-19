@@ -1,74 +1,17 @@
-from datetime import datetime
-from pydantic import BaseModel
-from pathlib import Path
-
 import art
-from art.utils import output_dirs
 from art.local import LocalBackend
-
-from src.configs import art_configs
-from src.configs import vllm_configs
+import src.configs.models.art as art_configs
+import src.configs.models.vllm as vllm_configs
+from src.configs import PathConfig, VllmConfig, ArtConfig
 from src.utils.logging import create_logger
-from src.utils.io import save_base_model
 
 
 logger = create_logger(__name__)
 
 
-class PathConfig(BaseModel, frozen=False):
-    base_model: str
-    project_name: str
-    run_name: str = ""
-    art_path: str = ""
-
-    def model_post_init(self, context) -> None:
-        """Generate run name if not provided"""
-        if not self.art_path:
-            self.art_path = output_dirs.get_default_art_path()
-
-        if not self.run_name:
-            self.run_name = self._generate_run_name(self.base_model)
-
-    def save(self, dir_name: str, file_name: str = "path_config.json") -> None:
-        """
-        Save the path configuration to a JSON file.
-        """
-        save_base_model(self, Path(dir_name) / file_name)
-
-    @property
-    def model_output_dir(self) -> str:
-        """
-        Get the output directory for the model.
-        """
-        return output_dirs.get_output_dir_from_model_properties(
-            project=self.project_name,
-            name=self.run_name,
-            art_path=self.art_path,
-        )
-
-    @property
-    def trajectories_dir(self) -> str:
-        return output_dirs.get_trajectories_dir(
-            model_output_dir=self.model_output_dir,
-        )
-
-    def _generate_run_name(self, base_model: str) -> str:
-        """
-        Generate a run name based on the model name and current date.
-        """
-        base_model = self.base_model.split("/")[-1]
-        date_str = datetime.now().strftime("%m_%d_%H_%M")
-        return f"{base_model}_{date_str}"
-
-    def get_step_checkpoint_dir(self, step: int) -> str:
-        """
-        Get the checkpoint directory for a specific step.
-        """
-        return output_dirs.get_step_checkpoint_dir(model_output_dir=self.model_output_dir, step=step)
-
 async def load_art_model(
     path_config: PathConfig,
-    art_config: art_configs.ArtConfig | None = None,
+    art_config: ArtConfig | None = None,
     print_full: bool = False,
 ) -> art.TrainableModel:
     if art_config is None:
@@ -109,7 +52,7 @@ async def load_art_model(
 def load_vllm_model(
     model_name: str,
     port: int = 8200,
-    vllm_config: vllm_configs.VllmConfig | None = None,
+    vllm_config: VllmConfig | None = None,
     print_full: bool = False,
 ) -> list[str]:
     if vllm_config is None:

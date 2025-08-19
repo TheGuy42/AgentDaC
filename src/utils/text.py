@@ -1,5 +1,5 @@
 import re
-from src.configs.markers import Markers
+from src.utils.markers import Markers
 
 
 def extract_between(text: str, start_marker: str, end_marker: str) -> list[str]:

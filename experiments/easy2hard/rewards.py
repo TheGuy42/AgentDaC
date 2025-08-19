@@ -1,7 +1,6 @@
 import math_verify as mv
-
 from src.utils import text as text_utils
-from src.types import Message
+from src.openai_types import Message
 
 
 def verify(gold_answer: str, pred_answer: str) -> bool:
