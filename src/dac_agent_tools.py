@@ -33,7 +33,7 @@ class call_sub_agent(BaseModel):
 
 class AgentToolNode(AgentNode):
     TOOLS = [
-        convert_to_openai_tool(call_sub_agent, strict=True),
+        convert_to_openai_tool(call_sub_agent),
     ]
 
     def create_sub_agent(self):
