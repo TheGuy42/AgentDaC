@@ -12,7 +12,6 @@ import art
 
 
 class Easy2HardTrainer(Trainer):
-    
     def create_agent(self) -> AgentNode:
         client = self.vllm_router.next()
         return AgentNode(
@@ -21,20 +20,20 @@ class Easy2HardTrainer(Trainer):
             prompt_config=self.prompt_config,
             stop_criteria=self.stop_criteria,
         )
-        
+
     async def forward_step(self, sample: dict, **kwargs) -> art.Trajectory:
         agent = self.create_agent()
         content = format_prompt(sample)
         message = UserMessage(role="user", content=content)
         trajectory = await agent.chat(message, **kwargs)
         return trajectory
-    
+
     async def predict_step(self, sample: dict, **kwargs) -> str:
         agent = self.create_agent()
         content = format_prompt(sample)
         message = UserMessage(role="user", content=content)
         answer_message = await agent.answer(message, **kwargs)
-        
+
         answer = answer_message.get("content")
         assert answer_message["role"] == "assistant", f"Expected role 'assistant', got '{answer_message['role']}'"
         assert isinstance(answer, str), f"Expected content to be a string, got {type(answer)}"
@@ -51,9 +50,9 @@ class Easy2HardTrainer(Trainer):
         ans_reward = answer_reward(sample, ans_message)
         trajectory.reward += ans_reward
         fmt_reward = format_reward(trajectory)
-        trajectory.reward += fmt_reward
+        # trajectory.reward += fmt_reward # TODO: TEST
         bhv_reward = behavior_reward(trajectory)
-        trajectory.reward += bhv_reward
+        # trajectory.reward += bhv_reward # TODO: TEST
 
         problem = format_prompt(sample)
         answer = sample["answer"].strip()

@@ -5,6 +5,7 @@ from art import Trajectory
 from pydantic import BaseModel, Field
 
 from src.dac_agent import AgentNode
+from src.configs.prompts import get_prompt
 from src.utils.visualize import trajectory_string, message_string
 from src.utils.markers import Markers
 from src.utils.logging import create_logger
@@ -31,9 +32,34 @@ class call_sub_agent(BaseModel):
         return UserMessage(role="user", content=self.prompt.strip())
 
 
+# TODO: test
+schema_text_base64 = """
+{
+    "type": "function",
+    "function": {
+        "name": "call_sub_agent",
+        "description": "Creates a new sub-agent LLM and calls it with the provided prompt.\nReturns the output from the sub-agent.",
+        "parameters": {
+            "properties": {
+                "prompt": {
+                    "description": "Base64 (UTF-8) input prompt to a sub-agent.",
+                    "type": "string",
+                    "contentEncoding": "base64"
+                }
+            },
+            "required": [
+                "prompt"
+            ],
+            "type": "object"
+        }
+    }
+}
+"""
+
+
 class AgentToolNode(AgentNode):
     TOOLS = [
-        convert_to_openai_tool(call_sub_agent),
+        convert_to_openai_tool(call_sub_agent, strict=False),
     ]
 
     def create_sub_agent(self):
@@ -45,6 +71,20 @@ class AgentToolNode(AgentNode):
             current_depth=self.current_depth + 1,
         )
 
+    # TODO: need to debug and understand what are the inputs that the model receives.
+    # TODO: As far as i can tell, even if the passed tools are empty the model can still issue tool calls.
+    # TODO: "strict" is not supported yet resulting sometimes in not properly formatted tool calls.
+    # Note that actually thats fine, because strict mode allows only specific strings as inputs, see:
+    # https://platform.openai.com/docs/guides/structured-outputs?context=with_parse&type-restrictions=string-restrictions#supported-schemas
+    # TODO: Another very big problem is that the model doesnt properly escape the content argument of the tool call,
+    # resulting in parsing errors on the server side, which fails quietly and actually returns the tool call in the
+    # content field, which ends the conversation. Perhaps to resolve it we need to pass
+    # --guided-decoding-backend outlines:no-fallback to engine args or something like that
+    # TODO: Maybe the base64 schema will work, idk
+    # TODO: perhaps custom tools will work, see https://platform.openai.com/docs/guides/function-calling#custom-tools
+    # it seems promising. Its not supported in client.chat.completions.create() unfortunately.
+    # and the new API client.responses.create() doesnt return Choice objects
+    # TODO: another possible approach is to disable hermes tool parser and parse it ourselves. 
     async def _call(self, messages: list[Message], **kwargs) -> ChatCompletion:
         # By default allow only a single tool call in the response
         extra_body = kwargs.setdefault("extra_body", {})
@@ -53,8 +93,11 @@ class AgentToolNode(AgentNode):
         kwargs.setdefault("parallel_tool_calls", False)  # NOTE: currently vLLM ignores this flag
 
         if not self.stop_criteria.should_stop(self.current_depth):
+            kwargs["tool_choices"] = "auto"
             tools = kwargs.setdefault("tools", [])
             tools.extend(self.TOOLS)
+        else:
+            kwargs["tool_choices"] = "none"
 
         return await super()._call(messages=messages, **kwargs)
 
@@ -84,6 +127,8 @@ class AgentToolNode(AgentNode):
         if verbose:
             print(trajectory_string(self.trajectory, indent=self.current_depth))
 
+        should_break = False
+
         while True:
             # Call the OpenAI API to get a response
             completion = await self._call(self.trajectory.messages(), **kwargs)
@@ -100,34 +145,45 @@ class AgentToolNode(AgentNode):
 
             # Extract tasks from the response
             tasks_inputs = AgentToolNode.parse_tasks(self.trajectory.messages()[-1])
-            if not tasks_inputs or self.stop_criteria.should_stop(self.current_depth):
-                break
+
+            if should_break or len(tasks_inputs) == 0:
+                break  # No tasks to delegate, so last message
 
             task_responses: list[AssistantMessage] = []
-            for task in tasks_inputs:
-                # create a sub-agent and get answer the task
-                sub_agent = self.create_sub_agent()
-                resp = await sub_agent.answer(task, verbose, **kwargs)
-                task_responses.append(resp)
 
-                # update metrics from sub-agent
-                self.metrics["total_tasks"] += sub_agent.metrics["total_tasks"]
-                self.metrics["total_calls"] += sub_agent.metrics["total_calls"]
-                self.metrics["max_depth"] = max(1 + sub_agent.metrics["max_depth"], self.metrics["max_depth"])
+            if self.stop_criteria.should_stop(self.current_depth):
+                mock_answer = get_prompt(self.prompt_config.tasks_depleted)
+                if mock_answer is None:
+                    break
 
+                should_break = True
+                for task in tasks_inputs:
+                    # Provide mock answer indicating no more tasks available
+                    task_responses.append(AssistantMessage(role="assistant", content=mock_answer))
+
+            else:
+                for task in tasks_inputs:
+                    # create a sub-agent and get answer the task
+                    sub_agent = self.create_sub_agent()
+                    resp = await sub_agent.answer(task, verbose, **kwargs)
+                    task_responses.append(resp)
+
+                    # update metrics from sub-agent
+                    self.metrics["total_tasks"] += sub_agent.metrics["total_tasks"]
+                    self.metrics["total_calls"] += sub_agent.metrics["total_calls"]
+                    self.metrics["max_depth"] = max(1 + sub_agent.metrics["max_depth"], self.metrics["max_depth"])
+
+            # Update metrics
             self.metrics["direct_tasks"] += len(tasks_inputs)
             self.metrics["total_tasks"] += len(tasks_inputs)
 
             tool_calls = completion.choices[0].message.tool_calls or []
             assert len(tool_calls) == len(task_responses)
 
+            # Create tool responses for each task
             for tool_call, task_resp in zip(tool_calls, task_responses):
                 content = task_resp.get("content")
-                if not isinstance(content, str):
-                    raise ValueError(
-                        f"Expected content to be a string, got {type(content).__name__}. "
-                        "Ensure the sub-agent's response is properly formatted."
-                    )
+                assert isinstance(content, str), "Task response content must be a string."
 
                 tool_message = ToolMessage(role="tool", tool_call_id=tool_call.id, content=content)
                 self.trajectory.messages_and_choices.append(tool_message)
