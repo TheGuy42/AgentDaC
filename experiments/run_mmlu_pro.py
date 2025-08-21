@@ -8,7 +8,6 @@ import logging
 from typing import Any
 
 from datasets import Dataset, load_dataset, DatasetDict
-import art
 
 # set pythonpath to the main module directory
 module_dir = pathlib.Path(__file__).parent.resolve().parent
@@ -21,7 +20,7 @@ from src.utils.io import load_base_model
 from src.utils.loaders import load_art_model
 from src.vllm_client import VllmClient, ArtClient, VllmRouter
 from src.configs.models.art import available_configs, ArtConfig
-from src.configs import PathConfig, TrainingConfig, PromptConfig, StopCriteria
+from src.configs import PathConfig, TrainingConfig, PromptConfig, StopCriteria, RolloutConfig
 from experiments.mmlu_pro.trainer import MmluProTrainer
 
 
@@ -112,8 +111,8 @@ def load_configs(config_dir: str | pathlib.Path) -> dict[str, Any]:
         "train_config": load_base_model(TrainingConfig, config_dir / "train_config.json", do_raise=True),
         "prompt_config": load_base_model(PromptConfig, config_dir / "prompt_config.json", do_raise=True),
         "stop_criteria": load_base_model(StopCriteria, config_dir / "stop_criteria.json", do_raise=True),
+        "rollout_config": load_base_model(RolloutConfig, config_dir / "rollout_config.json", do_raise=True),
     }
-
 
 
 async def main(args: argparse.Namespace):
@@ -122,7 +121,7 @@ async def main(args: argparse.Namespace):
     """
     # Set the GPU environment variable
     os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, args.gpu))
-    
+
     print()
     print(f"Current working directory: {os.getcwd()}")
     print()
@@ -139,6 +138,11 @@ async def main(args: argparse.Namespace):
     train_config: TrainingConfig = config_dict["train_config"]
     prompt_config: PromptConfig = config_dict["prompt_config"]
     stop_criteria: StopCriteria = config_dict["stop_criteria"]
+    rollout_config: RolloutConfig = config_dict["rollout_config"]
+
+    if "Qwen3" in args.model:
+        # Automatically disable thinking for Qwen3 models
+        rollout_config.kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": False}}
 
     # load model
     model = await load_art_model(
@@ -170,6 +174,7 @@ async def main(args: argparse.Namespace):
         path_config=path_config,
         prompt_config=prompt_config,
         stop_criteria=stop_criteria,
+        rollout_config=rollout_config,
     )
 
     # log code files
@@ -177,7 +182,6 @@ async def main(args: argparse.Namespace):
         trainer.wandb_run.log_code(root="src", name="src")
         trainer.wandb_run.log_code(root="scripts", name="scripts")
         trainer.wandb_run.log_code(root="experiments", name="experiments")
-
 
     # start training
     try:

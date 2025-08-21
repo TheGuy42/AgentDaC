@@ -9,11 +9,6 @@
     "val_size": 512,
     "delete_checkpoints": true,
     "checkpoint_metric": "reward",
-    "rollout_kwargs": {
-        "temperature": 0.85,
-        "top_p": 0.9,
-        "max_completion_tokens": 2000
-    },
     "art_config": {
         "learning_rate": 0.000002,
         "beta": 0.001

@@ -30,7 +30,6 @@ class TrainingConfig(BaseModel, extra="allow"):
     delete_checkpoints: bool = True
     checkpoint_metric: str = "reward"
 
-    rollout_kwargs: dict = Field(default_factory=dict)
     art_config: art.types.TrainConfig = Field(default_factory=art.types.TrainConfig)
     dev_art_config: art.dev.train.TrainConfig | None = None
     ruler_config: RulerConfig | None = Field(default_factory=RulerConfig)

@@ -14,7 +14,16 @@ from art.rewards import ruler_score_group
 
 from src.utils.logging import create_logger
 from src.vllm_client import VllmRouter
-from src.configs import PromptConfig, PathConfig, StopCriteria, TrainingConfig, RulerConfig
+
+from src.configs import (
+    PromptConfig,
+    PathConfig,
+    RolloutConfig,
+    RolloutStage,
+    StopCriteria,
+    TrainingConfig,
+    RulerConfig,
+)
 
 
 logger = create_logger(__name__)
@@ -28,17 +37,14 @@ class Trainer:
         path_config: PathConfig,
         prompt_config: PromptConfig,
         stop_criteria: StopCriteria,
-        default_kwargs: dict | None = None,
+        rollout_config: RolloutConfig,
     ):
-        if default_kwargs is None:
-            default_kwargs = {}
-
         self.model = model
         self.path_config = path_config
         self.vllm_router = vllm_router
         self.prompt_config = prompt_config
         self.stop_criteria = stop_criteria
-        self.default_kwargs = default_kwargs
+        self.rollout_config = rollout_config
 
     @property
     def wandb_run(self) -> WandbRun | None:
@@ -124,7 +130,7 @@ class Trainer:
                 "prompt_config": self.prompt_config.model_dump(),
                 "stop_criteria": self.stop_criteria.model_dump(),
                 "training_config": config.model_dump(),
-                "default_kwargs": self.default_kwargs,
+                "rollout_config": self.rollout_config.model_dump(),
             }
         )
 
@@ -146,35 +152,32 @@ class Trainer:
                     self.rollout(
                         dataset=val_dataset,
                         group_size=1,
+                        stage=RolloutStage.Val,
                         max_exceptions=config.max_exceptions,
-                        pbar_desc="rollout-val",
-                        **config.rollout_kwargs,
                     ),
                     self.rollout(
                         dataset=train_batch.items,
                         group_size=config.group_size,
+                        stage=RolloutStage.Train,
                         max_exceptions=config.max_exceptions,
-                        pbar_desc="rollout-train",
                         ruler_config=config.ruler_config,
-                        **config.rollout_kwargs,
                     ),
                 )
-                await self.model.log(val_groups, split="val")
+                await self.model.log(val_groups, split=RolloutStage.Val.value)
 
             else:
                 # Perform training rollout
                 train_groups = await self.rollout(
                     dataset=train_batch.items,
                     group_size=config.group_size,
+                    stage=RolloutStage.Train,
                     max_exceptions=config.max_exceptions,
-                    pbar_desc="rollout-train",
                     ruler_config=config.ruler_config,
-                    **config.rollout_kwargs,
                 )
 
             # Log training trajectories
             if train_batch.step % config.train_log_steps == 0:
-                await self.model.log(train_groups, split="train")
+                await self.model.log(train_groups, split=RolloutStage.Train.value)
 
             # Filter groups with low reward standard deviation
             filtered_groups = []
@@ -201,7 +204,7 @@ class Trainer:
 
             # Update checkpoints
             if config.delete_checkpoints:
-                metric_name = f"val/{config.checkpoint_metric}"
+                metric_name = f"{RolloutStage.Val.value}/{config.checkpoint_metric}"
                 await self.model.delete_checkpoints(best_checkpoint_metric=metric_name)
 
         await self.sync_lora()
@@ -210,8 +213,7 @@ class Trainer:
     async def predict(
         self,
         dataset: list[dict],
-        pbar_desc: str = "predict",
-        **kwargs,
+        stage: RolloutStage = RolloutStage.Val,
     ) -> list[str] | BaseException:
         """
         Perform predictions on a dataset using the model.
@@ -219,20 +221,17 @@ class Trainer:
 
         Args:
             dataset (list[dict]): List of samples to predict.
-            pbar_desc (str): Description for the progress bar.
-            **kwargs: Additional keyword arguments for the prediction step.
+            stage (RolloutStage): The current stage of the rollout.
 
         Returns:
             (list[str]): List of predicted answers for each sample in the dataset.
         """
-        if not kwargs:
-            kwargs = self.default_kwargs
 
-        tasks = [self.predict_step(sample, **kwargs) for sample in dataset]
+        tasks = [self.predict_step(sample, stage) for sample in dataset]
 
         return await tqdm.asyncio.tqdm.gather(
             *tasks,
-            desc=pbar_desc,
+            desc=f"predict-{stage.value}",
             total=len(tasks),
             leave=False,
         )
@@ -241,25 +240,24 @@ class Trainer:
         self,
         dataset: list[dict],
         group_size: int,
+        stage: RolloutStage = RolloutStage.Train,
         max_exceptions: int | float = 0,
         ruler_config: RulerConfig | None = None,
-        pbar_desc: str = "rollout",
-        **kwargs,
     ) -> list[art.TrajectoryGroup]:
-        if not kwargs:
-            kwargs = self.default_kwargs
-
         async def sample_forward(sample: dict) -> art.Trajectory:
-            trajectory = await self.forward_step(sample, **kwargs)
-            return await self.score_trajectory(sample, trajectory)
+            trajectory = await self.forward_step(sample, stage)
+            return await self.score_trajectory(sample, trajectory, stage)
 
         async def group_forward(group: art.TrajectoryGroup) -> art.TrajectoryGroup | None:
             if ruler_config and ruler_config.judge_model:
-                group = await ruler_score_group(group, **ruler_config.model_dump(exclude_none=True, exclude_unset=True))  # type: ignore
+                group = await ruler_score_group(
+                    group=group,
+                    **ruler_config.model_dump(exclude_none=True, exclude_unset=True),
+                )  # type: ignore
                 if group is None:
                     return None
             try:
-                return await self.score_group(group)
+                return await self.score_group(group, stage)
             except Exception as e:
                 logger.warning(f"Failed to score group: {e}")
                 return None
@@ -271,7 +269,7 @@ class Trainer:
 
         trajectory_groups = await art.gather_trajectory_groups(
             groups,
-            pbar_desc=pbar_desc,
+            pbar_desc=f"rollout-{stage.value}",
             max_exceptions=max_exceptions,
             pbar_total_completion_tokens=False,
             after_each=group_forward,
@@ -283,7 +281,7 @@ class Trainer:
     async def predict_step(
         self,
         sample: dict,
-        **kwargs,
+        stage: RolloutStage,
     ) -> str:
         """
         Perform a prediction step for a single sample.
@@ -291,7 +289,7 @@ class Trainer:
 
         Args:
             sample (dict): A single sample from the dataset.
-            **kwargs: Additional keyword arguments for the prediction step.
+            stage (RolloutStage): The current stage of the rollout.
 
         Returns:
             (str): The predicted answer for the sample.
@@ -302,14 +300,14 @@ class Trainer:
     async def forward_step(
         self,
         sample: dict,
-        **kwargs,
+        stage: RolloutStage,
     ) -> art.Trajectory:
         """
         Perform a raw forward step for a single sample.
 
         Args:
             sample (dict): A single sample from the dataset.
-            **kwargs: Additional keyword arguments for the forward step.
+            stage (RolloutStage): The current stage of the rollout.
 
         Returns:
             (art.Trajectory): The trajectory generated by the model for the sample.
@@ -321,6 +319,7 @@ class Trainer:
         self,
         sample: dict,
         trajectory: art.Trajectory,
+        stage: RolloutStage,
     ) -> art.Trajectory:
         """
         Score a single trajectory based on the sample and the trajectory itself.
@@ -329,6 +328,7 @@ class Trainer:
         Args:
             sample (dict): The original sample from the dataset.
             trajectory (art.Trajectory): The trajectory to score.
+            stage (RolloutStage): The current stage of the rollout.
 
         Returns:
             (art.Trajectory): The scored trajectory.
@@ -339,6 +339,7 @@ class Trainer:
     async def score_group(
         self,
         group: art.TrajectoryGroup,
+        stage: RolloutStage,
     ) -> art.TrajectoryGroup:
         """
         Score a group of trajectories.
@@ -349,6 +350,7 @@ class Trainer:
 
         Args:
             group (art.TrajectoryGroup): The group of trajectories to score.
+            stage (RolloutStage): The current stage of the rollout.
 
         Returns:
             (art.TrajectoryGroup): The scored group of trajectories.
