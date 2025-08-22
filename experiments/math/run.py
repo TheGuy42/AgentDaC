@@ -10,13 +10,13 @@ if str(module_dir) not in sys.path:
     sys.path.append(str(module_dir))
 
 
-from experiments.base_experiment import BaseExperiment
+from experiments.runner import ExperimentRunner
 from experiments.math.trainer import MathTrainer
 from src.vllm_client import VllmRouter
 from src.trainer import Trainer
 
 
-class MathExperiment(BaseExperiment):
+class Runner(ExperimentRunner):
     def get_default_project_name(self) -> str:
         return "math_dac"
 
@@ -43,4 +43,4 @@ class MathExperiment(BaseExperiment):
 
 
 if __name__ == "__main__":
-    MathExperiment().run()
+    Runner().run()

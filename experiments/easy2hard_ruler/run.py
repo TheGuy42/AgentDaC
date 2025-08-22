@@ -10,13 +10,13 @@ if str(module_dir) not in sys.path:
     sys.path.append(str(module_dir))
 
 
-from experiments.base_experiment import BaseExperiment
+from experiments.runner import ExperimentRunner
 from experiments.easy2hard_ruler.trainer import Easy2HardRulerTrainer
 from src.vllm_client import VllmRouter
 from src.trainer import Trainer
 
 
-class Easy2HardRulerExperiment(BaseExperiment):
+class Runner(ExperimentRunner):
     def get_default_project_name(self) -> str:
         return "easy2hard_dac_ruler"
 
@@ -43,4 +43,4 @@ class Easy2HardRulerExperiment(BaseExperiment):
 
 
 if __name__ == "__main__":
-    Easy2HardRulerExperiment().run()
+    Runner().run()

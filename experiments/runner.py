@@ -24,7 +24,7 @@ from src.trainer import Trainer
 logger = create_logger(__name__)
 
 
-class BaseExperiment(ABC):
+class ExperimentRunner(ABC):
     def __init__(self, verbose: bool = True) -> None:
         self.model_name = ""
         self.verbose = verbose
@@ -49,7 +49,7 @@ class BaseExperiment(ABC):
         """Return the trainer class to use."""
         pass
 
-    def parse_args(self) -> argparse.Namespace:
+    def _parse_args(self) -> argparse.Namespace:
         """Parse command line arguments."""
         parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -107,7 +107,8 @@ class BaseExperiment(ABC):
 
         # store state params for later use
         self.model_name = args.model
-        self.verbose = not args.silent if hasattr(args, "silent") else True
+        if args.silent:
+            self.verbose = False
 
         # verify valid GPU IDs
         if not all(0 <= gpu < torch.cuda.device_count() for gpu in args.gpu):
@@ -122,7 +123,7 @@ class BaseExperiment(ABC):
 
         return args
 
-    def load_configs(self, config_dir: str | pathlib.Path) -> dict[str, Any]:
+    def _load_configs(self, config_dir: str | pathlib.Path) -> dict[str, Any]:
         """Load all configuration files."""
         if isinstance(config_dir, str):
             config_dir = pathlib.Path(config_dir)
@@ -141,7 +142,7 @@ class BaseExperiment(ABC):
 
         return configs
 
-    def create_inference_clients(self, model: TrainableModel, vllm_ports: list[int]) -> VllmRouter:
+    def _create_inference_clients(self, model: TrainableModel, vllm_ports: list[int]) -> VllmRouter:
         """Create and configure inference clients."""
         inference_clients = [ArtClient.from_art_model(model)]
         for port in vllm_ports:
@@ -154,7 +155,7 @@ class BaseExperiment(ABC):
             )
         return VllmRouter(inference_clients)
 
-    async def main(self, args: argparse.Namespace) -> None:
+    async def _main(self, args: argparse.Namespace) -> None:
         """Main experiment execution logic."""
         # Set the GPU environment variable
         os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, args.gpu))
@@ -170,7 +171,7 @@ class BaseExperiment(ABC):
         )
 
         # Load configurations
-        config_dict = self.load_configs(args.config_dir)
+        config_dict = self._load_configs(args.config_dir)
         art_config: ArtConfig | None = config_dict["art_config"]
         train_config: TrainingConfig = config_dict["train_config"]
 
@@ -192,7 +193,7 @@ class BaseExperiment(ABC):
         train_dataset, val_dataset = self.load_data()
 
         # Create inference clients
-        vllm_router = self.create_inference_clients(model, args.vllm_ports)
+        vllm_router = self._create_inference_clients(model, args.vllm_ports)
 
         # Create and configure the trainer
         trainer = self.create_trainer(
@@ -222,8 +223,8 @@ class BaseExperiment(ABC):
         try:
             prepare_environment()
             setup_logging(level=logging.INFO if self.verbose else logging.WARNING)
-            args = self.parse_args()
-            asyncio.run(self.main(args))
+            args = self._parse_args()
+            asyncio.run(self._main(args))
         except Exception as e:
             logger.error(f"An error occurred: {e}")
             sys.exit(1)
