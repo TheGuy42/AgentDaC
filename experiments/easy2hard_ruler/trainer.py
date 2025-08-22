@@ -6,8 +6,8 @@ from src.utils.text import extract_answer, extract_between
 from src.configs import RolloutStage
 
 from experiments.general_rewards import format_reward, behavior_reward
-from experiments.easy2hard_ruler.rewards import answer_reward, verify
-from experiments.easy2hard_ruler.format import format_prompt
+from experiments.easy2hard.rewards import answer_reward, verify
+from experiments.easy2hard.format import format_prompt
 
 import art
 
@@ -55,7 +55,7 @@ class Easy2HardRulerTrainer(Trainer):
 
         # Compute rewards
         trajectory.reward = 0.0
-        ans_reward = answer_reward(sample, ans_message)
+        ans_reward = 2.0 * answer_reward(sample, ans_message)
         trajectory.reward += ans_reward
         fmt_reward = format_reward(trajectory)
         trajectory.reward += fmt_reward

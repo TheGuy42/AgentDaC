@@ -6,12 +6,10 @@ from src.utils.text import extract_answer, extract_between
 from src.configs import RolloutStage
 
 from experiments.general_rewards import format_reward, behavior_reward
-from experiments.big_code_bench.rewards import answer_reward
-from experiments.big_code_bench.format import format_prompt, create_test_code
+from experiments.big_code_bench.rewards import answer_reward, execute_code
+from experiments.big_code_bench.format import format_prompt
 
 import art
-
-from experiments.big_code_bench.server.code_client import CodeClient
 
 
 class BigCodeBenchTrainer(Trainer):
@@ -60,10 +58,7 @@ class BigCodeBenchTrainer(Trainer):
         agent_answer = extract_answer(ans_content)
         num_answers = len(extract_between(ans_content, Markers.ANSWER_START, Markers.ANSWER_END))
 
-        agent_test_code = create_test_code(sample, agent_answer)
-        client = CodeClient(port=8002, timeout_buffer=5)
-        # Execute the agent's answer code
-        result = client.execute_code(agent_test_code, execution_timeout=60)
+        result = execute_code(sample, ans_message)
 
         if not isinstance(self.model, art.TrainableModel):
             raise ValueError("Model is not a TrainableModel instance.")
@@ -71,7 +66,7 @@ class BigCodeBenchTrainer(Trainer):
         train_step = await self.model.get_step()
         # Compute rewards
         trajectory.reward = 0.0
-        ans_reward = answer_reward(ans_message, result) if train_step > 5 else 0.0
+        ans_reward = 3.0 * answer_reward(result) if train_step > 5 else 0.0
         trajectory.reward += ans_reward
         fmt_reward = format_reward(trajectory)
         trajectory.reward += fmt_reward
