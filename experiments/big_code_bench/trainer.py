@@ -1,0 +1,110 @@
+from src.dac_agent import AgentNode
+from src.trainer import Trainer
+from src.openai_types import UserMessage
+from src.utils.markers import Markers
+from src.utils.text import extract_answer, extract_between
+from src.configs import RolloutStage
+
+from experiments.general_rewards import format_reward, behavior_reward
+from experiments.big_code_bench.rewards import answer_reward
+from experiments.big_code_bench.format import format_prompt, create_test_code
+
+import art
+
+from experiments.big_code_bench.server.code_client import CodeClient
+
+
+class BigCodeBenchTrainer(Trainer):
+    def create_agent(self) -> AgentNode:
+        client = self.vllm_router.next()
+        return AgentNode(
+            model_name=self.model.get_inference_name(),
+            openai_client=client.openai_client,
+            prompt_config=self.prompt_config,
+            stop_criteria=self.stop_criteria,
+        )
+
+    async def forward_step(self, sample: dict, stage: RolloutStage) -> art.Trajectory:
+        agent = self.create_agent()
+        content = format_prompt(sample)
+        message = UserMessage(role="user", content=content)
+        kwargs = self.rollout_config.get_kwargs(stage)
+        trajectory = await agent.chat(message, **kwargs)
+        return trajectory
+
+    async def predict_step(self, sample: dict, stage: RolloutStage) -> str:
+        agent = self.create_agent()
+        content = format_prompt(sample)
+        message = UserMessage(role="user", content=content)
+        kwargs = self.rollout_config.get_kwargs(stage)
+        answer_message = await agent.answer(message, **kwargs)
+
+        answer = answer_message.get("content")
+        assert answer_message["role"] == "assistant", f"Expected role 'assistant', got '{answer_message['role']}'"
+        assert isinstance(answer, str), f"Expected content to be a string, got {type(answer)}"
+        return answer
+
+    async def score_trajectory(
+        self,
+        sample: dict,
+        trajectory: art.Trajectory,
+        stage: RolloutStage,
+    ) -> art.Trajectory:
+        ans_message = trajectory.messages()[-1]
+        ans_content = ans_message.get("content")
+        assert ans_message["role"] == "assistant", f"Expected role 'assistant', got '{ans_message['role']}'"
+        assert isinstance(ans_content, str), f"Expected content to be a string, got {type(ans_content)}"
+
+        problem = format_prompt(sample)
+        answer = sample["canonical_solution"]  # sample["answer"].strip()
+        agent_answer = extract_answer(ans_content)
+        num_answers = len(extract_between(ans_content, Markers.ANSWER_START, Markers.ANSWER_END))
+
+        agent_test_code = create_test_code(sample, agent_answer)
+        client = CodeClient(port=8002, timeout_buffer=5)
+        # Execute the agent's answer code
+        result = client.execute_code(agent_test_code, execution_timeout=60)
+
+        if not isinstance(self.model, art.TrainableModel):
+            raise ValueError("Model is not a TrainableModel instance.")
+
+        train_step = await self.model.get_step()
+        # Compute rewards
+        trajectory.reward = 0.0
+        ans_reward = answer_reward(ans_message, result) if train_step > 5 else 0.0
+        trajectory.reward += ans_reward
+        fmt_reward = format_reward(trajectory)
+        trajectory.reward += fmt_reward
+        bhv_reward = behavior_reward(trajectory)
+        trajectory.reward += bhv_reward
+
+        # Update metrics
+        trajectory.metrics.update(
+            {
+                "answer_reward": ans_reward,
+                "format_reward": fmt_reward,
+                "behavior_reward": bhv_reward,
+                "is_correct": int(result.returncode),
+                "gave_answer": int(num_answers > 0),
+                "execution_time": result.execution_time if result.execution_time is not None else -1000000.0,
+            }
+        )
+
+        # Update metadata
+        trajectory.metadata.update(
+            {
+                "problem": problem,
+                "answer": answer,
+                "agent_answer": agent_answer,
+                # "item_difficulty": sample["item_difficulty"],
+            }
+        )
+
+        return trajectory
+
+    async def score_group(
+        self,
+        group: art.TrajectoryGroup,
+        stage: RolloutStage,
+    ) -> art.TrajectoryGroup:
+        return group
