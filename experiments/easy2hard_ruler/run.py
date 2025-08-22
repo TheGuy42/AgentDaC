@@ -17,10 +17,10 @@ from src.trainer import Trainer
 
 
 class Runner(ExperimentRunner):
-    def get_default_project_name(self) -> str:
+    def default_project_name(self) -> str:
         return "easy2hard_dac_ruler"
 
-    def get_default_config_dir(self) -> str:
+    def default_config_dir(self) -> str:
         return "experiments/easy2hard_ruler/defaults"
 
     def load_data(self) -> tuple[Dataset, Dataset]:

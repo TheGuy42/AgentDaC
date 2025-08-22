@@ -30,12 +30,12 @@ class ExperimentRunner(ABC):
         self.verbose = verbose
 
     @abstractmethod
-    def get_default_project_name(self) -> str:
+    def default_project_name(self) -> str:
         """Override to specify default project name."""
         pass
 
     @abstractmethod
-    def get_default_config_dir(self) -> str:
+    def default_config_dir(self) -> str:
         """Override to specify default config directory."""
         pass
 
@@ -63,7 +63,7 @@ class ExperimentRunner(ABC):
         parser.add_argument(
             "--project",
             type=str,
-            default=self.get_default_project_name(),
+            default=self.default_project_name(),
             help="The name of the project for saving results.",
         )
 
@@ -93,7 +93,7 @@ class ExperimentRunner(ABC):
         parser.add_argument(
             "--config_dir",
             type=str,
-            default=self.get_default_config_dir(),
+            default=self.default_config_dir(),
             help="Directory containing experiment configuration files.",
         )
 
@@ -123,23 +123,24 @@ class ExperimentRunner(ABC):
 
         return args
 
-    def _load_configs(self, config_dir: str | pathlib.Path) -> dict[str, Any]:
+    def _load_configs(self, dir: str | pathlib.Path) -> dict[str, Any]:
         """Load all configuration files."""
-        if isinstance(config_dir, str):
-            config_dir = pathlib.Path(config_dir)
+        if isinstance(dir, str):
+            dir = pathlib.Path(dir)
 
-        configs = {
-            "art_config": load_base_model(ArtConfig, config_dir / "art_config.json", do_raise=False),
-            "train_config": load_base_model(TrainingConfig, config_dir / "train_config.json", do_raise=True),
-            "prompt_config": load_base_model(PromptConfig, config_dir / "prompt_config.json", do_raise=True),
-            "stop_criteria": load_base_model(StopCriteria, config_dir / "stop_criteria.json", do_raise=True),
-            "rollout_config": load_base_model(RolloutConfig, config_dir / "rollout_config.json", do_raise=True),
+        return {
+            "art_config": load_base_model(ArtConfig, dir / "art_config.json", do_raise=False),
+            "train_config": load_base_model(TrainingConfig, dir / "train_config.json", do_raise=True),
+            "prompt_config": load_base_model(PromptConfig, dir / "prompt_config.json", do_raise=True),
+            "stop_criteria": load_base_model(StopCriteria, dir / "stop_criteria.json", do_raise=True),
+            "rollout_config": load_base_model(RolloutConfig, dir / "rollout_config.json", do_raise=True),
         }
 
-        if "Qwen3" in self.model_name:
-            rollout_config = configs["rollout_config"]
+    def _patch_configs(self, configs: dict[str, Any]) -> dict[str, Any]:
+        rollout_config = configs.get("rollout_config")
+        if ("Qwen3" in self.model_name) and rollout_config:
+            # disable "thinking" for Qwen3 models
             rollout_config.kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": False}}
-
         return configs
 
     def _create_inference_clients(self, model: TrainableModel, vllm_ports: list[int]) -> VllmRouter:
@@ -171,14 +172,16 @@ class ExperimentRunner(ABC):
         )
 
         # Load configurations
-        config_dict = self._load_configs(args.config_dir)
-        art_config: ArtConfig | None = config_dict["art_config"]
-        train_config: TrainingConfig = config_dict["train_config"]
+        configs = self._load_configs(args.config_dir)
+        configs = self._patch_configs(configs)
+
+        art_config: ArtConfig | None = configs["art_config"]
+        train_config: TrainingConfig = configs["train_config"]
 
         # Print all configurations
         if self.verbose:
             print("\nLoaded configurations:")
-            for key, config in config_dict.items():
+            for key, config in configs.items():
                 print(f"\n{key}:")
                 print(config)
 
@@ -199,7 +202,7 @@ class ExperimentRunner(ABC):
         trainer = self.create_trainer(
             model=model,
             vllm_router=vllm_router,
-            **config_dict,
+            **configs,
         )
 
         # Log code files
