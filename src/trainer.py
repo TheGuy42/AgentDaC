@@ -43,6 +43,7 @@ class Trainer:
         prompt_config: PromptConfig,
         stop_criteria: StopCriteria,
         rollout_config: RolloutConfig,
+        **kwargs,
     ):
         self.model = model
         self.path_config = path_config

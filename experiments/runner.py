@@ -248,9 +248,6 @@ class ExperimentRunner(ABC):
             prepare_environment()
             setup_logging(level=logging.WARNING if self.args().silent else logging.INFO)
             asyncio.run(self._main())
-        except Exception as e:
-            logger.error(f"An error occurred: {e}")
-            sys.exit(1)
         except KeyboardInterrupt:
             logger.info("Training interrupted by user.")
             sys.exit(0)
