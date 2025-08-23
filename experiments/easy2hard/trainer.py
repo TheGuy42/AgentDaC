@@ -57,9 +57,9 @@ class Easy2HardTrainer(Trainer):
         ans_reward = 3.0 * answer_reward(sample, ans_message)
         trajectory.reward += ans_reward
         fmt_reward = format_reward(trajectory)
-        # trajectory.reward += fmt_reward # TODO: TEST
+        trajectory.reward += fmt_reward
         bhv_reward = behavior_reward(trajectory)
-        # trajectory.reward += bhv_reward # TODO: TEST
+        trajectory.reward += bhv_reward
 
         problem = format_prompt(sample)
         answer = sample["answer"].strip()
