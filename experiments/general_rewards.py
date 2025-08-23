@@ -68,7 +68,11 @@ def _hill_func(x: float, steepness: float, midpoint: float) -> float:
     return val / (1 + val)
 
 
-def behavior_reward(trajectory: art.Trajectory) -> float:
+def behavior_reward(
+    trajectory: art.Trajectory,
+    no_answer_factor: float = 5.0,
+    task_penalty_factor: float = 0.0,
+) -> float:
     # conversation must end with an answer
     last_message = trajectory.messages()[-1]
     last_content = last_message.get("content")
@@ -79,11 +83,9 @@ def behavior_reward(trajectory: art.Trajectory) -> float:
 
     num_answers = len(text_utils.extract_between(last_content, Markers.ANSWER_START, Markers.ANSWER_END))
     if num_answers == 0:
-        total_reward -= 5.0
-
-    return total_reward
+        total_reward -= no_answer_factor * 1.0
 
     # penalize for number of task created
     num_tasks = trajectory.metrics["direct_tasks"]
-    total_reward -= 1.0 * _hill_func(num_tasks, steepness=4, midpoint=3.5)
+    total_reward -= task_penalty_factor * _hill_func(num_tasks, steepness=4, midpoint=3.5)
     return total_reward
