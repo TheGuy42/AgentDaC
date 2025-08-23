@@ -1,9 +1,8 @@
 from src.dac_agent import AgentNode
-from src.trainer import Trainer
+from src.trainer import Trainer, RolloutStage
 from src.openai_types import UserMessage
 from src.utils.markers import Markers
 from src.utils.text import extract_answer, extract_between
-from src.configs import RolloutStage
 
 from experiments.general_rewards import format_reward, behavior_reward
 from experiments.math.rewards import answer_reward, verify

@@ -1,14 +1,11 @@
 from __future__ import annotations
 from pydantic import BaseModel, Field
 from pathlib import Path
-from enum import Enum
 from src.utils.io import save_base_model
+from src.utils.logging import create_logger
 
 
-class RolloutStage(str, Enum):
-    Train = "train"
-    Val = "val"
-    Test = "test"
+logger = create_logger(__name__)
 
 
 class RolloutConfig(BaseModel):
@@ -17,16 +14,18 @@ class RolloutConfig(BaseModel):
     val_kwargs: dict = Field(default_factory=dict)
     test_kwargs: dict = Field(default_factory=dict)
 
-    def get_kwargs(self, stage: RolloutStage) -> dict:
+    def get_kwargs(self, stage: str) -> dict:
         kwargs = self.kwargs or {}
         kwargs = kwargs.copy()
 
-        if stage == RolloutStage.Train:
+        if stage == "train":
             kwargs.update(self.train_kwargs or {})
-        if stage == RolloutStage.Val:
+        elif stage == "val":
             kwargs.update(self.val_kwargs or {})
-        if stage == RolloutStage.Test:
+        elif stage == "test":
             kwargs.update(self.test_kwargs or {})
+        else:
+            logger.warning(f"Unknown stage '{stage}'. Using base kwargs only.")
         return kwargs
 
     def save(self, dir_name: str, file_name: str = "rollout_config.json") -> None:

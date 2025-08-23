@@ -2,6 +2,7 @@ from abc import abstractmethod
 import random
 import tqdm
 import tqdm.asyncio
+from enum import Enum
 
 from wandb.sdk.wandb_run import Run as WandbRun
 import numpy as np
@@ -19,14 +20,18 @@ from src.configs import (
     PromptConfig,
     PathConfig,
     RolloutConfig,
-    RolloutStage,
     StopCriteria,
     TrainingConfig,
-    RulerConfig,
 )
 
 
 logger = create_logger(__name__)
+
+
+class RolloutStage(str, Enum):
+    Train = "train"
+    Val = "val"
+    Test = "test"
 
 
 class Trainer:
@@ -46,6 +51,8 @@ class Trainer:
         self.stop_criteria = stop_criteria
         self.rollout_config = rollout_config
 
+        self._train_config: TrainingConfig | None = None
+
     @property
     def wandb_run(self) -> WandbRun | None:
         try:
@@ -54,6 +61,11 @@ class Trainer:
         except Exception as e:
             logger.warning(f"Failed to get wandb run: {e}")
             return None
+
+    def train_config(self) -> TrainingConfig:
+        if self._train_config is None:
+            raise ValueError("Training config is not set.")
+        return self._train_config
 
     def close(self):
         try:
@@ -109,6 +121,8 @@ class Trainer:
         if not isinstance(self.model, art.TrainableModel):
             raise ValueError("Model must be an `art.TrainableModel` to train.")
 
+        self._train_config = config
+
         # Prepare datasets
         if val_dataset is None:
             val_dataset = train_dataset.copy()
@@ -129,7 +143,7 @@ class Trainer:
                 "path_config": self.path_config.model_dump(),
                 "prompt_config": self.prompt_config.model_dump(),
                 "stop_criteria": self.stop_criteria.model_dump(),
-                "training_config": config.model_dump(),
+                "training_config": self.train_config().model_dump(),
                 "rollout_config": self.rollout_config.model_dump(),
             }
         )
@@ -160,7 +174,6 @@ class Trainer:
                         group_size=config.group_size,
                         stage=RolloutStage.Train,
                         max_exceptions=config.max_exceptions,
-                        ruler_config=config.ruler_config,
                     ),
                 )
                 await self.model.log(val_groups, split=RolloutStage.Val.value)
@@ -172,7 +185,6 @@ class Trainer:
                     group_size=config.group_size,
                     stage=RolloutStage.Train,
                     max_exceptions=config.max_exceptions,
-                    ruler_config=config.ruler_config,
                 )
 
             # Log training trajectories
@@ -242,14 +254,14 @@ class Trainer:
         group_size: int,
         stage: RolloutStage = RolloutStage.Train,
         max_exceptions: int | float = 0,
-        ruler_config: RulerConfig | None = None,
     ) -> list[art.TrajectoryGroup]:
         async def sample_forward(sample: dict) -> art.Trajectory:
             trajectory = await self.forward_step(sample, stage)
             return await self.score_trajectory(sample, trajectory, stage)
 
         async def group_forward(group: art.TrajectoryGroup) -> art.TrajectoryGroup | None:
-            if ruler_config and ruler_config.judge_model:
+            ruler_config = self.train_config().ruler_config
+            if ruler_config is not None and stage == RolloutStage.Train:
                 group = await ruler_score_group(
                     group=group,
                     **ruler_config.model_dump(exclude_none=True, exclude_unset=True),
