@@ -54,7 +54,7 @@ add_config(
 add_config(
     "unsloth/Qwen3-32B",
     engine_args=EngineArgs(
-        gpu_memory_utilization=0.95,
+        gpu_memory_utilization=0.9,
     ),
 )
 

@@ -54,7 +54,7 @@ class Easy2HardTrainer(Trainer):
 
         # Compute rewards
         trajectory.reward = 0.0
-        ans_reward = 10 * answer_reward(sample, ans_message)
+        ans_reward = 3.0 * answer_reward(sample, ans_message)
         trajectory.reward += ans_reward
         fmt_reward = format_reward(trajectory)
         # trajectory.reward += fmt_reward # TODO: TEST

@@ -34,12 +34,8 @@ class Runner(ExperimentRunner):
         ds_val: Dataset = dataset_dict["eval"]
         return ds_train, ds_val
 
-    def create_trainer(self, model: TrainableModel, vllm_router: VllmRouter, **cfgs) -> Trainer:
-        return Easy2HardToolTrainer(
-            model=model,
-            vllm_router=vllm_router,
-            **cfgs,
-        )
+    def create_trainer(self, model: TrainableModel, **kwargs) -> Trainer:
+        return Easy2HardToolTrainer(model=model, **kwargs)
 
 
 if __name__ == "__main__":

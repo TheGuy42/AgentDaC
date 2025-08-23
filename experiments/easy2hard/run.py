@@ -1,3 +1,4 @@
+from argparse import ArgumentParser
 import sys
 import pathlib
 
@@ -22,6 +23,13 @@ class Runner(ExperimentRunner):
     def default_config_dir(self) -> str:
         return "experiments/easy2hard/defaults"
 
+    def add_arguments(self, parser: ArgumentParser) -> None:
+        parser.add_argument(
+            "--min_difficulty",
+            type=int,
+            default=0,
+        )
+
     def load_data(self) -> tuple[Dataset, Dataset]:
         dataset_dict: DatasetDict = load_dataset(
             path="furonghuang-lab/Easy2Hard-Bench",
@@ -31,14 +39,16 @@ class Runner(ExperimentRunner):
 
         ds_train: Dataset = dataset_dict["train"]
         ds_val: Dataset = dataset_dict["eval"]
+
+        # filter by difficulty
+        difficulty = self.args().min_difficulty
+        ds_train = ds_train.filter(lambda sample: sample["item_difficulty"] >= difficulty)
+        ds_val = ds_val.filter(lambda sample: sample["item_difficulty"] >= difficulty)
+
         return ds_train, ds_val
 
-    def create_trainer(self, model: TrainableModel, vllm_router: VllmRouter, **cfgs) -> Trainer:
-        return Easy2HardTrainer(
-            model=model,
-            vllm_router=vllm_router,
-            **cfgs,
-        )
+    def create_trainer(self, model: TrainableModel, **kwargs) -> Trainer:
+        return Easy2HardTrainer(model=model, **kwargs)
 
 
 if __name__ == "__main__":

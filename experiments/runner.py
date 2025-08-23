@@ -7,6 +7,7 @@ import argparse
 import logging
 from typing import Any, Tuple
 from abc import ABC, abstractmethod
+from pydantic import BaseModel
 
 from datasets import Dataset
 from art import TrainableModel
@@ -25,9 +26,13 @@ logger = create_logger(__name__)
 
 
 class ExperimentRunner(ABC):
-    def __init__(self, verbose: bool = True) -> None:
-        self.model_name = ""
-        self.verbose = verbose
+    def __init__(self) -> None:
+        self._parser_args = None
+
+    def args(self) -> argparse.Namespace:
+        if self._parser_args is None:
+            raise ValueError("Arguments have not been parsed yet. Call _parse_args() first.")
+        return self._parser_args
 
     @abstractmethod
     def default_project_name(self) -> str:
@@ -45,8 +50,16 @@ class ExperimentRunner(ABC):
         pass
 
     @abstractmethod
-    def create_trainer(self, model: TrainableModel, vllm_router: VllmRouter, **cfgs) -> Trainer:
+    def create_trainer(
+        self,
+        model: TrainableModel,
+        **kwargs,
+    ) -> Trainer:
         """Return the trainer class to use."""
+        pass
+
+    def add_arguments(self, parser: argparse.ArgumentParser) -> None:
+        """Override to add custom command line arguments."""
         pass
 
     def _parse_args(self) -> argparse.Namespace:
@@ -103,12 +116,9 @@ class ExperimentRunner(ABC):
             help="Disable verbose outputs.",
         )
 
-        args = parser.parse_args()
-
-        # store state params for later use
-        self.model_name = args.model
-        if args.silent:
-            self.verbose = False
+        self.add_arguments(parser)
+        self._parser_args = parser.parse_args()
+        args = self.args()
 
         # verify valid GPU IDs
         if not all(0 <= gpu < torch.cuda.device_count() for gpu in args.gpu):
@@ -117,9 +127,11 @@ class ExperimentRunner(ABC):
             )
 
         # print the parsed arguments
+        print()
         print("Parsed arguments:")
         for arg, value in vars(args).items():
             print(f"  {arg}: {value}")
+        print()
 
         return args
 
@@ -138,8 +150,9 @@ class ExperimentRunner(ABC):
 
     def _patch_configs(self, configs: dict[str, Any]) -> dict[str, Any]:
         rollout_config = configs.get("rollout_config")
-        if ("Qwen3" in self.model_name) and rollout_config:
+        if ("Qwen3" in self.args().model) and rollout_config:
             # disable "thinking" for Qwen3 models
+            logger.info("Disabling 'thinking' for Qwen3 model.")
             rollout_config.kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": False}}
         return configs
 
@@ -156,8 +169,9 @@ class ExperimentRunner(ABC):
             )
         return VllmRouter(inference_clients)
 
-    async def _main(self, args: argparse.Namespace) -> None:
+    async def _main(self) -> None:
         """Main experiment execution logic."""
+        args = self.args()
         # Set the GPU environment variable
         os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, args.gpu))
 
@@ -173,27 +187,33 @@ class ExperimentRunner(ABC):
 
         # Load configurations
         configs = self._load_configs(args.config_dir)
+        configs["path_config"] = path_config
         configs = self._patch_configs(configs)
 
         art_config: ArtConfig | None = configs["art_config"]
         train_config: TrainingConfig = configs["train_config"]
 
         # Print all configurations
-        if self.verbose:
-            print("\nLoaded configurations:")
+        if not args.silent:
+            print()
+            print("Loaded configurations:")
             for key, config in configs.items():
-                print(f"\n{key}:")
+                print(f"\n{repr(key)}:")
                 print(config)
+            print()
+
+        # Load dataset
+        logger.info("Loading data...")
+        train_dataset, val_dataset = self.load_data()
+        logger.info(f"Train dataset size: {len(train_dataset)}")
+        logger.info(f"Validation dataset size: {len(val_dataset)}")
 
         # Load model
         model = await load_art_model(
             path_config=path_config,
             art_config=art_config,
-            print_full=self.verbose,
+            print_full=not args.silent,
         )
-
-        # Load dataset
-        train_dataset, val_dataset = self.load_data()
 
         # Create inference clients
         vllm_router = self._create_inference_clients(model, args.vllm_ports)
@@ -224,10 +244,10 @@ class ExperimentRunner(ABC):
     def run(self) -> None:
         """Entry point to run the experiment."""
         try:
+            self._parse_args()
             prepare_environment()
-            setup_logging(level=logging.INFO if self.verbose else logging.WARNING)
-            args = self._parse_args()
-            asyncio.run(self._main(args))
+            setup_logging(level=logging.WARNING if self.args().silent else logging.INFO)
+            asyncio.run(self._main())
         except Exception as e:
             logger.error(f"An error occurred: {e}")
             sys.exit(1)

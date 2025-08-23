@@ -15,7 +15,7 @@ def _single_message_format_reward(content: str) -> float:
 
     if num_tasks == 0 and num_answers == 0:
         # Penalize for no tasks or answers
-        total_reward -= 5.0
+        total_reward -= 1.0
 
     elif num_tasks == 0 and num_answers > 1:
         # Penalize for multiple answers
@@ -44,7 +44,7 @@ def format_reward(trajectory: art.Trajectory) -> float:
     Reward factor which penalizes for improper message formatting and conversation structure.
     It does not provide positive rewards or incentives for good formatting or structure.
     """
-    # TODO: currently does nothing and do not analyze tool calls at all
+    # TODO: currently does nothing and do not analyzes tool calls at all
     # Also does not address failed tool calls properly (i.e if Markers.TOOL_CALL_START appears in content)
     total_reward = 0.0
     for item in trajectory.messages_and_choices:
@@ -70,7 +70,7 @@ def _hill_func(x: float, steepness: float, midpoint: float) -> float:
 
 def behavior_reward(
     trajectory: art.Trajectory,
-    no_answer_factor: float = 5.0,
+    no_answer_factor: float = 1.0,
     task_penalty_factor: float = 0.0,
 ) -> float:
     # conversation must end with an answer

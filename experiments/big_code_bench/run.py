@@ -33,12 +33,8 @@ class Runner(ExperimentRunner):
         test_data: Dataset = split_dict["test"]
         return train_data, test_data
 
-    def create_trainer(self, model: TrainableModel, vllm_router: VllmRouter, **cfgs) -> Trainer:
-        return BigCodeBenchTrainer(
-            model=model,
-            vllm_router=vllm_router,
-            **cfgs,
-        )
+    def create_trainer(self, model: TrainableModel, **kwargs) -> Trainer:
+        return BigCodeBenchTrainer(model=model, **kwargs)
 
 
 if __name__ == "__main__":
