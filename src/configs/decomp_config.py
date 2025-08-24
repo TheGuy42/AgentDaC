@@ -4,7 +4,7 @@ from pathlib import Path
 from src.utils.io import save_base_model
 
 
-class StopCriteria(BaseModel):
+class DecompConfig(BaseModel):
     max_depth: int | None = 1
     max_tasks: int | None = 5
     max_rounds: int | None = 5
@@ -13,7 +13,7 @@ class StopCriteria(BaseModel):
     total_rounds: int = Field(default=0, exclude=True, init=False)
     total_tasks: int = Field(default=0, exclude=True, init=False)
 
-    def clone(self) -> StopCriteria:
+    def clone(self) -> DecompConfig:
         """Create a deep copy and reset the counters"""
         new = self.model_copy(deep=True)
         new.reset()
@@ -42,8 +42,8 @@ class StopCriteria(BaseModel):
 
         return False
 
-    def save(self, dir_name: str, file_name: str = "stop_criteria.json") -> None:
+    def save(self, dir_name: str, file_name: str = "decomp_config.json") -> None:
         """
-        Save the stop criteria configuration to a JSON file.
+        Save the decomposition configuration to a JSON file.
         """
         save_base_model(self, Path(dir_name) / file_name)

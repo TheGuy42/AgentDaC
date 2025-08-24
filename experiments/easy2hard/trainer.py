@@ -3,6 +3,8 @@ from src.trainer import Trainer, RolloutStage
 from src.openai_types import UserMessage
 from src.utils.markers import Markers
 from src.utils.text import extract_answer, extract_between
+from src.configs import DecompConfig
+import random
 
 from experiments.general_rewards import format_reward, behavior_reward
 from experiments.easy2hard.rewards import answer_reward, verify
@@ -12,17 +14,26 @@ import art
 
 
 class Easy2HardTrainer(Trainer):
-    def create_agent(self) -> AgentNode:
+    def create_agent(self, stage: RolloutStage) -> AgentNode:
         client = self.vllm_router.next()
+        decomp_config = self.decomp_config
+
+        if stage == RolloutStage.Train and self.extra_config.get("randomize_decomp_depth", False):
+            decomp_config = DecompConfig(
+                max_depth=random.randint(0, decomp_config.max_depth or 10),
+                max_tasks=decomp_config.max_tasks,
+                max_rounds=decomp_config.max_rounds,
+            )
+
         return AgentNode(
             model_name=self.model.get_inference_name(),
             openai_client=client.openai_client,
             prompt_config=self.prompt_config,
-            stop_criteria=self.stop_criteria,
+            decomp_config=decomp_config,
         )
 
     async def forward_step(self, sample: dict, stage: RolloutStage) -> art.Trajectory:
-        agent = self.create_agent()
+        agent = self.create_agent(stage)
         content = format_prompt(sample)
         message = UserMessage(role="user", content=content)
         kwargs = self.rollout_config.get_kwargs(stage)
@@ -30,7 +41,7 @@ class Easy2HardTrainer(Trainer):
         return trajectory
 
     async def predict_step(self, sample: dict, stage: RolloutStage) -> str:
-        agent = self.create_agent()
+        agent = self.create_agent(stage)
         content = format_prompt(sample)
         message = UserMessage(role="user", content=content)
         kwargs = self.rollout_config.get_kwargs(stage)

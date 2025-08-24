@@ -7,6 +7,7 @@ import argparse
 import logging
 from typing import Any, Tuple
 from abc import ABC, abstractmethod
+import random
 
 from datasets import Dataset
 from art import TrainableModel
@@ -14,11 +15,11 @@ from art import TrainableModel
 from src.utils.rng import set_seed
 from src.utils.env import prepare_environment
 from src.utils.logging import create_logger, setup_logging
-from src.utils.io import load_base_model
+from src.utils.io import load_base_model, load_object
 from src.utils.loaders import load_art_model
 from src.vllm_client import VllmClient, ArtClient, VllmRouter
 from src.configs.models.art import available_configs, ArtConfig
-from src.configs import PathConfig, TrainingConfig, PromptConfig, StopCriteria, RolloutConfig
+from src.configs import PathConfig, TrainingConfig, PromptConfig, DecompConfig, RolloutConfig
 from src.trainer import Trainer
 
 
@@ -113,8 +114,8 @@ class ExperimentRunner(ABC):
         parser.add_argument(
             "--seed",
             type=int,
-            default=None,
-            help="Random seed for reproducibility (if not set, random).",
+            default=random.randint(0, 1000000),
+            help="Random seed for reproducibility (default: random).",
         )
 
         parser.add_argument(
@@ -151,8 +152,9 @@ class ExperimentRunner(ABC):
             "art_config": load_base_model(ArtConfig, dir / "art_config.json", do_raise=False),
             "train_config": load_base_model(TrainingConfig, dir / "train_config.json", do_raise=True),
             "prompt_config": load_base_model(PromptConfig, dir / "prompt_config.json", do_raise=True),
-            "stop_criteria": load_base_model(StopCriteria, dir / "stop_criteria.json", do_raise=True),
+            "decomp_config": load_base_model(DecompConfig, dir / "decomp_config.json", do_raise=True),
             "rollout_config": load_base_model(RolloutConfig, dir / "rollout_config.json", do_raise=True),
+            "extra_config": load_object(dir / "extra_config.json", do_raise=False),
         }
 
     def _patch_configs(self, configs: dict[str, Any]) -> dict[str, Any]:
@@ -180,10 +182,10 @@ class ExperimentRunner(ABC):
         """Main experiment execution logic."""
 
         args = self.args()
-
-        if args.seed is not None:
-            set_seed(args.seed)
-            logger.info(f"Random seed set to {args.seed}")
+        
+        # Set random seed
+        set_seed(args.seed)
+        logger.info(f"Random seed set to {args.seed}")
 
         # Set the GPU environment variable
         os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, args.gpu))
@@ -225,6 +227,7 @@ class ExperimentRunner(ABC):
         model = await load_art_model(
             path_config=path_config,
             art_config=art_config,
+            seed=args.seed,
             print_full=not args.silent,
         )
 

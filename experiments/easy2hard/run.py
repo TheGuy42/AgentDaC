@@ -36,8 +36,9 @@ class Runner(ExperimentRunner):
             split=None,
         )  # type: ignore
 
-        ds_train: Dataset = dataset_dict["train"]
-        ds_val: Dataset = dataset_dict["eval"]
+        # NOTE: validation set is larger, so use it for training
+        ds_train: Dataset = dataset_dict["eval"]
+        ds_val: Dataset = dataset_dict["train"]
 
         # filter by difficulty
         difficulty = self.args().min_difficulty

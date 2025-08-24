@@ -9,7 +9,7 @@ from src.utils.visualize import trajectory_string, message_string
 from src.utils.markers import Markers
 from src.utils.logging import create_logger
 from src.openai_types import Message, SystemMessage, UserMessage, AssistantMessage
-from src.configs import PromptConfig, StopCriteria
+from src.configs import PromptConfig, DecompConfig
 from src.configs.prompts import get_prompt
 
 
@@ -36,13 +36,13 @@ class AgentNode:
         openai_client: AsyncOpenAI,
         model_name: str,
         prompt_config: PromptConfig,
-        stop_criteria: StopCriteria,
+        decomp_config: DecompConfig,
         current_depth: int = 0,
     ):
         self.openai_client = openai_client
         self.model = model_name
         self.prompt_config = prompt_config
-        self.stop_criteria = stop_criteria.clone()
+        self.decomp_config = decomp_config.clone()
         self.current_depth = current_depth
 
         self.trajectory = Trajectory(
@@ -69,14 +69,14 @@ class AgentNode:
 
     def _create_system_message(self) -> SystemMessage | None:
         prompt_config = self.prompt_config
-        max_depth = self.stop_criteria.max_depth
+        max_depth = self.decomp_config.max_depth
 
         if max_depth is None:
             max_depth = float("inf")
 
         content: str | None = None
 
-        if self.stop_criteria.should_stop(self.current_depth):
+        if self.decomp_config.should_stop(self.current_depth):
             # Leaf if we need to stop for any reason
             content = get_prompt(prompt_config.system_leaf)
 
@@ -96,7 +96,7 @@ class AgentNode:
             openai_client=self.openai_client,
             model_name=self.model,
             prompt_config=self.prompt_config,
-            stop_criteria=self.stop_criteria,
+            decomp_config=self.decomp_config,
             current_depth=self.current_depth + 1,
         )
 
@@ -171,7 +171,7 @@ class AgentNode:
 
             task_responses: list[AssistantMessage] = []
 
-            if self.stop_criteria.should_stop(self.current_depth):
+            if self.decomp_config.should_stop(self.current_depth):
                 mock_answer = get_prompt(self.prompt_config.tasks_depleted)
                 if mock_answer is None:
                     break
@@ -208,7 +208,7 @@ class AgentNode:
             if verbose:
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
 
-            self.stop_criteria.update_round(num_tasks=len(tasks_inputs))
+            self.decomp_config.update_round(num_tasks=len(tasks_inputs))
 
         self.trajectory.finish()
         return self.trajectory

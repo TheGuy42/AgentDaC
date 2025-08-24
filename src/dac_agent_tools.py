@@ -67,7 +67,7 @@ class AgentToolNode(AgentNode):
             openai_client=self.openai_client,
             model_name=self.model,
             prompt_config=self.prompt_config,
-            stop_criteria=self.stop_criteria,
+            decomp_config=self.decomp_config,
             current_depth=self.current_depth + 1,
         )
 
@@ -92,7 +92,7 @@ class AgentToolNode(AgentNode):
         kwargs.setdefault("stop", [Markers.TOOL_CALL_END, Markers.ANSWER_END, Markers.TASK_END])
         kwargs.setdefault("parallel_tool_calls", False)  # NOTE: currently vLLM ignores this flag
 
-        if not self.stop_criteria.should_stop(self.current_depth):
+        if not self.decomp_config.should_stop(self.current_depth):
             kwargs["tool_choices"] = "auto"
             tools = kwargs.setdefault("tools", [])
             tools.extend(self.TOOLS)
@@ -151,7 +151,7 @@ class AgentToolNode(AgentNode):
 
             task_responses: list[AssistantMessage] = []
 
-            if self.stop_criteria.should_stop(self.current_depth):
+            if self.decomp_config.should_stop(self.current_depth):
                 mock_answer = get_prompt(self.prompt_config.tasks_depleted)
                 if mock_answer is None:
                     break
@@ -191,7 +191,7 @@ class AgentToolNode(AgentNode):
                 if verbose:
                     print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
 
-            self.stop_criteria.update_round(num_tasks=len(tasks_inputs))
+            self.decomp_config.update_round(num_tasks=len(tasks_inputs))
 
         self.trajectory.finish()
         return self.trajectory

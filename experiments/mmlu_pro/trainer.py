@@ -18,7 +18,7 @@ class MmluProTrainer(Trainer):
             model_name=self.model.get_inference_name(),
             openai_client=client.openai_client,
             prompt_config=self.prompt_config,
-            stop_criteria=self.stop_criteria,
+            decomp_config=self.decomp_config,
         )
 
     async def forward_step(self, sample: dict, stage: RolloutStage) -> art.Trajectory:

@@ -12,8 +12,8 @@ logger = create_logger(__name__)
 async def load_art_model(
     path_config: PathConfig,
     art_config: ArtConfig | None = None,
-    print_full: bool = False,
     seed: int | None = None,
+    print_full: bool = False,
 ) -> art.TrainableModel:
     if art_config is None:
         if path_config.base_model not in art_configs.CONFIGS:

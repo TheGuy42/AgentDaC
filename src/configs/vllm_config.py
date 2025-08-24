@@ -41,4 +41,7 @@ class VllmConfig(BaseModel, frozen=False, extra="allow"):
         return self
 
     def save(self, dir_name: str, file_name: str = "vllm_config.json") -> None:
+        """
+        Save the vLLM configuration to a JSON file.
+        """
         save_base_model(self, Path(dir_name) / file_name)

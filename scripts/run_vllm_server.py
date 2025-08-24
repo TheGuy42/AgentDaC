@@ -58,7 +58,7 @@ def parse_args() -> tuple[argparse.Namespace, list[str]]:
     parser.add_argument(
         "--seed",
         type=int,
-        default=69_420,
+        default=69420,
         help="Random seed for reproducibility.",
     )
 

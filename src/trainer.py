@@ -20,7 +20,7 @@ from src.configs import (
     PromptConfig,
     PathConfig,
     RolloutConfig,
-    StopCriteria,
+    DecompConfig,
     TrainingConfig,
 )
 
@@ -41,16 +41,19 @@ class Trainer:
         vllm_router: VllmRouter,
         path_config: PathConfig,
         prompt_config: PromptConfig,
-        stop_criteria: StopCriteria,
-        rollout_config: RolloutConfig,
+        decomp_config: DecompConfig,
+        rollout_config: RolloutConfig | None = None,
+        extra_config: dict | None = None,
         **kwargs,
     ):
         self.model = model
         self.path_config = path_config
         self.vllm_router = vllm_router
         self.prompt_config = prompt_config
-        self.stop_criteria = stop_criteria
-        self.rollout_config = rollout_config
+        self.decomp_config = decomp_config
+        self.rollout_config = rollout_config or RolloutConfig()
+        self.extra_config = extra_config or {}
+        self.extra_config.update(kwargs)
 
         self._train_config: TrainingConfig | None = None
 
@@ -143,9 +146,10 @@ class Trainer:
                 "model": self.model.model_dump(),
                 "path_config": self.path_config.model_dump(),
                 "prompt_config": self.prompt_config.model_dump(),
-                "stop_criteria": self.stop_criteria.model_dump(),
+                "decomp_config": self.decomp_config.model_dump(),
                 "training_config": self.train_config().model_dump(),
                 "rollout_config": self.rollout_config.model_dump(),
+                "extra_config": self.extra_config,
             }
         )
 
