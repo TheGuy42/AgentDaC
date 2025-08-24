@@ -58,11 +58,25 @@ def parse_args() -> tuple[argparse.Namespace, list[str]]:
     parser.add_argument(
         "--seed",
         type=int,
-        default=0,
+        default=69_420,
         help="Random seed for reproducibility.",
     )
 
-    return parser.parse_known_args()
+    args, extra_args = parser.parse_known_args()
+
+    # print the parsed arguments
+
+    print()
+    print("Parsed arguments:")
+    for arg, value in vars(args).items():
+        print(f"  {arg}: {value}")
+    print()
+
+    print("Extra arguments (passed to vllm serve):")
+    print(extra_args)
+    print()
+
+    return args, extra_args
 
 
 def main(args: argparse.Namespace, extra_args: list[str]) -> None:
