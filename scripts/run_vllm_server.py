@@ -55,15 +55,21 @@ def parse_args() -> tuple[argparse.Namespace, list[str]]:
         "The serialized object should be of type `VllmConfig`.",
     )
 
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=0,
+        help="Random seed for reproducibility.",
+    )
+
     return parser.parse_known_args()
 
 
 def main(args: argparse.Namespace, extra_args: list[str]) -> None:
-
     print()
     print(f"Current working directory: {os.getcwd()}")
     print()
-    
+
     vllm_config = None
     if args.vllm_config:
         with open(args.vllm_config, "r") as f:
@@ -72,6 +78,7 @@ def main(args: argparse.Namespace, extra_args: list[str]) -> None:
     vllm_args = load_vllm_model(
         model_name=args.model,
         port=args.port,
+        seed=args.seed,
         vllm_config=vllm_config,
         print_full=True,
     )

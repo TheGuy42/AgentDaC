@@ -7,11 +7,11 @@ import argparse
 import logging
 from typing import Any, Tuple
 from abc import ABC, abstractmethod
-from pydantic import BaseModel
 
 from datasets import Dataset
 from art import TrainableModel
 
+from src.utils.rng import set_seed
 from src.utils.env import prepare_environment
 from src.utils.logging import create_logger, setup_logging
 from src.utils.io import load_base_model
@@ -111,6 +111,13 @@ class ExperimentRunner(ABC):
         )
 
         parser.add_argument(
+            "--seed",
+            type=int,
+            default=None,
+            help="Random seed for reproducibility (if not set, random).",
+        )
+
+        parser.add_argument(
             "--silent",
             action="store_true",
             help="Disable verbose outputs.",
@@ -171,7 +178,13 @@ class ExperimentRunner(ABC):
 
     async def _main(self) -> None:
         """Main experiment execution logic."""
+
         args = self.args()
+
+        if args.seed is not None:
+            set_seed(args.seed)
+            logger.info(f"Random seed set to {args.seed}")
+
         # Set the GPU environment variable
         os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, args.gpu))
 

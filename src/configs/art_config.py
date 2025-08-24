@@ -28,7 +28,7 @@ class ArtConfig(BaseModel, frozen=False, extra="allow"):
             self.id = self.base_model
         return self
 
-    def initialize(self, output_dir: str) -> ArtConfig:
+    def initialize(self, output_dir: str, seed: int | None = None) -> ArtConfig:
         self.internal_config = get_model_config(
             base_model=self.base_model,
             output_dir=output_dir,
@@ -41,6 +41,15 @@ class ArtConfig(BaseModel, frozen=False, extra="allow"):
         self.openai_config.setdefault("engine_args", EngineArgs())
 
         self.internal_config["engine_args"].setdefault("seed", 0)  # type: ignore
+
+        if seed is not None:
+            self.internal_config["init_args"]["random_state"] = seed # type: ignore
+            self.internal_config["engine_args"]["seed"] = seed # type: ignore
+            self.internal_config["peft_args"]["random_state"] = seed # type: ignore
+            self.internal_config["trainer_args"]["seed"] = seed # type: ignore
+            self.internal_config["trainer_args"]["data_seed"] = seed # type: ignore
+            self.openai_config["engine_args"]["seed"] = seed  # type: ignore  
+            
         if api_key := os.getenv("OPENAI_API_KEY"):
             self.openai_config["server_args"]["api_key"] = api_key  # type: ignore
 

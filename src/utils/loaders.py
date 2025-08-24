@@ -13,6 +13,7 @@ async def load_art_model(
     path_config: PathConfig,
     art_config: ArtConfig | None = None,
     print_full: bool = False,
+    seed: int | None = None,
 ) -> art.TrainableModel:
     if art_config is None:
         if path_config.base_model not in art_configs.CONFIGS:
@@ -25,13 +26,13 @@ async def load_art_model(
         art_config = art_configs.CONFIGS[path_config.base_model]
 
     if path_config.base_model != art_config.base_model:
-        raise ValueError(f"Model name mismatch: {path_config.base_model} != {art_config.base_model}.")
+        raise ValueError(f"Model name mismatch: {path_config.base_model} != {art_config.base_model}.")        
 
     if not print_full:
         print("Art Config:")
         print(art_config.model_dump_json(indent=4))
 
-    art_config = art_config.initialize(output_dir=path_config.model_output_dir)
+    art_config = art_config.initialize(output_dir=path_config.model_output_dir, seed=seed)
 
     if print_full:
         print("Full Art Config:")
@@ -52,6 +53,7 @@ async def load_art_model(
 def load_vllm_model(
     model_name: str,
     port: int = 8200,
+    seed: int | None = None,
     vllm_config: VllmConfig | None = None,
     print_full: bool = False,
 ) -> list[str]:
@@ -71,7 +73,7 @@ def load_vllm_model(
         print("vLLM Config:")
         print(vllm_config.model_dump_json(indent=4))
 
-    vllm_config = vllm_config.initialize(port)
+    vllm_config = vllm_config.initialize(port=port, seed=seed)
 
     if print_full:
         print("Full vLLM Config:")
