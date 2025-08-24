@@ -1,46 +1,16 @@
-from src.dac_agent import AgentNode
-from src.trainer import Trainer, RolloutStage
-from src.openai_types import UserMessage
+from src.trainer import RolloutStage
 from src.utils.markers import Markers
 from src.utils.text import extract_answer, extract_between
 
 from experiments.general_rewards import format_reward, behavior_reward
+from experiments.easy2hard.trainer import Easy2HardTrainer
 from experiments.easy2hard.rewards import answer_reward, verify
 from experiments.easy2hard.format import format_prompt
 
 import art
 
 
-class Easy2HardRulerTrainer(Trainer):
-    def create_agent(self) -> AgentNode:
-        client = self.vllm_router.next()
-        return AgentNode(
-            model_name=self.model.get_inference_name(),
-            openai_client=client.openai_client,
-            prompt_config=self.prompt_config,
-            stop_criteria=self.stop_criteria,
-        )
-
-    async def forward_step(self, sample: dict, stage: RolloutStage) -> art.Trajectory:
-        agent = self.create_agent()
-        content = format_prompt(sample)
-        message = UserMessage(role="user", content=content)
-        kwargs = self.rollout_config.get_kwargs(stage)
-        trajectory = await agent.chat(message, **kwargs)
-        return trajectory
-
-    async def predict_step(self, sample: dict, stage: RolloutStage) -> str:
-        agent = self.create_agent()
-        content = format_prompt(sample)
-        message = UserMessage(role="user", content=content)
-        kwargs = self.rollout_config.get_kwargs(stage)
-        answer_message = await agent.answer(message, **kwargs)
-
-        answer = answer_message.get("content")
-        assert answer_message["role"] == "assistant", f"Expected role 'assistant', got '{answer_message['role']}'"
-        assert isinstance(answer, str), f"Expected content to be a string, got {type(answer)}"
-        return answer
-
+class Easy2HardRulerTrainer(Easy2HardTrainer):
     async def score_trajectory(
         self,
         sample: dict,

@@ -11,7 +11,6 @@ if str(module_dir) not in sys.path:
 
 from experiments.runner import ExperimentRunner
 from experiments.big_code_bench.trainer import BigCodeBenchTrainer
-from src.vllm_client import VllmRouter
 from src.trainer import Trainer
 
 

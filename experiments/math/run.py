@@ -12,7 +12,6 @@ if str(module_dir) not in sys.path:
 
 from experiments.runner import ExperimentRunner
 from experiments.math.trainer import MathTrainer
-from src.vllm_client import VllmRouter
 from src.trainer import Trainer
 
 
@@ -34,7 +33,7 @@ class Runner(ExperimentRunner):
         ds_val: Dataset = dataset_dict["test"]
         return ds_train, ds_val
 
-    def create_trainer(self, model: TrainableModel, **kwargs) -> Trainer:
+    def create_trainer(self, model: TrainableModel, **kwargs) -> Trainer: 
         return MathTrainer(model=model, **kwargs)
 
 

@@ -12,7 +12,6 @@ if str(module_dir) not in sys.path:
 
 from experiments.runner import ExperimentRunner
 from experiments.easy2hard.trainer import Easy2HardTrainer
-from src.vllm_client import VllmRouter
 from src.trainer import Trainer
 
 
