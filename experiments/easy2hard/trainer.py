@@ -32,25 +32,17 @@ class Easy2HardTrainer(Trainer):
             decomp_config=decomp_config,
         )
 
-    async def forward_step(self, sample: dict, stage: RolloutStage) -> art.Trajectory:
-        agent = self.create_agent(stage)
+    async def forward_step(
+        self,
+        agent: AgentNode,
+        sample: dict,
+        stage: RolloutStage,
+    ) -> art.Trajectory:
         content = format_prompt(sample)
         message = UserMessage(role="user", content=content)
         kwargs = self.rollout_config.get_kwargs(stage)
         trajectory = await agent.chat(message, **kwargs)
         return trajectory
-
-    async def predict_step(self, sample: dict, stage: RolloutStage) -> str:
-        agent = self.create_agent(stage)
-        content = format_prompt(sample)
-        message = UserMessage(role="user", content=content)
-        kwargs = self.rollout_config.get_kwargs(stage)
-        answer_message = await agent.answer(message, **kwargs)
-
-        answer = answer_message.get("content")
-        assert answer_message["role"] == "assistant", f"Expected role 'assistant', got '{answer_message['role']}'"
-        assert isinstance(answer, str), f"Expected content to be a string, got {type(answer)}"
-        return answer
 
     async def score_trajectory(
         self,
@@ -103,9 +95,4 @@ class Easy2HardTrainer(Trainer):
 
         return trajectory
 
-    async def score_group(
-        self,
-        group: art.TrajectoryGroup,
-        stage: RolloutStage,
-    ) -> art.TrajectoryGroup:
-        return group
+

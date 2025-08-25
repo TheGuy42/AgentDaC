@@ -164,7 +164,7 @@ class AgentNode:
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
 
             # Extract tasks from the response
-            tasks_inputs = AgentNode.parse_tasks(self.trajectory.messages()[-1])
+            tasks_inputs = self.parse_tasks(self.trajectory.messages()[-1])
 
             if should_break or len(tasks_inputs) == 0:
                 break  # No tasks to delegate, so last message
@@ -225,10 +225,9 @@ class AgentNode:
             (AssistantMessage): The answer message from the agent.
         """
         trajectory = await self.chat(prompt, verbose=verbose, **kwargs)
-        return AgentNode.parse_answer(trajectory.messages()[-1])
+        return self.parse_answer(trajectory.messages()[-1])
 
-    @staticmethod
-    def parse_answer(message: Message) -> AssistantMessage:
+    def parse_answer(self, message: Message) -> AssistantMessage:
         if message["role"] != "assistant":
             logger.error(f"Expected message role 'assistant', got {message['role']}")
             raise ValueError("Message role must be 'assistant' to extract answer.")
@@ -241,8 +240,7 @@ class AgentNode:
         answer = text_utils.extract_answer(content)
         return AssistantMessage(role="assistant", content=answer)
 
-    @staticmethod
-    def parse_tasks(message: Message) -> list[UserMessage]:
+    def parse_tasks(self, message: Message) -> list[UserMessage]:
         if message["role"] != "assistant":
             raise ValueError("Message role must be 'assistant' to extract tasks.")
 

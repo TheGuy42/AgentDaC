@@ -8,6 +8,7 @@ from experiments.easy2hard.rewards import answer_reward, verify
 from experiments.easy2hard.format import format_prompt
 
 import art
+from art.rewards import ruler_score_group
 
 
 class Easy2HardRulerTrainer(Easy2HardTrainer):
@@ -66,11 +67,24 @@ class Easy2HardRulerTrainer(Easy2HardTrainer):
         self,
         group: art.TrajectoryGroup,
         stage: RolloutStage,
-    ) -> art.TrajectoryGroup:
-        for tr in group.trajectories:
+    ) -> art.TrajectoryGroup | None:
+        if stage != RolloutStage.Train:
+            return group
+
+        ruler_config = self.train_config().ruler_config
+        if ruler_config is None:
+            raise ValueError("Ruler config is not set in the training configuration.")
+
+        if ruler_config.judge_model is None:
+            raise ValueError("Ruler judge model is not set in the ruler configuration.")
+
+        scored_group = await ruler_score_group(group, **ruler_config.model_dump(exclude_none=True, exclude_unset=True))
+        if scored_group is None:
+            return None
+
+        for tr in scored_group.trajectories:
             tr.reward = 0.0
-            tr.reward += tr.metrics.get("reward_answer", 0.0)
-            # tr.reward += tr.metrics.get("reward_format", 0.0)
-            # tr.reward += tr.metrics.get("reward_behavior", 0.0)
-            tr.reward += tr.metrics.get("ruler_score", 0.0)
-        return group
+            tr.reward += tr.metrics["reward_answer"]
+            tr.reward += tr.metrics["ruler_score"]
+
+        return scored_group

@@ -1,7 +1,5 @@
 from abc import abstractmethod
 import random
-import tqdm
-import tqdm.asyncio
 from enum import Enum
 
 from wandb.sdk.wandb_run import Run as WandbRun
@@ -11,8 +9,8 @@ import asyncio
 import art
 from art.utils import iterate_dataset
 from art.local import LocalBackend
-from art.rewards import ruler_score_group
 
+from src.dac_agent import AgentNode
 from src.utils.logging import create_logger
 from src.vllm_client import VllmRouter
 
@@ -231,7 +229,8 @@ class Trainer:
         self,
         dataset: list[dict],
         stage: RolloutStage = RolloutStage.Val,
-    ) -> list[str] | BaseException:
+        max_exceptions: int | float = 0,
+    ) -> list[str | Exception]:
         """
         Perform predictions on a dataset using the model.
         Returns a list of predicted answers.
@@ -241,17 +240,33 @@ class Trainer:
             stage (RolloutStage): The current stage of the rollout.
 
         Returns:
-            (list[str]): List of predicted answers for each sample in the dataset.
+            (list[str | Exception]): List of predicted answers for each sample in the dataset.
         """
 
-        tasks = [self.predict_step(sample, stage) for sample in dataset]
+        agents = [self.create_agent(stage) for _ in dataset]
+        tasks = [self.forward_step(agent, sample, stage) for agent, sample in zip(agents, dataset)]
 
-        return await tqdm.asyncio.tqdm.gather(
-            *tasks,
-            desc=f"predict-{stage.value}",
-            total=len(tasks),
-            leave=False,
+        trajectories = await art.gather_trajectories(
+            tasks,
+            pbar_desc=f"predict-{stage.value}",
+            max_exceptions=max_exceptions,
+            pbar_total_completion_tokens=False,
         )
+
+        answers = []
+        for tr, ag in zip(trajectories, agents):
+            if not isinstance(tr, art.Trajectory):
+                # Exception occurred during rollout
+                answers.append(tr)
+                continue
+
+            last_message = tr.messages()[-1]
+            answer_message = ag.parse_answer(last_message)
+            answer = answer_message.get("content", "")
+            assert isinstance(answer, str), f"Expected answer to be a string, got {type(answer).__name__}"
+            answers.append(answer.strip())
+
+        return answers
 
     async def rollout(
         self,
@@ -261,23 +276,12 @@ class Trainer:
         max_exceptions: int | float = 0,
     ) -> list[art.TrajectoryGroup]:
         async def sample_forward(sample: dict) -> art.Trajectory:
-            trajectory = await self.forward_step(sample, stage)
+            agent = self.create_agent(stage)
+            trajectory = await self.forward_step(agent, sample, stage)
             return await self.score_trajectory(sample, trajectory, stage)
 
         async def group_forward(group: art.TrajectoryGroup) -> art.TrajectoryGroup | None:
-            ruler_config = self.train_config().ruler_config
-            if ruler_config is not None and stage == RolloutStage.Train:
-                group = await ruler_score_group(
-                    group=group,
-                    **ruler_config.model_dump(exclude_none=True, exclude_unset=True),
-                )  # type: ignore
-                if group is None:
-                    return None
-            try:
-                return await self.score_group(group, stage)
-            except Exception as e:
-                logger.warning(f"Failed to score group: {e}")
-                return None
+            return await self.score_group(group, stage)
 
         groups = []
         for sample in dataset:
@@ -295,27 +299,23 @@ class Trainer:
         return trajectory_groups
 
     @abstractmethod
-    async def predict_step(
+    def create_agent(
         self,
-        sample: dict,
         stage: RolloutStage,
-    ) -> str:
+    ) -> AgentNode:
         """
-        Perform a prediction step for a single sample.
-        This function is used to get the final answer from the model.
-
+        Create an instance of an AgentNode for the given stage.
         Args:
-            sample (dict): A single sample from the dataset.
             stage (RolloutStage): The current stage of the rollout.
-
         Returns:
-            (str): The predicted answer for the sample.
+            (AgentNode): An instance of an AgentNode.
         """
-        raise NotImplementedError("Subclasses must implement the predict_step method.")
+        raise NotImplementedError("Subclasses must implement the create_agent method.")
 
     @abstractmethod
     async def forward_step(
         self,
+        agent: AgentNode,
         sample: dict,
         stage: RolloutStage,
     ) -> art.Trajectory:
@@ -352,24 +352,27 @@ class Trainer:
         """
         raise NotImplementedError("Subclasses must implement the score_trajectory method.")
 
-    @abstractmethod
     async def score_group(
         self,
         group: art.TrajectoryGroup,
         stage: RolloutStage,
-    ) -> art.TrajectoryGroup:
+    ) -> art.TrajectoryGroup | None:
         """
         Score a group of trajectories.
         This function is used to score a group of trajectories after they have been rolled out,
         and each group trajectory has been scored individually.
-
-        Note: If RULER is used, this method will be called after the group has been scored by the RULER.
 
         Args:
             group (art.TrajectoryGroup): The group of trajectories to score.
             stage (RolloutStage): The current stage of the rollout.
 
         Returns:
-            (art.TrajectoryGroup): The scored group of trajectories.
+            (art.TrajectoryGroup | None): The scored group of trajectories or None if scoring failed.
         """
-        raise NotImplementedError("Subclasses must implement the score_group method.")
+        ruler_config = self.train_config().ruler_config
+        if ruler_config and ruler_config.judge_model:
+            logger.warning(
+                "Skipping RULER scoring. To enable RULER scoring, please override the `score_group` "
+                "method in your Trainer subclass and implement the desired behavior there."
+            )
+        return group

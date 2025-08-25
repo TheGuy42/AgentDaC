@@ -144,7 +144,7 @@ class AgentToolNode(AgentNode):
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
 
             # Extract tasks from the response
-            tasks_inputs = AgentToolNode.parse_tasks(self.trajectory.messages()[-1])
+            tasks_inputs = self.parse_tasks(self.trajectory.messages()[-1])
 
             if should_break or len(tasks_inputs) == 0:
                 break  # No tasks to delegate, so last message
@@ -196,8 +196,7 @@ class AgentToolNode(AgentNode):
         self.trajectory.finish()
         return self.trajectory
 
-    @staticmethod
-    def parse_tasks(message: Message) -> list[UserMessage]:
+    def parse_tasks(self, message: Message) -> list[UserMessage]:
         if message["role"] != "assistant":
             raise ValueError("Message role must be 'assistant' to extract tasks.")
 

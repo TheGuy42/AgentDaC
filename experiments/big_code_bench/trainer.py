@@ -12,7 +12,7 @@ import art
 
 
 class BigCodeBenchTrainer(Trainer):
-    def create_agent(self) -> AgentNode:
+    def create_agent(self, stage: RolloutStage) -> AgentNode:
         client = self.vllm_router.next()
         return AgentNode(
             model_name=self.model.get_inference_name(),
@@ -21,25 +21,17 @@ class BigCodeBenchTrainer(Trainer):
             decomp_config=self.decomp_config,
         )
 
-    async def forward_step(self, sample: dict, stage: RolloutStage) -> art.Trajectory:
-        agent = self.create_agent()
+    async def forward_step(
+        self,
+        agent: AgentNode,
+        sample: dict,
+        stage: RolloutStage,
+    ) -> art.Trajectory:
         content = format_prompt(sample)
         message = UserMessage(role="user", content=content)
         kwargs = self.rollout_config.get_kwargs(stage)
         trajectory = await agent.chat(message, **kwargs)
         return trajectory
-
-    async def predict_step(self, sample: dict, stage: RolloutStage) -> str:
-        agent = self.create_agent()
-        content = format_prompt(sample)
-        message = UserMessage(role="user", content=content)
-        kwargs = self.rollout_config.get_kwargs(stage)
-        answer_message = await agent.answer(message, **kwargs)
-
-        answer = answer_message.get("content")
-        assert answer_message["role"] == "assistant", f"Expected role 'assistant', got '{answer_message['role']}'"
-        assert isinstance(answer, str), f"Expected content to be a string, got {type(answer)}"
-        return answer
 
     async def score_trajectory(
         self,
@@ -96,9 +88,3 @@ class BigCodeBenchTrainer(Trainer):
 
         return trajectory
 
-    async def score_group(
-        self,
-        group: art.TrajectoryGroup,
-        stage: RolloutStage,
-    ) -> art.TrajectoryGroup:
-        return group
