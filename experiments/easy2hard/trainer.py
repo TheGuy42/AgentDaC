@@ -7,7 +7,7 @@ from src.configs import DecompConfig
 import random
 
 from experiments.general_rewards import format_reward, behavior_reward
-from experiments.easy2hard.rewards import answer_reward, verify
+from experiments.easy2hard.rewards import answer_reward
 from experiments.easy2hard.format import format_prompt
 
 import art
@@ -75,7 +75,7 @@ class Easy2HardTrainer(Trainer):
                 "answer_reward": ans_reward,
                 "format_reward": fmt_reward,
                 "behavior_reward": bhv_reward,
-                "is_correct": int(verify(answer, agent_answer)),
+                "is_correct": int(ans_reward > 0.0),
                 "gave_answer": int(num_answers > 0),
             }
         )

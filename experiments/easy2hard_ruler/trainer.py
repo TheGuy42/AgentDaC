@@ -4,7 +4,7 @@ from src.utils.text import extract_answer, extract_between
 
 from experiments.general_rewards import format_reward, behavior_reward
 from experiments.easy2hard.trainer import Easy2HardTrainer
-from experiments.easy2hard.rewards import answer_reward, verify
+from experiments.easy2hard.rewards import answer_reward
 from experiments.easy2hard.format import format_prompt
 
 import art
@@ -43,7 +43,7 @@ class Easy2HardRulerTrainer(Easy2HardTrainer):
                 "reward_answer": ans_reward,
                 "reward_format": fmt_reward,
                 "reward_behavior": bhv_reward,
-                "is_correct": int(verify(answer, agent_answer)),
+                "is_correct": int(ans_reward > 0.0),
                 "gave_answer": int(num_answers > 0),
             }
         )

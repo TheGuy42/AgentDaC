@@ -5,13 +5,13 @@ from src.utils.markers import Markers
 from src.utils.text import extract_answer, extract_between
 
 from experiments.general_rewards import format_reward, behavior_reward
-from experiments.math.rewards import answer_reward, verify
-from experiments.math.format import format_prompt
+from experiments.saturn.rewards import answer_reward
+from experiments.saturn.format import format_prompt
 
 import art
 
 
-class MathTrainer(Trainer):
+class SaturnTrainer(Trainer):
     def create_agent(self, stage: RolloutStage) -> AgentNode:
         client = self.vllm_router.next()
         return AgentNode(
@@ -54,7 +54,7 @@ class MathTrainer(Trainer):
         trajectory.reward += bhv_reward
 
         problem = format_prompt(sample)
-        answer = sample["solution"].strip()
+        answer = sample["answer"].strip()
         agent_answer = extract_answer(ans_content)
         num_answers = len(extract_between(ans_content, Markers.ANSWER_START, Markers.ANSWER_END))
 
@@ -75,8 +75,7 @@ class MathTrainer(Trainer):
                 "problem": problem,
                 "answer": answer,
                 "agent_answer": agent_answer,
-                "level": sample["level"],
-                "type": sample["type"],
+                "category": sample["category"],
             }
         )
 
