@@ -21,6 +21,10 @@
     "length": {
       "dtype": "int32",
       "_type": "Value"
+    },
+    "id": {
+      "dtype": "int64",
+      "_type": "Value"
     }
   },
   "homepage": "",

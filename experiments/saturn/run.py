@@ -23,7 +23,7 @@ class Runner(ExperimentRunner):
         return "experiments/saturn/defaults"
 
     def load_data(self) -> tuple[Dataset, Dataset]:
-        data = Dataset.load_from_disk("experiments/saturn/dataset", keep_in_memory=True)
+        data = Dataset.load_from_disk("experiments/saturn/data", keep_in_memory=True)
         split_dict = data.train_test_split(test_size=0.3, seed=0)
         train_data = split_dict["train"]
         test_data = split_dict["test"]
