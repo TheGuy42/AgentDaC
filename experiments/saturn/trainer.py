@@ -54,7 +54,7 @@ class SaturnTrainer(Trainer):
         trajectory.reward += bhv_reward
 
         problem = format_prompt(sample)
-        answer = sample["answer"].strip()
+        answer = sample["solution"].strip()
         agent_answer = extract_answer(ans_content)
         num_answers = len(extract_between(ans_content, Markers.ANSWER_START, Markers.ANSWER_END))
 
@@ -75,7 +75,9 @@ class SaturnTrainer(Trainer):
                 "problem": problem,
                 "answer": answer,
                 "agent_answer": agent_answer,
-                "category": sample["category"],
+                "n_sat": sample["n_sat"],
+                "k": sample["k"],
+                "length": sample["length"],
             }
         )
 
