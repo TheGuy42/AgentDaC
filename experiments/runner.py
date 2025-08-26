@@ -255,7 +255,7 @@ class ExperimentRunner(ABC):
                 val_dataset=val_dataset.to_list(),
             )
         finally:
-            trainer.close()
+            await trainer.close()
 
     def run(self) -> None:
         """Entry point to run the experiment."""

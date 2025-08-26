@@ -3,6 +3,7 @@ import openai
 import httpx
 import asyncio
 import os
+import pathlib
 
 import art
 from art.openai import patch_openai
@@ -93,6 +94,8 @@ class VllmClient:
         resp = await self.http_client.post("/load_lora_adapter", json=payload)
         resp.raise_for_status()
         self.model_name = lora_name  # Update the inference name to the loaded LORA
+        
+        lora_path = pathlib.Path(lora_path).relative_to(pathlib.Path.cwd()).as_posix()
         logger.info(f"[{self.base_url}] Loaded LORA adapter: {lora_name} at path: {lora_path}")
 
     @art.utils.retry(max_attempts=3)
