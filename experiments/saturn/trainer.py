@@ -46,7 +46,7 @@ class SaturnTrainer(Trainer):
 
         # Compute rewards
         trajectory.reward = 0.0
-        ans_reward = answer_reward(sample, ans_message)
+        ans_reward = 3.0 * answer_reward(sample, ans_message)
         trajectory.reward += ans_reward
         fmt_reward = format_reward(trajectory)
         trajectory.reward += fmt_reward
@@ -75,6 +75,7 @@ class SaturnTrainer(Trainer):
                 "problem": problem,
                 "answer": answer,
                 "agent_answer": agent_answer,
+                "clause": sample["clause"],
                 "n_sat": sample["n_sat"],
                 "k": sample["k"],
                 "length": sample["length"],

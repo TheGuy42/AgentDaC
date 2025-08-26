@@ -10,7 +10,7 @@ if str(module_dir) not in sys.path:
     sys.path.append(str(module_dir))
 
 
-from experiments.runner import ExperimentRunner
+from experiments.experiment_runner import ExperimentRunner
 from experiments.math.trainer import MathTrainer
 from src.trainer import Trainer
 

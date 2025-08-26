@@ -4,10 +4,7 @@
         "temperature": 0.7,
         "top_p": 0.8
     },
-    "train_kwargs": {
-        "temperature": 1.0,
-        "top_p": 0.9
-    },
+    "train_kwargs": {},
     "val_kwargs": {},
     "test_kwargs": {}
 }

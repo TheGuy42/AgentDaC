@@ -9,6 +9,8 @@ from typing import Any, Tuple
 from abc import ABC, abstractmethod
 import random
 
+import json
+import pydantic
 from datasets import Dataset
 from art import TrainableModel
 
@@ -178,11 +180,28 @@ class ExperimentRunner(ABC):
             )
         return VllmRouter(inference_clients)
 
+    def _print_configs(self, configs: dict[str, Any]) -> None:
+        print()
+        print("Loaded configurations:")
+        
+        for key, cfg in configs.items():
+            print(f"\n{key}:")
+
+            try:
+                if isinstance(cfg, (pydantic.BaseModel)):
+                    print(cfg.model_dump_json(indent=2))
+                else:
+                    print(json.dumps(cfg, indent=2))
+            except Exception:
+                print(cfg)
+
+        print()
+
     async def _main(self) -> None:
         """Main experiment execution logic."""
 
         args = self.args()
-        
+
         # Set random seed
         set_seed(args.seed)
         logger.info(f"Random seed set to {args.seed}")
@@ -210,12 +229,7 @@ class ExperimentRunner(ABC):
 
         # Print all configurations
         if not args.silent:
-            print()
-            print("Loaded configurations:")
-            for key, config in configs.items():
-                print(f"\n{repr(key)}:")
-                print(config)
-            print()
+            self._print_configs(configs)
 
         # Load dataset
         logger.info("Loading data...")

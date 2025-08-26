@@ -10,7 +10,7 @@ module_dir = pathlib.Path(__file__).parent.parent.parent.resolve()
 if str(module_dir) not in sys.path:
     sys.path.append(str(module_dir))
 
-from experiments.runner import ExperimentRunner
+from experiments.experiment_runner import ExperimentRunner
 from experiments.easy2hard.trainer import Easy2HardTrainer
 from src.trainer import Trainer
 
