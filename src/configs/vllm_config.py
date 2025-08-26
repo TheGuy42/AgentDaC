@@ -21,7 +21,7 @@ class VllmConfig(BaseModel, frozen=False, extra="allow"):
         """
         Validate that the identifier is set to the base model name if not provided.
         """
-        if not self.id:
+        if self.id == "" or self.id is None:
             self.id = self.base_model
         return self
 

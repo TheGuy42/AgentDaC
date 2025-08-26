@@ -203,7 +203,7 @@ class Trainer:
 
             train_groups = filtered_groups
 
-            if not train_groups:
+            if len(train_groups) == 0:
                 logger.warning(f"No trajectories left to train on at step {train_batch.step}. Skipping this step.")
                 continue
 
@@ -370,7 +370,7 @@ class Trainer:
             (art.TrajectoryGroup | None): The scored group of trajectories or None if scoring failed.
         """
         ruler_config = self.train_config().ruler_config
-        if ruler_config and ruler_config.judge_model:
+        if ruler_config is not None and ruler_config.judge_model is not None:
             logger.warning(
                 "Skipping RULER scoring. To enable RULER scoring, please override the `score_group` "
                 "method in your Trainer subclass and implement the desired behavior there."

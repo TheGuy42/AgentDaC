@@ -10,7 +10,7 @@ logger = create_logger(__name__)
 def verify(gold_answer: str, pred_answer: str) -> bool:
     # match (X) pattern
     matches = re.findall(r"\(\s*([A-Za-z])\s*\)", pred_answer)
-    if not matches:
+    if len(matches) == 0:
         return False
 
     last_match = matches[-1]
@@ -29,4 +29,4 @@ def answer_reward(sample: dict[str, str], message: Message) -> float:
     gold_answer = sample["answer"]
     pred_answer = text_utils.extract_answer(content)
 
-    return 3.0 if verify(gold_answer, pred_answer) else 0.0
+    return 1.0 if verify(gold_answer, pred_answer) else 0.0

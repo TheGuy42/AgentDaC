@@ -14,10 +14,10 @@ class PathConfig(BaseModel, frozen=False):
 
     def model_post_init(self, context) -> None:
         """Generate run name if not provided"""
-        if not self.art_path:
+        if self.art_path == "":
             self.art_path = output_dirs.get_default_art_path()
 
-        if not self.run_name:
+        if self.run_name == "":
             self.run_name = self._generate_run_name(self.base_model)
 
     def save(self, dir_name: str, file_name: str = "path_config.json") -> None:

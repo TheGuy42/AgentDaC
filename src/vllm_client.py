@@ -26,16 +26,19 @@ class VllmClient:
             if api_key is None:
                 api_key = "default"
                 logger.info(f"No OpenAI API key provided, using '{api_key}' key.")
+                
+        if model_name is None:
+            model_name = base_model
 
         self.base_url = base_url
         self.base_model = base_model
-        self.model_name = model_name if model_name else base_model
+        self.model_name = model_name
         self.api_key = api_key
         self.timeout = timeout
 
         self.http_client = openai.DefaultAsyncHttpxClient(
             base_url=base_url,
-            headers={"Authorization": f"Bearer {api_key}"} if api_key else None,
+            headers={"Authorization": f"Bearer {api_key}"},
             timeout=timeout,
             limits=httpx.Limits(max_connections=100_000, max_keepalive_connections=100_000),
         )

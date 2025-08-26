@@ -14,7 +14,7 @@ def average_metrics(trajectories: list[art.Trajectory]) -> dict[str, float]:
         dict[str, float]: A dictionary containing the average of each metric across all trajectories.
     """
 
-    if not trajectories:
+    if len(trajectories) == 0:
         return {}
 
     keys = trajectories[0].metrics.keys()
@@ -33,8 +33,9 @@ def to_dataframe(trajectories: list[art.Trajectory]) -> pl.DataFrame:
     Returns:
         pl.DataFrame: A Polars DataFrame containing the metadata, metrics, and rewards of the trajectories.
     """
-    if not trajectories:
+    if len(trajectories) == 0:
         return pl.DataFrame()
+    
     data = []
     for tr in trajectories:
         row = art_logging.trajectory_to_dict(tr)

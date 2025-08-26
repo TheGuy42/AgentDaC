@@ -45,7 +45,7 @@ def normalize_newlines(text: str) -> str:
 
 def format_field(name: str, lines: list[str], indent: int) -> str:
     """Format a field with a name and multiple lines."""
-    if not lines:
+    if len(lines) == 0:
         return ""
 
     spaces = (" " * 4) * indent

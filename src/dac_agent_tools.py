@@ -137,7 +137,7 @@ class AgentToolNode(AgentNode):
             # Update metrics
             self.metrics["total_calls"] += 1
             self.metrics["direct_calls"] += 1
-            if completion.usage:
+            if completion.usage is not None:
                 self.metrics["total_tokens"] = completion.usage.total_tokens
 
             if verbose:

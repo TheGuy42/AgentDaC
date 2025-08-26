@@ -30,13 +30,13 @@ async def load_art_model(
 
     if not print_full:
         print("Art Config:")
-        print(art_config.model_dump_json(indent=4))
+        print(art_config.model_dump_json(indent=2))
 
     art_config = art_config.initialize(output_dir=path_config.model_output_dir, seed=seed)
 
     if print_full:
         print("Full Art Config:")
-        print(art_config.model_dump_json(indent=4))
+        print(art_config.model_dump_json(indent=2))
 
     model = art.TrainableModel(
         name=path_config.run_name,
@@ -71,13 +71,13 @@ def load_vllm_model(
 
     if not print_full:
         print("vLLM Config:")
-        print(vllm_config.model_dump_json(indent=4))
+        print(vllm_config.model_dump_json(indent=2))
 
     vllm_config = vllm_config.initialize(port=port, seed=seed)
 
     if print_full:
         print("Full vLLM Config:")
-        print(vllm_config.model_dump_json(indent=4))
+        print(vllm_config.model_dump_json(indent=2))
 
     engine_args = vllm_config.openai_config.get("engine_args", {})
     server_args = vllm_config.openai_config.get("server_args", {})

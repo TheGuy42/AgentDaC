@@ -51,6 +51,7 @@ def parse_args() -> tuple[argparse.Namespace, list[str]]:
     parser.add_argument(
         "--vllm_config",
         type=str,
+        default=None,
         help="Path to a JSON file containing additional vLLM configuration parameters. "
         "The serialized object should be of type `VllmConfig`.",
     )
@@ -85,7 +86,7 @@ def main(args: argparse.Namespace, extra_args: list[str]) -> None:
     print()
 
     vllm_config = None
-    if args.vllm_config:
+    if args.vllm_config is not None:
         with open(args.vllm_config, "r") as f:
             vllm_config = VllmConfig.model_validate_json(f.read())
 

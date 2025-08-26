@@ -31,13 +31,13 @@ class DecompConfig(BaseModel):
 
     def should_stop(self, cur_depth: int) -> bool:
         """Check if stopping criteria are met"""
-        if self.max_depth and cur_depth >= self.max_depth:
+        if self.max_depth is not None and cur_depth >= self.max_depth:
             return True
 
-        if self.max_tasks and self.total_tasks >= self.max_tasks:
+        if self.max_tasks is not None and self.total_tasks >= self.max_tasks:
             return True
 
-        if self.max_rounds and self.total_rounds >= self.max_rounds:
+        if self.max_rounds is not None and self.total_rounds >= self.max_rounds:
             return True
 
         return False
