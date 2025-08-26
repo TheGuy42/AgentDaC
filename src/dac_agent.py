@@ -16,20 +16,6 @@ from src.configs.prompts import get_prompt
 logger = create_logger(__name__)
 
 
-def patch_completion(completion: ChatCompletion) -> ChatCompletion:
-    """
-    Sometimes the OpenAI API returns choices with None content.
-    It happens when the model response is immediately EOS.
-
-    This function patches the completion to ensure all choices have content.
-    If content is None, it sets it to an empty string.
-    """
-    for choice in completion.choices:
-        if choice.message.content is None:
-            choice.message.content = ""
-    return completion
-
-
 class AgentNode:
     def __init__(
         self,
@@ -113,13 +99,12 @@ class AgentNode:
         extra_body.setdefault("include_stop_str_in_output", True)
         kwargs.setdefault("stop", [Markers.TASK_END, Markers.ANSWER_END])
 
-        completion = await self.openai_client.chat.completions.create(
+        return await self.openai_client.chat.completions.create(
             model=self.model,
             messages=messages,
             logprobs=True,
             **kwargs,
         )
-        return patch_completion(completion)
 
     async def chat(
         self,

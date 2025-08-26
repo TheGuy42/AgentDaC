@@ -39,7 +39,7 @@ def prepare_environment(tokens_folder: str = "./api_keys"):
         "WEAVE_DISABLED": "1",
         "WEAVE_DISABLE_TRACING": "1",
     }
-    
+
     os.environ.update(flag_dict)
     logger.info(f"Setting additional variables: {flag_dict}")
 
