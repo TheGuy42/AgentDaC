@@ -91,7 +91,7 @@ class VllmClient:
     @art.utils.retry(max_attempts=3)
     async def load_lora(self, lora_name: str, lora_path: str):
         payload = {"lora_name": lora_name, "lora_path": lora_path}
-        resp = await self.http_client.post("/load_lora_adapter", json=payload)
+        resp = await self.http_client.post("load_lora_adapter", json=payload)
         resp.raise_for_status()
         self.model_name = lora_name  # Update the inference name to the loaded LORA
         
@@ -105,7 +105,7 @@ class VllmClient:
             return
 
         payload = {"lora_name": lora_name}
-        response = await self.http_client.post("/unload_lora_adapter", json=payload)
+        response = await self.http_client.post("unload_lora_adapter", json=payload)
         response.raise_for_status()
         logger.info(f"[{self.base_url}] Unloaded LORA adapter: {lora_name}")
 
@@ -174,6 +174,9 @@ class VllmRouter:
         return len(self.clients)
 
     def next(self) -> VllmClient:
+        if len(self) == 0:
+            raise ValueError("No clients available in the router.")
+        
         client = self.clients[self.idx]
         self.idx = (self.idx + 1) % len(self)
         return client
@@ -188,6 +191,9 @@ class VllmRouter:
         """
         Get the current client in the round-robin rotation.
         """
+        if len(self) == 0:
+            raise ValueError("No clients available in the router.")
+        
         client = self.clients[self.idx]
         return client
 

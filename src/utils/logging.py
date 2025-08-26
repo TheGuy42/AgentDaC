@@ -17,12 +17,12 @@ def parse_log_level(value: str, default: int = logging.INFO) -> int:
     if value.isdecimal():
         level = int(value)
         if level not in name_to_level.values():
-            print(f"Invalid log level: {level}. Using default: {default}.")
+            logging.warning(f"Invalid log level: {level}. Using default: {default}.")
             return default
         return level
 
     if value not in name_to_level:
-        print(f"Invalid log level name: {value}. Using default: {default}.")
+        logging.warning(f"Invalid log level name: {value}. Using default: {default}.")
         return default
 
     return name_to_level[value]

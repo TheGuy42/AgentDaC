@@ -181,26 +181,22 @@ class ExperimentRunner(ABC):
         return VllmRouter(inference_clients)
 
     def _print_configs(self, configs: dict[str, Any]) -> None:
-        print()
-        print("Loaded configurations:")
-        
-        for key, cfg in configs.items():
-            print(f"\n{key}:")
-
+        for cfg_name, cfg_obj in configs.items():
             try:
-                if isinstance(cfg, (pydantic.BaseModel)):
-                    print(cfg.model_dump_json(indent=2))
+                if isinstance(cfg_obj, (pydantic.BaseModel)):
+                    cfg_str = cfg_obj.model_dump_json(indent=2)
                 else:
-                    print(json.dumps(cfg, indent=2))
+                    cfg_str = json.dumps(cfg_obj, indent=2)
             except Exception:
-                print(cfg)
-
-        print()
+                cfg_str = str(cfg_obj)
+                
+            logger.info(f"Configuration for {cfg_name} ({type(cfg_obj).__name__}): {cfg_str}")
 
     async def _main(self) -> None:
         """Main experiment execution logic."""
 
         args = self.args()
+        logger.info(f"Current working directory: {os.getcwd()}")
 
         # Set random seed
         set_seed(args.seed)
@@ -208,10 +204,6 @@ class ExperimentRunner(ABC):
 
         # Set the GPU environment variable
         os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, args.gpu))
-
-        print()
-        print(f"Current working directory: {os.getcwd()}")
-        print()
 
         path_config = PathConfig(
             base_model=args.model,
@@ -242,7 +234,6 @@ class ExperimentRunner(ABC):
             path_config=path_config,
             art_config=art_config,
             seed=args.seed,
-            print_full=not args.silent,
         )
 
         # Create inference clients

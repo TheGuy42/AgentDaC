@@ -62,6 +62,12 @@ def parse_args() -> tuple[argparse.Namespace, list[str]]:
         default=69420,
         help="Random seed for reproducibility.",
     )
+    
+    parser.add_argument(
+        "--silent",
+        action="store_true",
+        help="If set, suppress non-error logs from the vLLM server.",
+    )
 
     args, extra_args = parser.parse_known_args()
 
@@ -81,9 +87,7 @@ def parse_args() -> tuple[argparse.Namespace, list[str]]:
 
 
 def main(args: argparse.Namespace, extra_args: list[str]) -> None:
-    print()
-    print(f"Current working directory: {os.getcwd()}")
-    print()
+    logger.info(f"Current working directory: {os.getcwd()}")
 
     vllm_config = None
     if args.vllm_config is not None:
@@ -95,7 +99,6 @@ def main(args: argparse.Namespace, extra_args: list[str]) -> None:
         port=args.port,
         seed=args.seed,
         vllm_config=vllm_config,
-        print_full=True,
     )
 
     env = os.environ.copy()
@@ -109,10 +112,7 @@ def main(args: argparse.Namespace, extra_args: list[str]) -> None:
     )
 
     cmd_args = ["vllm", "serve"] + vllm_args + extra_args
-
-    print()
-    print(f"🚀 Running command: {' '.join(cmd_args)}")
-    print()
+    logger.info(f"🚀 Running command: {' '.join(cmd_args)}")
 
     try:
         subprocess.run(cmd_args, env=env, shell=False)
@@ -122,6 +122,6 @@ def main(args: argparse.Namespace, extra_args: list[str]) -> None:
 
 if __name__ == "__main__":
     prepare_environment()
-    setup_logging(logging.WARNING)
     args, extra_args = parse_args()
+    setup_logging(logging.INFO if not args.silent else logging.ERROR)
     main(args, extra_args)

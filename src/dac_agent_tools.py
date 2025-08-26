@@ -93,11 +93,11 @@ class AgentToolNode(AgentNode):
         kwargs.setdefault("parallel_tool_calls", False)  # NOTE: currently vLLM ignores this flag
 
         if not self.decomp_config.should_stop(self.current_depth):
-            kwargs["tool_choices"] = "auto"
+            kwargs["tool_choice"] = "auto"
             tools = kwargs.setdefault("tools", [])
             tools.extend(self.TOOLS)
         else:
-            kwargs["tool_choices"] = "none"
+            kwargs["tool_choice"] = "none"
 
         return await super()._call(messages=messages, **kwargs)
 

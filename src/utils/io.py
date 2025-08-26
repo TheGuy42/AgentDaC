@@ -11,6 +11,7 @@ logger = create_logger(__name__)
 def save_base_model(
     model: BaseModel,
     path: str | Path,
+    overwrite: bool = False,
     **kwargs,
 ) -> None:
     """
@@ -24,7 +25,7 @@ def save_base_model(
         path.parent.mkdir(parents=True)
         logger.info(f"Created parent directory: {path.parent}")
 
-    if path.exists():
+    if path.exists() and not overwrite:
         raise FileExistsError(f"File '{path}' already exists.")
 
     path.write_text(model.model_dump_json(indent=4, **kwargs), encoding="utf-8")
@@ -86,6 +87,7 @@ def load_base_model(
 def save_object(
     obj: object,
     path: str | Path,
+    overwrite: bool = False,
     **kwargs,
 ) -> None:
     """
@@ -99,7 +101,7 @@ def save_object(
         path.parent.mkdir(parents=True)
         logger.info(f"Created parent directory: {path.parent}")
 
-    if path.exists():
+    if path.exists() and not overwrite:
         raise FileExistsError(f"File '{path}' already exists.")
 
     path.write_text(json.dumps(obj, indent=4, **kwargs), encoding="utf-8")

@@ -13,7 +13,6 @@ async def load_art_model(
     path_config: PathConfig,
     art_config: ArtConfig | None = None,
     seed: int | None = None,
-    print_full: bool = False,
 ) -> art.TrainableModel:
     if art_config is None:
         if path_config.base_model not in art_configs.CONFIGS:
@@ -28,15 +27,8 @@ async def load_art_model(
     if path_config.base_model != art_config.base_model:
         raise ValueError(f"Model name mismatch: {path_config.base_model} != {art_config.base_model}.")        
 
-    if not print_full:
-        print("Art Config:")
-        print(art_config.model_dump_json(indent=2))
-
     art_config = art_config.initialize(output_dir=path_config.model_output_dir, seed=seed)
-
-    if print_full:
-        print("Full Art Config:")
-        print(art_config.model_dump_json(indent=2))
+    logger.info(f"ART Model Config: {art_config.model_dump_json(indent=2)}")
 
     model = art.TrainableModel(
         name=path_config.run_name,
@@ -55,7 +47,6 @@ def load_vllm_model(
     port: int = 8200,
     seed: int | None = None,
     vllm_config: VllmConfig | None = None,
-    print_full: bool = False,
 ) -> list[str]:
     if vllm_config is None:
         if model_name not in vllm_configs.CONFIGS:
@@ -69,15 +60,8 @@ def load_vllm_model(
     if vllm_config.base_model != model_name:
         raise ValueError(f"Model name mismatch: {vllm_config.base_model} != {model_name}.")
 
-    if not print_full:
-        print("vLLM Config:")
-        print(vllm_config.model_dump_json(indent=2))
-
     vllm_config = vllm_config.initialize(port=port, seed=seed)
-
-    if print_full:
-        print("Full vLLM Config:")
-        print(vllm_config.model_dump_json(indent=2))
+    logger.info(f"vLLM Model Config: {vllm_config.model_dump_json(indent=2)}")
 
     engine_args = vllm_config.openai_config.get("engine_args", {})
     server_args = vllm_config.openai_config.get("server_args", {})
