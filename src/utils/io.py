@@ -120,6 +120,9 @@ def load_object(
         path = Path(path)
 
     if not path.exists():
+        if not do_raise:
+            logger.warning(f"Object file '{path}' does not exist.")
+            return None
         raise FileNotFoundError(f"Object file '{path}' does not exist.")
 
     try:

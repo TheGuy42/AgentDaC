@@ -1,17 +1,10 @@
 {
     "kwargs": {
-        "max_completion_tokens": 4000
-    },
-    "train_kwargs": {
-        "temperature": 1.0,
-        "top_p": 0.9
-    },
-    "val_kwargs": {
+        "max_completion_tokens": 1500,
         "temperature": 0.7,
         "top_p": 0.8
     },
-    "test_kwargs": {
-        "temperature": 0.7,
-        "top_p": 0.8
-    }
+    "train_kwargs": {},
+    "val_kwargs": {},
+    "test_kwargs": {}
 }
