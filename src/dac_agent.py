@@ -132,7 +132,11 @@ class AgentNode:
             logger.warning(f"Prompt role is expected to be 'user', but got {prompt['role']}.")
 
         self.trajectory.messages_and_choices.append(prompt)
-        self.metadata["prompt"] = prompt.get("content", "")  # type: ignore
+        
+        # Store the initial prompt in metadata for reference
+        content = prompt.get("content")
+        if isinstance(content, str):
+            self.metadata["prompt"] = content
 
         if verbose:
             print(trajectory_string(self.trajectory, indent=self.current_depth))
@@ -142,8 +146,8 @@ class AgentNode:
         while True:
             # Call the OpenAI API to get a response
             completion = await self._call(self.trajectory.messages(), **kwargs)
-            last_choice = completion.choices[0]
-            self.trajectory.messages_and_choices.append(last_choice)
+            choice = completion.choices[0]
+            self.trajectory.messages_and_choices.append(choice)
 
             # Update metrics
             self.metrics["total_calls"] += 1
@@ -205,7 +209,7 @@ class AgentNode:
             self.decomp_config.update_round(num_tasks=len(tasks_inputs))
 
         # Update final stats
-        self.metrics["has_finished"] = last_choice.finish_reason != "length"
+        self.metrics["has_finished"] = choice.finish_reason != "length"
         self.trajectory.finish()
 
         return self.trajectory
