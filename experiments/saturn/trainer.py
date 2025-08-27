@@ -3,26 +3,37 @@ from src.trainer import Trainer, RolloutStage
 from src.openai_types import UserMessage
 from src.utils.markers import Markers
 from src.utils.text import extract_answer, extract_between
+from src.configs import DecompConfig
 
 from experiments.general_rewards import format_reward, behavior_reward
 from experiments.saturn.rewards import answer_reward
 from experiments.saturn.format import format_prompt
 
 import art
+import random
 
 
 class SaturnTrainer(Trainer):
     """
     See: https://arxiv.org/abs/2505.16368
     """
-    
+
     def create_agent(self, stage: RolloutStage) -> AgentNode:
         client = self.vllm_router.next()
+        decomp_config = self.decomp_config
+
+        if stage == RolloutStage.Train and self.extra_config.get("randomize_decomp_depth", False):
+            decomp_config = DecompConfig(
+                max_depth=0 if random.randint(1, 3) <= 1 else 1,
+                max_tasks=decomp_config.max_tasks,
+                max_rounds=decomp_config.max_rounds,
+            )
+
         return AgentNode(
             model_name=self.model.get_inference_name(),
             openai_client=client.openai_client,
             prompt_config=self.prompt_config,
-            decomp_config=self.decomp_config,
+            decomp_config=decomp_config,
         )
 
     async def forward_step(
