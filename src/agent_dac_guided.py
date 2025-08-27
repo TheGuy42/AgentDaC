@@ -264,7 +264,7 @@ class AgentGuidedNode(AgentNode):
             self.decomp_config.update_round(num_tasks=1)
 
         # Update final stats
-        self.metrics["has_finished"] = choice.finish_reason != "length"
+        self.metrics["response_completed"] = choice.finish_reason != "length"
         self.trajectory.finish()
 
         return self.trajectory
