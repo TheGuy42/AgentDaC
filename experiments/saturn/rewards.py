@@ -48,29 +48,43 @@ def calc_sat_value(clause: str, solution: str) -> bool:
     return True
 
 
-def verify(llm_answer: str, clause: str) -> bool:
-    try:
-        parsed = mv.parse(llm_answer, raise_on_error=False, parsing_timeout=1)
-        if len(parsed) == 0:
-            return False
+def answer_reward(sample: dict[str, str], message: Message) -> tuple[float, bool]:
+    """
+    Answer correctness reward function.
 
-        ans_obj = parsed[0]
+    Args:
+        sample (dict): A dictionary containing all relevant ground truth information.
+        message (Message): The message object containing the model's response.
+
+    Returns:
+        (tuple[float, bool]): A tuple (reward, parsed) where reward is 1.0 if the answer is correct, 0.0 otherwise,
+            and parsed is True if the answer was successfully parsed, False otherwise.
+    """
+    try:
+        content = message.get("content")
+        assert message["role"] == "assistant", f"Expected role 'assistant', got '{message['role']}'"
+        assert isinstance(content, str), f"Expected content to be a string, got {type(content)}"
+
+        llm_answer = text_utils.extract_answer(content)
+        llm_parsed = mv.parse(llm_answer, raise_on_error=False, parsing_timeout=1)
+
+        if len(llm_parsed) == 0:
+            return (0.0, False)
+
+        ans_obj = llm_parsed[0]
         if not isinstance(ans_obj, Number):
-            return False
+            return (0.0, False)
 
         value = ans_obj.floor()
         solution = str(int(value))
-        return calc_sat_value(clause, solution)
+
+        is_sat = calc_sat_value(
+            clause=sample["clause"],
+            solution=solution,
+        )
+
+        return (1.0 if is_sat else 0.0), True
 
     except Exception as e:
-        logger.warning(f"Failed to evaluate LLM answer '{llm_answer}': {e}")
-        return False
-
-
-def answer_reward(sample: dict[str, str], message: Message) -> float:
-    content = message.get("content")
-    assert message["role"] == "assistant", f"Expected role 'assistant', got '{message['role']}'"
-    assert isinstance(content, str), f"Expected content to be a string, got {type(content)}"
-
-    pred_answer = text_utils.extract_answer(content)
-    return 1.0 if verify(pred_answer, sample["clause"]) else 0.0
+        logger.warning(f"Error during answer reward computation: {e}")
+        return (0.0, False)

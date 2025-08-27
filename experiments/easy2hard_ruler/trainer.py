@@ -24,7 +24,8 @@ class Easy2HardRulerTrainer(Easy2HardTrainer):
 
         # Compute rewards
         trajectory.reward = 0.0
-        ans_reward = 2.0 * answer_reward(sample, ans_message)
+        ans_reward, parse_success = answer_reward(sample, ans_message)
+        ans_reward = 2.0 * ans_reward
         trajectory.reward += ans_reward
         fmt_reward = format_reward(trajectory)
         trajectory.reward += fmt_reward
@@ -43,6 +44,7 @@ class Easy2HardRulerTrainer(Easy2HardTrainer):
                 "reward_behavior": bhv_reward,
                 "is_correct": ans_reward > 0.0,
                 "gave_answer": num_answers > 0,
+                "parse_success": parse_success,
             }
         )
 
