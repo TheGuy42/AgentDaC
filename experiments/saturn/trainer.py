@@ -12,6 +12,10 @@ import art
 
 
 class SaturnTrainer(Trainer):
+    """
+    See: https://arxiv.org/abs/2505.16368
+    """
+    
     def create_agent(self, stage: RolloutStage) -> AgentNode:
         client = self.vllm_router.next()
         return AgentNode(

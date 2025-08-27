@@ -2,8 +2,6 @@
     "epochs": 100,
     "num_groups": 10,
     "group_size": 10,
-    "min_reward_stdev": null,
-    "train_log_steps": 1,
     "eval_log_steps": 3,
     "eval_size": 25,
     "delete_checkpoints": false,

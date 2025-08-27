@@ -21,9 +21,7 @@ class TrainingConfig(BaseModel, extra="allow"):
     epochs: int = 1
     num_groups: int = 12
     group_size: int = 8
-    min_reward_stdev: float | None = None
 
-    train_log_steps: int = 1
     train_size: int | None = None
     val_log_steps: int = 5
     val_size: int | None = None

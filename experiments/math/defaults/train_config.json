@@ -2,8 +2,6 @@
     "epochs": 5,
     "num_groups": 16,
     "group_size": 8,
-    "min_reward_stdev": null,
-    "train_log_steps": 1,
     "train_size": null,
     "val_log_steps": 10,
     "val_size": 512,

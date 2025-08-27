@@ -190,23 +190,6 @@ class Trainer:
                     max_exceptions=config.max_exceptions,
                 )
 
-            # Log training trajectories
-            if train_batch.step % config.train_log_steps == 0:
-                await self.model.log(train_groups, split=RolloutStage.Train.value)
-
-            # Filter groups with low reward standard deviation
-            filtered_groups = []
-            for group in train_groups:
-                rewards = [tr.reward for tr in group.trajectories]
-                if config.min_reward_stdev is None or np.std(rewards) >= config.min_reward_stdev:
-                    filtered_groups.append(group)
-
-            train_groups = filtered_groups
-
-            if len(train_groups) == 0:
-                logger.warning(f"No trajectories left to train on at step {train_batch.step}. Skipping this step.")
-                continue
-
             # Train step
             await self.model.train(
                 train_groups,
