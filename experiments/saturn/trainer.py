@@ -20,15 +20,25 @@ class SaturnTrainer(Trainer):
 
     def create_agent(self, stage: RolloutStage) -> AgentNode:
         client = self.vllm_router.next()
-        decomp_config = self.decomp_config
 
-        if stage == RolloutStage.Train and self.extra_config.get("randomize_decomp_depth", False):
-            decomp_config = DecompConfig(
-                max_depth=random.randint(0, self.decomp_config.max_depth or 10),
-                max_tasks=decomp_config.max_tasks,
-                max_rounds=decomp_config.max_rounds,
-            )
+        max_depth = self.decomp_config.max_depth
+        max_tasks = self.decomp_config.max_tasks
+        max_rounds = self.decomp_config.max_rounds
 
+        if stage == RolloutStage.Train:
+            if self.extra_config.get("randomize_decomp_depth", False):
+                max_depth = random.randint(0, self.decomp_config.max_depth or 10)
+            if self.extra_config.get("randomize_decomp_tasks", False):
+                max_tasks = random.randint(0, self.decomp_config.max_tasks or 10)
+            if self.extra_config.get("randomize_decomp_rounds", False):
+                max_rounds = random.randint(0, self.decomp_config.max_rounds or 10)
+
+        decomp_config = DecompConfig(
+            max_depth=max_depth,
+            max_tasks=max_tasks,
+            max_rounds=max_rounds,
+        )
+        
         return AgentNode(
             model_name=self.model.get_inference_name(),
             openai_client=client.openai_client,
