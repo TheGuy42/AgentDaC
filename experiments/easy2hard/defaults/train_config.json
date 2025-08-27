@@ -11,7 +11,9 @@
         "learning_rate": 0.000002,
         "beta": 0.001
     },
-    "dev_art_config": null,
+    "dev_art_config": {
+        "epsilon": 25
+    },
     "ruler_config": null,
     "verbose": false,
     "max_exceptions": 4

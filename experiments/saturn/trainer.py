@@ -24,7 +24,7 @@ class SaturnTrainer(Trainer):
 
         if stage == RolloutStage.Train and self.extra_config.get("randomize_decomp_depth", False):
             decomp_config = DecompConfig(
-                max_depth=0 if random.randint(1, 3) <= 1 else 1,
+                max_depth=random.randint(0, self.decomp_config.max_depth or 10),
                 max_tasks=decomp_config.max_tasks,
                 max_rounds=decomp_config.max_rounds,
             )
