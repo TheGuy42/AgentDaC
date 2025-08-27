@@ -53,7 +53,6 @@ class SaturnTrainer(Trainer):
         bhv_reward = behavior_reward(trajectory)
         trajectory.reward += bhv_reward
 
-        problem = format_prompt(sample)
         answer = sample["solution"].strip()
         agent_answer = extract_answer(ans_content)
         num_answers = len(extract_between(ans_content, Markers.ANSWER_START, Markers.ANSWER_END))
@@ -64,15 +63,14 @@ class SaturnTrainer(Trainer):
                 "answer_reward": ans_reward,
                 "format_reward": fmt_reward,
                 "behavior_reward": bhv_reward,
-                "is_correct": int(ans_reward > 0.0),
-                "gave_answer": int(num_answers > 0),
+                "is_correct": ans_reward > 0.0,
+                "gave_answer": num_answers > 0,
             }
         )
 
         # Update metadata
         trajectory.metadata.update(
             {
-                "problem": problem,
                 "answer": answer,
                 "agent_answer": agent_answer,
                 "clause": sample["clause"],

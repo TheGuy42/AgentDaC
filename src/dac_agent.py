@@ -50,6 +50,10 @@ class AgentNode:
     def metrics(self) -> dict[str, float | int | bool]:
         return self.trajectory.metrics
 
+    @property
+    def metadata(self) -> dict[str, float | int | str | bool | None]:
+        return self.trajectory.metadata
+
     def __str__(self) -> str:
         return trajectory_string(self.trajectory)
 
@@ -128,6 +132,7 @@ class AgentNode:
             logger.warning(f"Prompt role is expected to be 'user', but got {prompt['role']}.")
 
         self.trajectory.messages_and_choices.append(prompt)
+        self.metadata["prompt"] = prompt.get("content", "")  # type: ignore
 
         if verbose:
             print(trajectory_string(self.trajectory, indent=self.current_depth))
@@ -137,7 +142,8 @@ class AgentNode:
         while True:
             # Call the OpenAI API to get a response
             completion = await self._call(self.trajectory.messages(), **kwargs)
-            self.trajectory.messages_and_choices.append(completion.choices[0])
+            last_choice = completion.choices[0]
+            self.trajectory.messages_and_choices.append(last_choice)
 
             # Update metrics
             self.metrics["total_calls"] += 1
@@ -151,13 +157,16 @@ class AgentNode:
             # Extract tasks from the response
             tasks_inputs = self.parse_tasks(self.trajectory.messages()[-1])
 
+            # If no tasks to delegate then last message
             if should_break or len(tasks_inputs) == 0:
-                break  # No tasks to delegate, so last message
+                break
 
             task_responses: list[AssistantMessage] = []
 
             if self.decomp_config.should_stop(self.current_depth):
                 mock_answer = get_prompt(self.prompt_config.tasks_depleted)
+
+                # If no mock answer provided then immediately stop
                 if mock_answer is None:
                     break
 
@@ -195,7 +204,10 @@ class AgentNode:
 
             self.decomp_config.update_round(num_tasks=len(tasks_inputs))
 
+        # Update final stats
+        self.metrics["has_finished"] = last_choice.finish_reason != "length"
         self.trajectory.finish()
+
         return self.trajectory
 
     async def answer(self, prompt: Message, verbose: bool = False, **kwargs) -> AssistantMessage:

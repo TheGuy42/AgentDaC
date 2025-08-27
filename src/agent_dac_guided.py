@@ -158,6 +158,7 @@ class AgentGuidedNode(AgentNode):
             logger.warning(f"Prompt role is expected to be 'user', but got {prompt.get('role')!r}.")
 
         self.trajectory.messages_and_choices.append(prompt)
+        self.metadata["prompt"] = prompt.get("content", "")  # type: ignore
 
         if verbose:
             print(trajectory_string(self.trajectory, indent=self.current_depth))
@@ -169,7 +170,8 @@ class AgentGuidedNode(AgentNode):
         while True:
             # Model turn
             completion = await self._call(self.trajectory.messages(), **kwargs)
-            self.trajectory.messages_and_choices.append(completion.choices[0])
+            last_choice = completion.choices[0]
+            self.trajectory.messages_and_choices.append(last_choice)
 
             # Update metrics
             self.metrics["total_calls"] += 1
@@ -257,5 +259,8 @@ class AgentGuidedNode(AgentNode):
             # Inform decomp state that we used one task this round
             self.decomp_config.update_round(num_tasks=1)
 
+        # Update final stats
+        self.metrics["has_finished"] = last_choice.finish_reason != "length"
         self.trajectory.finish()
+
         return self.trajectory

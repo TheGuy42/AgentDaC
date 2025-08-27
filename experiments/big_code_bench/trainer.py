@@ -44,7 +44,6 @@ class BigCodeBenchTrainer(Trainer):
         assert ans_message["role"] == "assistant", f"Expected role 'assistant', got '{ans_message['role']}'"
         assert isinstance(ans_content, str), f"Expected content to be a string, got {type(ans_content)}"
 
-        problem = format_prompt(sample)
         answer = sample["canonical_solution"]  # sample["answer"].strip()
         agent_answer = extract_answer(ans_content)
         num_answers = len(extract_between(ans_content, Markers.ANSWER_START, Markers.ANSWER_END))
@@ -70,8 +69,8 @@ class BigCodeBenchTrainer(Trainer):
                 "answer_reward": ans_reward,
                 "format_reward": fmt_reward,
                 "behavior_reward": bhv_reward,
-                "is_correct": int(result.returncode),
-                "gave_answer": int(num_answers > 0),
+                "is_correct": result.returncode,
+                "gave_answer": num_answers > 0,
                 "execution_time": result.execution_time if result.execution_time is not None else -1000000.0,
             }
         )
@@ -79,12 +78,9 @@ class BigCodeBenchTrainer(Trainer):
         # Update metadata
         trajectory.metadata.update(
             {
-                "problem": problem,
                 "answer": answer,
                 "agent_answer": agent_answer,
-                # "item_difficulty": sample["item_difficulty"],
             }
         )
 
         return trajectory
-

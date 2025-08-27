@@ -5,7 +5,6 @@ from src.utils.text import extract_answer, extract_between
 from experiments.general_rewards import format_reward, behavior_reward
 from experiments.easy2hard.trainer import Easy2HardTrainer
 from experiments.easy2hard.rewards import answer_reward
-from experiments.easy2hard.format import format_prompt
 
 import art
 from art.rewards import ruler_score_group
@@ -32,7 +31,6 @@ class Easy2HardRulerTrainer(Easy2HardTrainer):
         bhv_reward = behavior_reward(trajectory)
         trajectory.reward += bhv_reward
 
-        problem = format_prompt(sample)
         answer = sample["answer"].strip()
         agent_answer = extract_answer(ans_content)
         num_answers = len(extract_between(ans_content, Markers.ANSWER_START, Markers.ANSWER_END))
@@ -43,15 +41,14 @@ class Easy2HardRulerTrainer(Easy2HardTrainer):
                 "reward_answer": ans_reward,
                 "reward_format": fmt_reward,
                 "reward_behavior": bhv_reward,
-                "is_correct": int(ans_reward > 0.0),
-                "gave_answer": int(num_answers > 0),
+                "is_correct": ans_reward > 0.0,
+                "gave_answer": num_answers > 0,
             }
         )
 
         # Update metadata
         trajectory.metadata.update(
             {
-                "problem": problem,
                 "answer": answer,
                 "agent_answer": agent_answer,
                 "item_difficulty": sample["item_difficulty"],

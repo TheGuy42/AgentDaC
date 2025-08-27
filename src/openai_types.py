@@ -7,4 +7,5 @@ from openai.types.chat import (
     ChatCompletionDeveloperMessageParam as DeveloperMessage,
 )
 
+from openai.types.chat.chat_completion import Choice
 from art.types import Message
