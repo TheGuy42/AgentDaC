@@ -4,7 +4,7 @@
     "group_size": 16,
     "train_size": null,
     "val_log_steps": 5,
-    "val_size": 333,
+    "val_size": 500,
     "delete_checkpoints": true,
     "checkpoint_metric": "reward",
     "art_config": {
