@@ -3,22 +3,43 @@ from src.trainer import Trainer, RolloutStage
 from src.openai_types import UserMessage
 from src.utils.markers import Markers
 from src.utils.text import extract_answer, extract_between
+from src.configs import DecompConfig
 
 from experiments.general_rewards import format_reward, behavior_reward
 from experiments.math.rewards import answer_reward
 from experiments.math.format import format_prompt
 
 import art
+import random
 
 
 class MathTrainer(Trainer):
     def create_agent(self, stage: RolloutStage) -> AgentNode:
         client = self.vllm_router.next()
+
+        max_depth = self.decomp_config.max_depth
+        max_tasks = self.decomp_config.max_tasks
+        max_rounds = self.decomp_config.max_rounds
+
+        if stage == RolloutStage.Train:
+            if self.extra_config.get("randomize_decomp_depth", False):
+                max_depth = random.randint(0, self.decomp_config.max_depth or 10)
+            if self.extra_config.get("randomize_decomp_tasks", False):
+                max_tasks = random.randint(0, self.decomp_config.max_tasks or 10)
+            if self.extra_config.get("randomize_decomp_rounds", False):
+                max_rounds = random.randint(0, self.decomp_config.max_rounds or 10)
+
+        decomp_config = DecompConfig(
+            max_depth=max_depth,
+            max_tasks=max_tasks,
+            max_rounds=max_rounds,
+        )
+        
         return AgentNode(
             model_name=self.model.get_inference_name(),
             openai_client=client.openai_client,
             prompt_config=self.prompt_config,
-            decomp_config=self.decomp_config,
+            decomp_config=decomp_config,
         )
 
     async def forward_step(
@@ -54,7 +75,6 @@ class MathTrainer(Trainer):
         bhv_reward = behavior_reward(trajectory)
         trajectory.reward += bhv_reward
 
-        answer = sample["solution"].strip()
         agent_answer = extract_answer(ans_content)
         num_answers = len(extract_between(ans_content, Markers.ANSWER_START, Markers.ANSWER_END))
 
@@ -73,10 +93,11 @@ class MathTrainer(Trainer):
         # Update metadata
         trajectory.metadata.update(
             {
-                "answer": answer,
+                "answer": sample["answer"],
                 "agent_answer": agent_answer,
+                "subject": sample["subject"],
                 "level": sample["level"],
-                "type": sample["type"],
+                "unique_id": sample["unique_id"],
             }
         )
 

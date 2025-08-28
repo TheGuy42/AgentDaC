@@ -3,7 +3,6 @@ import random
 from enum import Enum
 
 from wandb.sdk.wandb_run import Run as WandbRun
-import numpy as np
 import asyncio
 
 import art

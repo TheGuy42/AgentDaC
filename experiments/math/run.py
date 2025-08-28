@@ -1,3 +1,4 @@
+from argparse import ArgumentParser
 import sys
 import pathlib
 
@@ -22,15 +23,34 @@ class Runner(ExperimentRunner):
     def default_config_dir(self) -> str:
         return "experiments/math/defaults"
 
+    def add_arguments(self, parser: ArgumentParser) -> None:
+        parser.add_argument(
+            "--min_level",
+            type=int,
+            default=1,
+        )
+        
+        parser.add_argument(
+            "--max_level",
+            type=int,
+            default=5,
+        )
+
     def load_data(self) -> tuple[Dataset, Dataset]:
         dataset_dict: DatasetDict = load_dataset(
-            path="ankner/math-500",
-            name="E2H-AMC",
+            path="nlile/hendrycks-MATH-benchmark",
             split=None,
         )  # type: ignore
 
         ds_train: Dataset = dataset_dict["train"]
         ds_val: Dataset = dataset_dict["test"]
+        
+        # filter by difficulty
+        min_level = self.args().min_level
+        max_level = self.args().max_level
+        ds_train = ds_train.filter(lambda sample: max_level >= sample["level"] >= min_level)
+        ds_val = ds_val.filter(lambda sample: max_level >= sample["level"] >= min_level)
+
         return ds_train, ds_val
 
     def create_trainer(self, model: TrainableModel, **kwargs) -> Trainer: 

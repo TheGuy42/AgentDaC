@@ -28,6 +28,12 @@ class Runner(ExperimentRunner):
             type=int,
             default=0,
         )
+        
+        parser.add_argument(
+            "--max_difficulty",
+            type=int,
+            default=100,
+        )
 
     def load_data(self) -> tuple[Dataset, Dataset]:
         dataset_dict: DatasetDict = load_dataset(
@@ -41,9 +47,10 @@ class Runner(ExperimentRunner):
         ds_val: Dataset = dataset_dict["train"]
 
         # filter by difficulty
-        difficulty = self.args().min_difficulty
-        ds_train = ds_train.filter(lambda sample: sample["item_difficulty"] >= difficulty)
-        ds_val = ds_val.filter(lambda sample: sample["item_difficulty"] >= difficulty)
+        min_dif = self.args().min_difficulty
+        max_dif = self.args().max_difficulty
+        ds_train = ds_train.filter(lambda sample: max_dif >= sample["item_difficulty"] >= min_dif)
+        ds_val = ds_val.filter(lambda sample: max_dif >= sample["item_difficulty"] >= min_dif)
 
         return ds_train, ds_val
 

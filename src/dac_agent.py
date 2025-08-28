@@ -109,6 +109,12 @@ class AgentNode:
             logprobs=True,
             **kwargs,
         )
+        
+    # NOTE: experimental
+    def remaining_budget_string(self) -> str:
+        if self.decomp_config.max_tasks is None:
+            return "INFO: Unlimited number of tasks available."
+        return f"INFO: Number of available tasks: {max(self.decomp_config.max_tasks - self.decomp_config.total_tasks, 0)}"
 
     async def chat(
         self,
@@ -130,6 +136,10 @@ class AgentNode:
         """
         if prompt["role"] != "user":
             logger.warning(f"Prompt role is expected to be 'user', but got {prompt['role']}.")
+            
+        # NOTE: experimental
+        if not self.decomp_config.should_stop(self.current_depth):
+            prompt["content"] = f"{prompt.get('content')}\n\n{self.remaining_budget_string()}"
 
         self.trajectory.messages_and_choices.append(prompt)
         
@@ -194,19 +204,26 @@ class AgentNode:
             # Update metrics
             self.metrics["direct_tasks"] += len(tasks_inputs)
             self.metrics["total_tasks"] += len(tasks_inputs)
+            
+            self.decomp_config.update_round(num_tasks=len(tasks_inputs))
 
             # Create a new message with all tasks' answers
             tasks_answers = [
                 "{} {} {}".format(Markers.ANSWER_START, resp.get("content"), Markers.ANSWER_END)
                 for resp in task_responses
             ]
-            joined_message = UserMessage(role="user", content="\n".join(tasks_answers))
+            
+            unified_answer = "\n".join(tasks_answers)
+            
+            # NOTE: experimental
+            unified_answer = f"{unified_answer}\n\n{self.remaining_budget_string()}"
+            
+            joined_message = UserMessage(role="user", content=unified_answer)
             self.trajectory.messages_and_choices.append(joined_message)
 
             if verbose:
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
 
-            self.decomp_config.update_round(num_tasks=len(tasks_inputs))
 
         # Update final stats
         self.metrics["response_completed"] = choice.finish_reason != "length"

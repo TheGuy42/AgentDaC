@@ -24,10 +24,10 @@ def answer_reward(sample: dict[str, str], message: Message) -> tuple[float, bool
         assert message["role"] == "assistant", f"Expected role 'assistant', got '{message['role']}'"
         assert isinstance(content, str), f"Expected content to be a string, got {type(content)}"
 
-        gold_answer = sample["solution"]
+        gold_answer = sample["answer"]
         llm_answer = text_utils.extract_answer(content)
 
-        gold_parsed = mv.parse(gold_answer, raise_on_error=True)
+        gold_parsed = mv.parse(f"${gold_answer}$", raise_on_error=True)
         llm_parsed = mv.parse(llm_answer, raise_on_error=True)
         is_correct = mv.verify(gold_parsed, llm_parsed, raise_on_error=True)
         return (1.0 if is_correct else 0.0, True)
