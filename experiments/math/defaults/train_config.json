@@ -5,7 +5,7 @@
     "train_size": null,
     "val_log_steps": 5,
     "val_size": 500,
-    "delete_checkpoints": true,
+    "delete_checkpoints": false,
     "checkpoint_metric": "reward",
     "art_config": {
         "learning_rate": 0.000002,
