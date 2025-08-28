@@ -109,12 +109,14 @@ class AgentNode:
             logprobs=True,
             **kwargs,
         )
-        
+
     # NOTE: experimental
     def remaining_budget_string(self) -> str:
         if self.decomp_config.max_tasks is None:
             return "INFO: Unlimited number of tasks available."
-        return f"INFO: Number of available tasks: {max(self.decomp_config.max_tasks - self.decomp_config.total_tasks, 0)}"
+        return (
+            f"INFO: Number of available tasks: {max(self.decomp_config.max_tasks - self.decomp_config.total_tasks, 0)}"
+        )
 
     async def chat(
         self,
@@ -136,13 +138,13 @@ class AgentNode:
         """
         if prompt["role"] != "user":
             logger.warning(f"Prompt role is expected to be 'user', but got {prompt['role']}.")
-            
+
         # NOTE: experimental
         if not self.decomp_config.should_stop(self.current_depth):
             prompt["content"] = f"{prompt.get('content')}\n\n{self.remaining_budget_string()}"
 
         self.trajectory.messages_and_choices.append(prompt)
-        
+
         # Store the initial prompt in metadata for reference
         content = prompt.get("content")
         if isinstance(content, str):
@@ -175,7 +177,7 @@ class AgentNode:
             if should_break or len(tasks_inputs) == 0:
                 break
 
-            task_responses: list[AssistantMessage] = []
+            tasks_answers: list[str] = []
 
             if self.decomp_config.should_stop(self.current_depth):
                 mock_answer = get_prompt(self.prompt_config.tasks_depleted)
@@ -187,14 +189,14 @@ class AgentNode:
                 should_break = True
                 for task in tasks_inputs:
                     # Provide mock answer indicating no more tasks available
-                    task_responses.append(AssistantMessage(role="assistant", content=mock_answer))
+                    tasks_answers.append(mock_answer)
 
             else:
                 for task in tasks_inputs:
                     # create a sub-agent and get answer the task
                     sub_agent = self.create_sub_agent()
-                    resp = await sub_agent.answer(task, verbose, **kwargs)
-                    task_responses.append(resp)
+                    ans = await sub_agent.answer(task, verbose, **kwargs)
+                    tasks_answers.append(ans)
 
                     # update metrics from sub-agent
                     self.metrics["total_tasks"] += sub_agent.metrics["total_tasks"]
@@ -204,26 +206,21 @@ class AgentNode:
             # Update metrics
             self.metrics["direct_tasks"] += len(tasks_inputs)
             self.metrics["total_tasks"] += len(tasks_inputs)
-            
+
             self.decomp_config.update_round(num_tasks=len(tasks_inputs))
 
             # Create a new message with all tasks' answers
-            tasks_answers = [
-                "{} {} {}".format(Markers.ANSWER_START, resp.get("content"), Markers.ANSWER_END)
-                for resp in task_responses
-            ]
-            
+            tasks_answers = [f"{Markers.ANSWER_START} {ans} {Markers.ANSWER_END}" for ans in tasks_answers]
             unified_answer = "\n".join(tasks_answers)
-            
+
             # NOTE: experimental
             unified_answer = f"{unified_answer}\n\n{self.remaining_budget_string()}"
-            
+
             joined_message = UserMessage(role="user", content=unified_answer)
             self.trajectory.messages_and_choices.append(joined_message)
 
             if verbose:
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
-
 
         # Update final stats
         self.metrics["response_completed"] = choice.finish_reason != "length"
@@ -231,7 +228,7 @@ class AgentNode:
 
         return self.trajectory
 
-    async def answer(self, prompt: Message, verbose: bool = False, **kwargs) -> AssistantMessage:
+    async def answer(self, prompt: Message, verbose: bool = False, **kwargs) -> str:
         """
         Answer a question using the agent.
 
@@ -240,11 +237,13 @@ class AgentNode:
             verbose (bool): If True, print the conversation messages.
             **kwargs: Additional keyword arguments to pass to OpenAI API call.
         Returns:
-            (AssistantMessage): The answer message from the agent.
+            (str): The answer text from the agent.
         """
         trajectory = await self.chat(prompt, verbose=verbose, **kwargs)
-        return self.parse_answer(trajectory.messages()[-1])
+        answer_message = self.parse_answer(trajectory.messages()[-1])
+        return answer_message.get("content", "").strip()  # type: ignore
 
+    # TODO: overhaul, to directly return a string
     def parse_answer(self, message: Message) -> AssistantMessage:
         if message["role"] != "assistant":
             logger.error(f"Expected message role 'assistant', got {message['role']}")

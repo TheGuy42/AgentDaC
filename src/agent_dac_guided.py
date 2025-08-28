@@ -3,7 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import re
-from typing import Any, Iterable
+from typing import Any
 
 from enum import Enum
 from dataclasses import dataclass
@@ -13,7 +13,7 @@ from art import Trajectory
 
 from src.dac_agent import AgentNode
 from src.configs.prompts import get_prompt
-from src.openai_types import Message, UserMessage, AssistantMessage
+from src.openai_types import Message, UserMessage
 from src.utils.visualize import trajectory_string, message_string
 from src.utils.markers import Markers
 from src.utils.logging import create_logger
@@ -35,15 +35,6 @@ class AgentTurn:
     raw: dict[str, Any]
 
 
-# --- Exceptions for guided JSON handling ---
-class IncompleteGuidedJSONError(RuntimeError):
-    """Raised when the model output was truncated (finish_reason == 'length') and JSON is incomplete."""
-
-
-class UnexpectedGuidedJSONError(RuntimeError):
-    """Raised when guided JSON is malformed for any reason other than truncation."""
-
-
 class GuidedSchema:
     """
     Pure schema helper: builds the JSON schema and parses a raw JSON string into an AgentTurn.
@@ -53,9 +44,10 @@ class GuidedSchema:
     - parse(content: str) -> AgentTurn: parse a raw assistant content string
     """
 
-    def __init__(self, actions: Iterable[AgentAction]) -> None:
+    def __init__(self, *actions: AgentAction) -> None:
         self.actions = actions
 
+    # NOTE: its possible that structured output automatically handles special characters and escapes them automatically, test
     def build(self) -> dict[str, Any]:
         """Return the schema descriptor for response_format."""
         turn_schema = {
@@ -86,32 +78,29 @@ class GuidedSchema:
         }
         return {
             "name": "dac_turn",
-            "strict": True,
+            "description": "Schema for a single AgentDaC turn.",  # TODO: should actually be descriptive, as it is used by the model
+            "strict": True,  # NOTE: maybe should be false actually
             "schema": turn_schema,
         }
 
     def parse(self, content: str) -> AgentTurn:
-        if not content.strip():
-            raise UnexpectedGuidedJSONError("Assistant content is empty.")
         try:
             obj = json.loads(content)
         except Exception as e:
-            raise UnexpectedGuidedJSONError(f"Failed to parse guided JSON content: {e}") from e
+            raise ValueError(f"Failed to parse guided JSON content: {e}") from e
         if not isinstance(obj, dict):
-            raise UnexpectedGuidedJSONError("Top-level guided JSON is not an object.")
+            raise ValueError("Top-level guided JSON is not an object.")
 
         action_val = obj.get("action")
         if not isinstance(action_val, str):
-            raise UnexpectedGuidedJSONError("Missing or invalid 'action' field.")
+            raise ValueError("Missing or invalid 'action' field.")
         try:
             action = AgentAction(action_val)
         except Exception as e:
-            raise UnexpectedGuidedJSONError(f"Invalid action {action_val!r}. Allowed: {self.actions}.") from e
+            raise ValueError(f"Invalid action {action_val!r}. Allowed: {self.actions}.") from e
 
         if action not in self.actions:
-            raise UnexpectedGuidedJSONError(
-                f"Action {action.value!r} is not allowed for this turn. Allowed: {self.actions}"
-            )
+            raise ValueError(f"Action {action.value!r} is not allowed for this turn. Allowed: {self.actions}")
 
         text = self._decode_text_b64(obj.get("text_b64"))
         return AgentTurn(action=action, text=text.strip(), raw=obj)
@@ -119,17 +108,17 @@ class GuidedSchema:
     @staticmethod
     def _decode_text_b64(value: Any) -> str:
         if not isinstance(value, str) or not value:
-            raise UnexpectedGuidedJSONError("Field 'text_b64' must be a non-empty string.")
+            raise ValueError("Field 'text_b64' must be a non-empty string.")
         # Remove all whitespace to be robust to LLM formatting
         cleaned = re.sub(r"\s+", "", value)
         try:
             decoded_bytes = base64.b64decode(cleaned, validate=True)
         except Exception as e:
-            raise UnexpectedGuidedJSONError(f"Failed to base64-decode 'text_b64': {e}") from e
+            raise ValueError(f"Failed to base64-decode 'text_b64': {e}") from e
         try:
             return decoded_bytes.decode("utf-8")
         except Exception as e:
-            raise UnexpectedGuidedJSONError(f"Decoded 'text_b64' is not valid UTF-8: {e}") from e
+            raise ValueError(f"Decoded 'text_b64' is not valid UTF-8: {e}") from e
 
 
 class AgentGuidedNode(AgentNode):
@@ -150,34 +139,30 @@ class AgentGuidedNode(AgentNode):
     a task or finalize with an answer.
     """
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # NOTE: temporarily here, should be in self.decomp_config
+        self.think_turns = 0
+        self.max_think_turns = 8
+
     async def _call(self, messages: list[Message], **kwargs) -> ChatCompletion:
         """Call the model with JSON-schema structured output enabled. Uses all actions by default."""
-        # Ensure we are not mixing tool-calls with structured outputs
-        kwargs = dict(kwargs)
-        kwargs.pop("tools", None)
-        kwargs.pop("tool_choice", None)
-        # For JSON-only outputs, no stop sequences are necessary
-        kwargs.setdefault("stop", [])
 
-        extra_body = kwargs.setdefault("extra_body", {})
+        kwargs.setdefault("stop", [])
+        extra_body: dict = kwargs.setdefault("extra_body", {})
         extra_body.setdefault("include_stop_str_in_output", True)
 
-        # Respect a preconfigured response_format; otherwise, set it up
-        if "response_format" not in kwargs:
-            schema = GuidedSchema(tuple(AgentAction))
-            json_schema_obj = schema.build()
-            kwargs["response_format"] = {
-                "type": "json_schema",
-                "json_schema": json_schema_obj,
-            }
-            # Some vLLM builds also look for this
-            extra_body.setdefault("guided_json", json_schema_obj.get("schema", json_schema_obj))
+        if self.decomp_config.should_stop(self.current_depth):
+            schema = GuidedSchema(AgentAction.ANSWER)
+        elif self.think_turns >= self.max_think_turns:
+            schema = GuidedSchema(AgentAction.ISSUE_TASK, AgentAction.ANSWER)
         else:
-            # If provided, still try to pass through guided_json for broader compatibility
-            rf = kwargs.get("response_format", {})
-            js = rf.get("json_schema") if isinstance(rf, dict) else None
-            if isinstance(js, dict):
-                extra_body.setdefault("guided_json", js.get("schema", js))
+            schema = GuidedSchema(AgentAction.THINK, AgentAction.ISSUE_TASK, AgentAction.ANSWER)
+
+        schema_descriptor = schema.build()
+        kwargs["response_format"] = {"type": "json_schema", "json_schema": schema_descriptor}
+        extra_body["guided_json"] = schema_descriptor["schema"]
 
         return await super()._call(messages=messages, **kwargs)
 
@@ -208,23 +193,12 @@ class AgentGuidedNode(AgentNode):
         if verbose:
             print(trajectory_string(self.trajectory, indent=self.current_depth))
 
-        # Prevent unbounded thinking loops
-        think_turns = 0
-        max_think_turns = 8
-
         # Single schema/parser instance per chat loop
-        schema = GuidedSchema(tuple(AgentAction))
-        json_schema_obj = schema.build()
-        # Ensure the model is guided by this schema on each call
-        call_kwargs = dict(kwargs)
-        call_kwargs.setdefault(
-            "response_format",
-            {"type": "json_schema", "json_schema": json_schema_obj},
-        )
+        schema = GuidedSchema(AgentAction.THINK, AgentAction.ISSUE_TASK, AgentAction.ANSWER)
 
         while True:
             # Model turn
-            completion = await self._call(self.trajectory.messages(), **call_kwargs)
+            completion = await self._call(self.trajectory.messages(), **kwargs)
             choice = completion.choices[0]
             self.trajectory.messages_and_choices.append(choice)
 
@@ -237,50 +211,44 @@ class AgentGuidedNode(AgentNode):
             if verbose:
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
 
-            assistant_msg = self.trajectory.messages()[-1]
-            finish_reason = getattr(choice, "finish_reason", None)
-
-            # Extract raw content and parse via the pure schema
-            raw_content = assistant_msg.get("content")
-            raw_content = raw_content if isinstance(raw_content, str) else ""
-
             try:
+                # Extract raw content and parse it
+                assistant_msg = self.trajectory.messages()[-1]
+                raw_content = assistant_msg.get("content")
+                raw_content = raw_content if isinstance(raw_content, str) else ""
                 turn = schema.parse(raw_content)
-                action = turn.action
-            except UnexpectedGuidedJSONError as e:
-                # Classify truncation-driven failures at the node level
-                if finish_reason == "length":
-                    raise IncompleteGuidedJSONError(str(e)) from e
-                raise
+
+            except Exception as e:
+                if choice.finish_reason == "length":
+                    break
+                else:
+                    logger.error(f"Error parsing guided JSON: {e}")
+                    raise
 
             # If the model chose to answer, stop
-            if action == AgentAction.ANSWER:
+            if turn.action == AgentAction.ANSWER:
                 break
 
             # If the model chose to think, continue
-            elif action == AgentAction.THINK:
-                think_turns += 1
-                if think_turns >= max_think_turns:
+            elif turn.action == AgentAction.THINK:
+                self.think_turns += 1
+                if self.think_turns >= self.max_think_turns:
                     logger.warning("Max consecutive think turns reached; stopping to avoid infinite loop.")
                     break
                 continue
 
-            elif action == AgentAction.ISSUE_TASK:
-
-                task_text = turn.text
-                task = UserMessage(role="user", content=task_text)
-
-                # If we cannot create more tasks at this depth, inject a tasks_depleted answer
+            elif turn.action == AgentAction.ISSUE_TASK:
+                # If we cannot create more tasks, inject a tasks_depleted answer
                 if self.decomp_config.should_stop(self.current_depth):
-                    mock_answer = get_prompt(self.prompt_config.tasks_depleted)
-                    if mock_answer is None:
+                    answer = get_prompt(self.prompt_config.tasks_depleted)
+                    if answer is None:
                         break
-                    task_resp = AssistantMessage(role="assistant", content=mock_answer)
                 else:
                     # Call sub-agent
+                    task_text = turn.text
+                    task = UserMessage(role="user", content=task_text)
                     sub_agent = self.create_sub_agent()
-                    resp = await sub_agent.answer(task, verbose, **kwargs)
-                    task_resp = resp
+                    answer = await sub_agent.answer(task, verbose, **kwargs)
 
                     # Update metrics from sub-agent
                     self.metrics["total_tasks"] += sub_agent.metrics["total_tasks"]
@@ -291,27 +259,37 @@ class AgentGuidedNode(AgentNode):
                 self.metrics["direct_tasks"] += 1
                 self.metrics["total_tasks"] += 1
 
-                # Feed the task answer back as a single user message using ANSWER markers
-                content = task_resp.get("content")
-                content = content if isinstance(content, str) else ""
-                joined_message = UserMessage(
-                    role="user",
-                    content=f"{Markers.ANSWER_START} {content} {Markers.ANSWER_END}",
-                )
-                self.trajectory.messages_and_choices.append(joined_message)
+                response = UserMessage(role="user", content=f"{Markers.ANSWER_START} {answer} {Markers.ANSWER_END}")
+                self.trajectory.messages_and_choices.append(response)
 
                 if verbose:
                     print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
 
-                # Inform decomp state that we used one task this round
-                self.decomp_config.update_round(num_tasks=1)
-                
             else:
-                
-                pass # TODO: handle unexpected action
+                raise ValueError(f"Unhandled action: {turn.action}")
+
+            # Inform decomp state that we used one task this round
+            self.decomp_config.update_round(num_tasks=1)
 
         # Update final stats
         self.metrics["response_completed"] = choice.finish_reason != "length"
         self.trajectory.finish()
 
         return self.trajectory
+
+    async def answer(self, prompt: Message, verbose: bool = False, **kwargs) -> str:
+        trajectory = await self.chat(prompt, verbose=verbose, **kwargs)
+        answer_message = self.parse_answer(trajectory.messages()[-1])
+        answer_content = answer_message.get("content")
+
+        if not isinstance(answer_content, str):
+            raise ValueError("Final answer message has no valid content.")
+
+        try:
+            schema = GuidedSchema(AgentAction.ANSWER)
+            turn = schema.parse(answer_content)
+            return turn.text
+
+        except Exception as e:
+            logger.error(f"Error parsing final answer guided JSON: {e}")
+            return answer_content.strip()
