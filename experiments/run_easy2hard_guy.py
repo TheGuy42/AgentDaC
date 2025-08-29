@@ -298,7 +298,7 @@ async def main(args: argparse.Namespace):
             eval_dataset=test_data.to_list(),
         )
     finally:
-        trainer.close()
+        await trainer.close()
 
 
 if __name__ == "__main__":

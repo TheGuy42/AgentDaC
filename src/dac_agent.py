@@ -307,14 +307,12 @@ class AgentNode:
             messages (list[Message]): The list of messages to send to the API.
             **kwargs: Additional keyword arguments to pass to the API call.
         """
-        completion = await self.openai_client.chat.completions.create(
+        return await self.openai_client.chat.completions.create(
             model=self.model,
             messages=messages,
             logprobs=True,
             **kwargs,
         )
-
-        return patch_completion(completion)
 
     def _parse_answer(self, message: ChatMessage) -> ChatMessage:
         if message.role != "assistant":

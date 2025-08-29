@@ -78,7 +78,7 @@ class Trainer:
             logger.warning(f"Failed to get wandb run: {e}")
             return None
 
-    def close(self):
+    async def close(self):
         try:
             run = self.wandb_run
             if run is not None:
@@ -87,9 +87,9 @@ class Trainer:
             logger.error(f"Failed to finish wandb run: {e}")
 
         try:
-            backend: None | art.Backend = self.model._backend  # type: ignore
+            backend = self.model._backend
             if backend is not None:
-                backend.close()  # type: ignore
+                await backend.close()
         except Exception as e:
             logger.error(f"Failed to close model backend: {e}")
 

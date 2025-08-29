@@ -9,7 +9,7 @@ dependencies = [
     "ipywidgets",
     "numpy<2.0",
     "openpipe",
-    "openpipe-art[backend]",
+    "openpipe-art[backend]==0.4.9",
     "datasets",
     "torch",
     "torchtune",

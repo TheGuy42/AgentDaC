@@ -256,6 +256,29 @@ add_config(
 )
 
 add_config(
+    "Qwen/Qwen3-32B-FP8",
+    init_args=InitArgs(
+        load_in_8bit=True,
+        gpu_memory_utilization=0.85,
+        max_lora_rank=16,
+        max_seq_length=1024 * 6,
+    ),
+    engine_args=EngineArgs(
+        max_model_len=1024 * 6,
+        # gpu_memory_utilization=0.85,
+        max_lora_rank=16,
+    ),
+    peft_args=PeftArgs(
+        r=16,
+    ),
+    openai_config=OpenAIServerConfig(
+        server_args=ServerArgs(
+            port=8001,
+        ),
+    ),
+)
+
+add_config(
     "unsloth/Llama-4-Scout-17B-16E-Instruct",
     init_args=InitArgs(
         load_in_4bit=False,

@@ -20,7 +20,7 @@ def prepare_environment(tokens_folder: str = "./api_keys"):
         "OPENAI_API_KEY": token_from_file(folder_path / "OPENAI_KEY.txt"),
     }
 
-    token_dict = {k: v for k, v in token_dict.items() if v}  # Filter out empty tokens
+    token_dict = {k: v for k, v in token_dict.items() if v is not None}  # Filter out empty tokens
 
     if "OPENAI_API_KEY" not in token_dict:
         token_dict["OPENAI_API_KEY"] = "default"
@@ -36,11 +36,12 @@ def prepare_environment(tokens_folder: str = "./api_keys"):
         "VLLM_USE_V1": "0",  # NOTE: Currently ART uses vLLM v0, see art.unsloth.state
         "VLLM_WORKER_MULTIPROC_METHOD": "spawn",  # To avoid vLLM issues with multiprocessing
         "ART_SERVER_TIMEOUT": str(60 * 5),  # increase timeout for ART
+        "WEAVE_DISABLED": "1",
+        "WEAVE_DISABLE_TRACING": "1",
     }
-    
+
     os.environ.update(flag_dict)
     logger.info(f"Setting additional variables: {flag_dict}")
-
 
 def token_from_file(path: str | Path, do_raise: bool = False) -> str | None:
     """
