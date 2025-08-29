@@ -38,8 +38,9 @@ class GuidedSchema:
         """Return the schema descriptor for response_format."""
 
         # TODO: investigate appropriate format of the expected json schema
-        # make sure the comments are in the correct place where the model expects them to be
-        # also make sure the commends are descriptive enough for the model to understand
+        # TODO: make sure the comments are descriptive enough for the model to understand
+        # TODO: the comments themselves are decorative only, they do not matter at all. The only thing that matters is the actual schema
+        # We need to supply the schema in the message to the model in the system prompt with the actual documentation.
         turn_schema = {
             "type": "object",
             "additionalProperties": False,
@@ -81,7 +82,7 @@ class GuidedSchema:
             "description": (
                 "Json schema for a single assistant turn. "
                 "The assistant must choose one of the allowed actions and provide the corresponding text."
-            ),  # TODO: add actual description, since the LLM uses it
+            ),
             "strict": True,  # TODO: maybe should be false actually, investigate
             "schema": turn_schema,
         }
@@ -126,7 +127,7 @@ class GuidedAgent(BaseAgent):
         extra_body: dict = kwargs.setdefault("extra_body", {})
         extra_body.setdefault("include_stop_str_in_output", True)
         kwargs["response_format"] = {"type": "json_schema", "json_schema": schema_descriptor}
-        extra_body["guided_json"] = schema_descriptor["schema"]
+        # extra_body["guided_json"] = schema_descriptor["schema"] # NOTE: internally vLLM passes response_format to guided_json
 
         return await self.openai_client.chat.completions.create(
             model=self.model,
