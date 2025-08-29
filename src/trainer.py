@@ -303,6 +303,7 @@ class Trainer:
         Perform a raw forward step for a single sample.
 
         Args:
+            agent (BaseAgent): The agent to use for the forward step.
             sample (dict): A single sample from the dataset.
             stage (RolloutStage): The current stage of the rollout.
 
