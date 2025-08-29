@@ -9,7 +9,7 @@ import art
 from art.utils import iterate_dataset
 from art.local import LocalBackend
 
-from src.dac_agent import AgentNode
+from src.agent import BaseAgent
 from src.utils.logging import create_logger
 from src.vllm_client import VllmRouter
 
@@ -243,10 +243,8 @@ class Trainer:
                 continue
 
             last_message = tr.messages()[-1]
-            answer_message = ag.parse_answer(last_message)
-            answer = answer_message.get("content", "")
-            assert isinstance(answer, str), f"Expected answer to be a string, got {type(answer).__name__}"
-            answers.append(answer.strip())
+            answer = ag.parse_answer(last_message)
+            answers.append(answer)
 
         return answers
 
@@ -284,20 +282,20 @@ class Trainer:
     def create_agent(
         self,
         stage: RolloutStage,
-    ) -> AgentNode:
+    ) -> BaseAgent:
         """
-        Create an instance of an AgentNode for the given stage.
+        Create an instance of an BaseAgent for the given stage.
         Args:
             stage (RolloutStage): The current stage of the rollout.
         Returns:
-            (AgentNode): An instance of an AgentNode.
+            (BaseAgent): An instance of an BaseAgent.
         """
         raise NotImplementedError("Subclasses must implement the create_agent method.")
 
     @abstractmethod
     async def forward_step(
         self,
-        agent: AgentNode,
+        agent: BaseAgent,
         sample: dict,
         stage: RolloutStage,
     ) -> art.Trajectory:

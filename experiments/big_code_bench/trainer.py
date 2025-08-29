@@ -1,4 +1,4 @@
-from src.dac_agent import AgentNode
+from src.agent import BaseAgent, MarkerAgent
 from src.trainer import Trainer, RolloutStage
 from src.openai_types import UserMessage
 from src.utils.markers import Markers
@@ -12,9 +12,9 @@ import art
 
 
 class BigCodeBenchTrainer(Trainer):
-    def create_agent(self, stage: RolloutStage) -> AgentNode:
+    def create_agent(self, stage: RolloutStage) -> BaseAgent:
         client = self.vllm_router.next()
-        return AgentNode(
+        return MarkerAgent(
             model_name=self.model.get_inference_name(),
             openai_client=client.openai_client,
             prompt_config=self.prompt_config,
@@ -23,7 +23,7 @@ class BigCodeBenchTrainer(Trainer):
 
     async def forward_step(
         self,
-        agent: AgentNode,
+        agent: BaseAgent,
         sample: dict,
         stage: RolloutStage,
     ) -> art.Trajectory:
