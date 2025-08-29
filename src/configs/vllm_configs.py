@@ -137,6 +137,29 @@ add_config(
 )
 
 add_config(
+    "unsloth/Qwen3-32B",
+    engine_args=EngineArgs(
+        max_model_len=1024 * 12,
+        # max_num_batched_tokens=1024 * 16 * 100,
+        # gpu_memory_utilization=0.95, # H200
+        gpu_memory_utilization=0.9, # L40
+        max_lora_rank=16,
+        # load_format="bitsandbytes",
+    ),
+)
+
+add_config(
+    "unsloth/Qwen3-32B-bnb-4bit",
+    engine_args=EngineArgs(
+        max_model_len=1024 * 6,
+        # max_num_batched_tokens=1024 * 16 * 100,
+        gpu_memory_utilization=0.75,
+        max_lora_rank=16,
+        # load_format="bitsandbytes",
+    ),
+)
+
+add_config(
     "unsloth/Llama-4-Scout-17B-16E-Instruct",
     engine_args=EngineArgs(
         max_num_seqs=128,

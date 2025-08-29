@@ -12,3 +12,5 @@ api_keys/*
 .venv
 .art
 unsloth_compiled_cache
+experiments/SATURN/data/*
+experiments/BigCodeBench/Server/trash/*

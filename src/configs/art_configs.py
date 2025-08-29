@@ -188,13 +188,62 @@ add_config(
     "unsloth/Qwen3-14B",
     init_args=InitArgs(
         load_in_4bit=False,
-        gpu_memory_utilization=0.8,
+        gpu_memory_utilization=0.9,
         max_lora_rank=16,
+        max_seq_length=1024 * 8,
     ),
     engine_args=EngineArgs(
-        max_model_len=1024 * 16,
-        gpu_memory_utilization=0.8,
+        max_model_len=1024 * 8,
+        gpu_memory_utilization=0.9,
         max_lora_rank=16,
+    ),
+    peft_args=PeftArgs(
+        r=16,
+    ),
+    openai_config=OpenAIServerConfig(
+        server_args=ServerArgs(
+            port=8001,
+        ),
+    ),
+)
+
+add_config(
+    "unsloth/Qwen3-32B",
+    init_args=InitArgs(
+        load_in_4bit=False,
+        gpu_memory_utilization=0.9,
+        max_lora_rank=16,
+        max_seq_length=1024 * 12,
+    ),
+    engine_args=EngineArgs(
+        max_model_len=1024 * 12,
+        gpu_memory_utilization=0.9,
+        max_lora_rank=16,
+    ),
+    peft_args=PeftArgs(
+        r=16,
+    ),
+    openai_config=OpenAIServerConfig(
+        server_args=ServerArgs(
+            port=8002,
+        ),
+    ),
+)
+
+add_config(
+    "unsloth/Qwen3-32B-bnb-4bit",
+    init_args=InitArgs(
+        load_in_4bit=True,
+        gpu_memory_utilization=0.6,
+        max_lora_rank=16,
+        max_seq_length=1024 * 6,
+    ),
+    engine_args=EngineArgs(
+        max_model_len=1024 * 6,
+        # max_num_batched_tokens=1024 * 16 * 100,
+        # gpu_memory_utilization=0.6,
+        max_lora_rank=16,
+        # load_format="bitsandbytes",
     ),
     peft_args=PeftArgs(
         r=16,

@@ -22,12 +22,12 @@ from src.models import load_art_model, PathConfig
 from src.vllm_client import VllmClient, ArtClient, VllmRouter
 from src.trainer import TrainingConfig, PromptConfig, StopCriteria
 from src.configs.art_configs import available_configs, ArtConfig
-from experiments.BigCodeBench.trainer import BigCodeBenchTrainer
+from experiments.easy2hard_guy.trainer import Easy2HardTrainer, Easy2HardTrainer_Multi, Easy2HardTrainerFrozen, Easy2HardTrainerVariableDepth, Easy2HardTrainerVariableDepthReplay
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run the BigCodeBench experiment.",
+        description="Run the Easy2Hard experiment.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
@@ -41,7 +41,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--project",
         type=str,
-        default="BigCodeBench_dac",
+        default="easy2hard_dac_guy",
         help="The name of the project for saving results.",
     )
 
@@ -71,8 +71,28 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--config_dir",
         type=str,
-        default="experiments/BigCodeBench/defaults",
+        default="experiments/easy2hard_guy/defaults",
         help="Directory containing experiment configuration files.",
+    )
+
+    parser.add_argument(
+        "--min_difficulty",
+        type=float,
+        default=0.0,
+        help="Minimum difficulty level for training samples (default: 2.0).",
+    )
+
+    parser.add_argument(
+        "--include_histories",
+        action="store_true",
+        help="Include full conversation histories in each sub-trajectory.",
+    )
+
+    parser.add_argument(
+        "--trainer",
+        choices=["standard", "multi", "frozen", "variable_depth", "variable_depth_replay"],
+        help="Choose the trainer type to use. Options are: standard, multi, frozen, variable_depth.",
+        default="standard",
     )
 
     args = parser.parse_args()
@@ -84,7 +104,9 @@ def parse_args() -> argparse.Namespace:
 
     # verify valid GPU IDs
     if not all(0 <= gpu < torch.cuda.device_count() for gpu in args.gpu):
-        raise ValueError(f"Invalid GPU IDs provided: {args.gpu}. Available GPUs: {list(range(torch.cuda.device_count()))}")
+        raise ValueError(
+            f"Invalid GPU IDs provided: {args.gpu}. Available GPUs: {list(range(torch.cuda.device_count()))}"
+        )
 
     # print the parsed arguments
     print("Parsed arguments:")
@@ -94,21 +116,20 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-def load_data() -> tuple[Dataset, Dataset]:
-    ds:Dataset = load_dataset("bigcode/bigcodebench", split="v0.1.4")
-    #sort by length of the code
-    # def add_length(example):
-    #     example['length'] = len(example['canonical_solution'])
-    #     return example
-    # ds = ds.map(add_length)
-    # ds = ds.sort("length", reverse=True)
+def load_data(min_difficalty:float=0) -> tuple[Dataset, Dataset]:
+    dataset_dict: DatasetDict = load_dataset(
+        path="furonghuang-lab/Easy2Hard-Bench",
+        name="E2H-AMC",
+        split=None,
+    )  # type: ignore
 
-    len_ds = len(ds)
-    test_size = int(len_ds * 0.2)
-    train_size = len_ds - test_size
-    
-    train_data: Dataset = ds.select(range(train_size))
-    test_data: Dataset = ds.select(range(train_size, len_ds))
+    train_data: Dataset = dataset_dict["train"]
+    test_data: Dataset = dataset_dict["eval"]
+
+    # filter low difficulty samples
+    train_data = train_data.filter(lambda x: x["item_difficulty"] >= min_difficalty)
+    test_data = test_data.filter(lambda x: x["item_difficulty"] >= min_difficalty)
+
     return train_data, test_data
 
 
@@ -133,6 +154,8 @@ async def main(args: argparse.Namespace):
     print()
     print(f"Current working directory: {os.getcwd()}")
     print()
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, args.gpu))
 
     path_config = PathConfig(
         base_model=args.model,
@@ -177,17 +200,18 @@ async def main(args: argparse.Namespace):
     if "qwen3" in args.model.lower():
         train_config.rollout_kwargs.update(
         {
-            # "temperature": 1.0,
-            "temperature": 1.0,
-            "top_p": 0.9,
-            # "max_completion_tokens": 2000,
+            # "temperature": 0.9,
+            "temperature": 0.7,
+            "top_p": 0.8,
+            # "top_k": 20,
+            # "min_p": 0,
             "extra_body":{
                 "chat_template_kwargs": {
                     "enable_thinking": False,
                 }
             }
         }
-        )
+    )
 
     # load model
     model = await load_art_model(
@@ -197,7 +221,7 @@ async def main(args: argparse.Namespace):
     )
 
     # load dataset
-    train_data, test_data = load_data()
+    train_data, test_data = load_data(args.min_difficulty)
 
     # create inference clients
     inference_clients = [ArtClient.from_art_model(model)]
@@ -213,16 +237,58 @@ async def main(args: argparse.Namespace):
     vllm_router = VllmRouter(inference_clients)
 
     # create and configure the trainer
-    trainer = BigCodeBenchTrainer(
-        model=model,
-        vllm_router=vllm_router,
-        path_config=path_config,
-        prompt_config=prompt_config,
-        stop_criteria=stop_criteria,
-    )
-    
+    if args.trainer == "multi":
+        trainer = Easy2HardTrainer_Multi(
+            model=model,
+            vllm_router=vllm_router,
+            path_config=path_config,
+            prompt_config=prompt_config,
+            stop_criteria=stop_criteria,
+        )
+    elif args.trainer == "freeze":
+        trainer = Easy2HardTrainerFrozen(
+            model=model,
+            vllm_router=vllm_router,
+            path_config=path_config,
+            prompt_config=prompt_config,
+            stop_criteria=stop_criteria,
+        )
+    elif args.trainer == "variable_depth":
+        trainer = Easy2HardTrainerVariableDepth(
+            model=model,
+            vllm_router=vllm_router,
+            path_config=path_config,
+            prompt_config=prompt_config,
+            stop_criteria=stop_criteria,
+        )
+    elif args.trainer == "variable_depth_replay":
+        trainer = Easy2HardTrainerVariableDepthReplay(
+            model=model,
+            vllm_router=vllm_router,
+            path_config=path_config,
+            prompt_config=prompt_config,
+            stop_criteria=stop_criteria,
+        )
+    else:
+        trainer = Easy2HardTrainer(
+            model=model,
+            vllm_router=vllm_router,
+            path_config=path_config,
+            prompt_config=prompt_config,
+            stop_criteria=stop_criteria,
+        )
+
+    if hasattr(trainer, 'include_histories'):
+        trainer.include_histories = args.include_histories
+
     # log code files
-    trainer.wandb_run.log_code(root="experiments/BigCodeBench") # type: ignore
+    if trainer.wandb_run is not None:
+        trainer.wandb_run.log_code(
+            root="experiments", include_fn=lambda path, root: path.endswith(".py") or path.endswith(".json")
+        )
+        trainer.wandb_run.log_code(
+            root="src", include_fn=lambda path, root: path.endswith(".py") or path.endswith(".json")
+        )
 
     # start training
     try:

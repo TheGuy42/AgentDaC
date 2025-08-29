@@ -5,9 +5,11 @@ from openai import AsyncOpenAI
 from openai.types.chat.chat_completion import ChatCompletion
 
 from art import Trajectory
+from art.trajectories import History
 from art.types import Message
 from pydantic import BaseModel, Field
 from pathlib import Path
+from copy import deepcopy
 
 from src.utils import text as text_utils
 from src.utils.visualize import trajectory_string, message_string
@@ -67,13 +69,13 @@ class StopCriteria(BaseModel):
 
     def should_stop(self, cur_depth: int) -> bool:
         """Check if stopping criteria are met"""
-        if self.max_depth and cur_depth >= self.max_depth:
+        if self.max_depth is not None and cur_depth >= self.max_depth:
             return True
 
-        if self.max_tasks and self.total_tasks >= self.max_tasks:
+        if self.max_tasks is not None and self.total_tasks >= self.max_tasks:
             return True
 
-        if self.max_rounds and self.total_rounds >= self.max_rounds:
+        if self.max_rounds is not None and self.total_rounds >= self.max_rounds:
             return True
 
         return False
@@ -108,12 +110,14 @@ class AgentNode:
         prompt_config: PromptConfig,
         stop_criteria: StopCriteria,
         current_depth: int = 0,
+        include_histories: bool = False,
     ):
         self.openai_client = openai_client
         self.model = model_name
         self.prompt_config = prompt_config
         self.stop_criteria = stop_criteria.clone()
         self.current_depth = current_depth
+        self.include_histories = include_histories
 
         self.trajectory = Trajectory(
             messages_and_choices=[],
@@ -232,6 +236,12 @@ class AgentNode:
                     sub_agent = self.create_sub_agent()
                     resp = await sub_agent.answer(task, verbose, **kwargs)
                     task_responses.append(resp)
+                    if self.include_histories:
+                        # Add the sub-agent's trajectory to the main trajectory
+                        sub_agent_trajectory = sub_agent.trajectory
+                        history = AgentNode.traj2history(sub_agent_trajectory)
+                        self.trajectory.additional_histories.append(history)
+                        self.trajectory.additional_histories.extend(sub_agent_trajectory.additional_histories)
 
                     # update metrics from sub-agent
                     self.metrics["total_tasks"] += sub_agent.metrics["total_tasks"]
@@ -320,3 +330,16 @@ class AgentNode:
         tasks = text_utils.extract_tasks(message.content)
         tasks_messages = [ChatMessage(role="user", content=task) for task in tasks]
         return tasks_messages
+
+    @staticmethod
+    def traj2history(trajectory: Trajectory) -> History:
+        """
+        Convert the trajectory to a History object.
+        This is useful for saving the trajectory in a format compatible with ART.
+        """
+        traj = [{'role':msg['role'], 'content':str(msg.get('content', ""))} for msg in trajectory.messages()]
+        
+        return History(
+            messages_and_choices=traj,
+            # messages_and_choices=
+        )

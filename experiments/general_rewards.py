@@ -22,7 +22,7 @@ def _single_message_format_reward(message: ChatMessage) -> float:
 
     if num_tasks == 0 and num_answers == 0:
         # Penalize for no tasks or answers
-        reward -= 5.0
+        reward -= 1.0
 
     elif num_tasks == 0 and num_answers > 1:
         # Penalize for multiple answers
@@ -83,7 +83,7 @@ def behavior_reward(trajectory: art.Trajectory) -> float:
     last_message = ChatMessage.model_validate(trajectory.messages()[-1], from_attributes=True)
     num_answers = len(text_utils.extract_between(last_message.content, Markers.ANSWER_START, Markers.ANSWER_END))
     if num_answers == 0:
-        total_reward -= 5.0
+        total_reward -= 1.0
 
     return total_reward
 
