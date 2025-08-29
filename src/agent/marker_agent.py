@@ -69,7 +69,8 @@ class MarkerAgent(BaseAgent):
 
         # NOTE: experimental
         if not self.decomp_config.should_stop(self.current_depth):
-            prompt["content"] = f"{prompt.get('content')}\n\n{self.remaining_budget_string()}"
+            # prompt["content"] = f"{prompt.get('content')}\n\n{self.remaining_budget_string()}"
+            pass
 
         self.trajectory.messages_and_choices.append(prompt)
 
@@ -142,7 +143,7 @@ class MarkerAgent(BaseAgent):
             unified_answer = "\n".join(tasks_answers)
 
             # NOTE: experimental
-            unified_answer = f"{unified_answer}\n\n{self.remaining_budget_string()}"
+            # unified_answer = f"{unified_answer}\n\n{self.remaining_budget_string()}"
 
             joined_message = UserMessage(role="user", content=unified_answer)
             self.trajectory.messages_and_choices.append(joined_message)

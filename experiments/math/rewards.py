@@ -1,4 +1,6 @@
 import math_verify as mv
+from math_verify.errors import TimeoutException
+
 from src.utils import text as text_utils
 from src.openai_types import Message
 from src.utils.logging import create_logger
@@ -32,6 +34,6 @@ def answer_reward(sample: dict[str, str], message: Message) -> tuple[float, bool
         is_correct = mv.verify(gold_parsed, llm_parsed, raise_on_error=True)
         return (1.0 if is_correct else 0.0, True)
 
-    except Exception as e:
+    except (Exception, TimeoutException) as e:
         logger.warning(f"Error during answer reward computation: {e}")
         return (0.0, False)

@@ -1,5 +1,7 @@
 import math_verify as mv
+from math_verify.errors import TimeoutException
 from sympy.core import Number
+
 from src.utils import text as text_utils
 from src.openai_types import Message
 from src.utils.logging import create_logger
@@ -85,6 +87,6 @@ def answer_reward(sample: dict[str, str], message: Message) -> tuple[float, bool
 
         return (1.0 if is_sat else 0.0), True
 
-    except Exception as e:
+    except (Exception, TimeoutException) as e:
         logger.warning(f"Error during answer reward computation: {e}")
         return (0.0, False)
