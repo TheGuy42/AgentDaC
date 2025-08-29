@@ -80,10 +80,6 @@ class BaseAgent(ABC):
 
         return None
 
-    @abstractmethod
-    def create_sub_agent(self) -> BaseAgent:
-        pass
-
     async def _call(self, messages: list[Message], **kwargs) -> ChatCompletion:
         """
         Call the OpenAI API to get a chat completion.
@@ -98,6 +94,24 @@ class BaseAgent(ABC):
             logprobs=True,
             **kwargs,
         )
+
+    async def answer(self, prompt: Message, verbose: bool = False, **kwargs) -> str:
+        """
+        Answer a question using the agent.
+
+        Args:
+            prompt (Message): The question to answer.
+            verbose (bool): If True, print the conversation messages.
+            **kwargs: Additional keyword arguments to pass to OpenAI API call.
+        Returns:
+            (str): The answer text from the agent.
+        """
+        trajectory = await self.chat(prompt, verbose=verbose, **kwargs)
+        return self.parse_answer(trajectory.messages()[-1]).strip()
+
+    @abstractmethod
+    def create_sub_agent(self) -> BaseAgent:
+        pass
 
     @abstractmethod
     async def chat(
@@ -119,20 +133,6 @@ class BaseAgent(ABC):
                 This trajectory is used to train an `art.TrainableModel` model.
         """
         pass
-
-    async def answer(self, prompt: Message, verbose: bool = False, **kwargs) -> str:
-        """
-        Answer a question using the agent.
-
-        Args:
-            prompt (Message): The question to answer.
-            verbose (bool): If True, print the conversation messages.
-            **kwargs: Additional keyword arguments to pass to OpenAI API call.
-        Returns:
-            (str): The answer text from the agent.
-        """
-        trajectory = await self.chat(prompt, verbose=verbose, **kwargs)
-        return self.parse_answer(trajectory.messages()[-1]).strip()
 
     @abstractmethod
     def parse_answer(self, message: Message) -> str:

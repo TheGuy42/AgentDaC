@@ -37,6 +37,9 @@ class GuidedSchema:
     def build(self) -> dict[str, Any]:
         """Return the schema descriptor for response_format."""
 
+        # TODO: investigate appropriate format of the expected json schema
+        # make sure the comments are in the correct place where the model expects them to be
+        # also make sure the commends are descriptive enough for the model to understand
         turn_schema = {
             "type": "object",
             "additionalProperties": False,
@@ -74,8 +77,11 @@ class GuidedSchema:
             "required": ["action", "text"],
         }
         return {
-            "name": "dac_turn",
-            "description": "Json schema for a single assistant turn.",  # TODO: add actual description, since the LLM uses it
+            "name": "assistant_turn",
+            "description": (
+                "Json schema for a single assistant turn. "
+                "The assistant must choose one of the allowed actions and provide the corresponding text."
+            ),  # TODO: add actual description, since the LLM uses it
             "strict": True,  # TODO: maybe should be false actually, investigate
             "schema": turn_schema,
         }
@@ -157,6 +163,9 @@ class GuidedAgent(BaseAgent):
         if verbose:
             print(trajectory_string(self.trajectory, indent=self.current_depth))
 
+        self.metrics.setdefault("direct_thinks", 0)
+        self.metrics.setdefault("total_thinks", 0)
+
         while True:
             # Model turn
             schema = self._create_schema()
@@ -181,16 +190,22 @@ class GuidedAgent(BaseAgent):
                 logger.warning(f"Failed to parse model output: {e}")
                 break
 
-            # If the model chose to answer, stop
-            if turn.action == TurnAction.Answer or self.decomp_config.should_stop(self.current_depth):
+            # Check if we should stop
+            if self.decomp_config.should_stop(self.current_depth):
+                break
+
+            # Finish if the model chose to answer
+            if turn.action == TurnAction.Answer:
                 break
 
             # If the model chose to think, continue
             elif turn.action == TurnAction.Think:
+                self.metrics["direct_thinks"] += 1
+                self.metrics["total_thinks"] += 1
                 self.decomp_config.update_round(num_tasks=0)
 
+            # Issue a task and get the answer from a sub-agent
             elif turn.action == TurnAction.Issue_Task:
-                # Call sub-agent
                 sub_agent = self.create_sub_agent()
                 task = UserMessage(role="user", content=turn.text)
                 task_answer = await sub_agent.answer(task, verbose, **kwargs)
@@ -199,6 +214,7 @@ class GuidedAgent(BaseAgent):
                 self.metrics["direct_tasks"] += 1
                 self.metrics["total_tasks"] += 1 + sub_agent.metrics["total_tasks"]
                 self.metrics["total_calls"] += sub_agent.metrics["total_calls"]
+                self.metrics["total_thinks"] += sub_agent.metrics["total_thinks"]
                 self.metrics["max_depth"] = max(1 + sub_agent.metrics["max_depth"], self.metrics["max_depth"])
 
                 task_response = UserMessage(role="user", content=f"{Markers.ANS_START} {task_answer} {Markers.ANS_END}")
@@ -233,5 +249,5 @@ class GuidedAgent(BaseAgent):
             turn = schema.parse(content)
             return turn.text
         except Exception as e:
-            logger.warning(f"Failed to parse final answer: {e}")
+            logger.error(f"Failed to parse final answer: {e}")
             return content
