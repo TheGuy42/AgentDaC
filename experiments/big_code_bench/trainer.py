@@ -46,7 +46,7 @@ class BigCodeBenchTrainer(Trainer):
 
         answer = sample["canonical_solution"]  # sample["answer"].strip()
         agent_answer = extract_answer(ans_content)
-        num_answers = len(extract_between(ans_content, Markers.ANSWER_START, Markers.ANSWER_END))
+        num_answers = len(extract_between(ans_content, Markers.ANS_START, Markers.ANS_END))
 
         result = execute_code(sample, ans_message)
 

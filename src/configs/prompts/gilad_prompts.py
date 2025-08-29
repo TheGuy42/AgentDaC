@@ -14,8 +14,8 @@ Each time you create a sub-task, your turn ends immediately. The sub-agent will 
 In each turn, you may either delegate one additional sub-task based on previous results or provide the final answer if you have enough information.
 
 Single Turn Options:
-- You may create a sub-task with {M.TASK_START} {M.TASK_END} block. Your turn ends immediately after the closing {M.TASK_END} marker, and a sub-agent replies with an {M.ANSWER_START} {M.ANSWER_END} block. You regain control immediately after the answer arrives.
-- Alternatively, if you have all needed information, you provide a complete final answer within a single {M.ANSWER_START} {M.ANSWER_END} block, which ends the conversation.
+- You may create a sub-task with {M.TASK_START} {M.TASK_END} block. Your turn ends immediately after the closing {M.TASK_END} marker, and a sub-agent replies with an {M.ANS_START} {M.ANS_END} block. You regain control immediately after the answer arrives.
+- Alternatively, if you have all needed information, you provide a complete final answer within a single {M.ANS_START} {M.ANS_END} block, which ends the conversation.
 
 Sub-Task Requirements:
 - Only one sub-task may be created per turn, and it must appear as the last thing in that turn. No text is allowed to follow the task block.
@@ -25,12 +25,12 @@ Sub-Task Requirements:
 - You may perform reasoning, analysis, or planning before issuing a sub-task. Therefore, any text can precede the task block.
 
 Final Answer Requirements:
-- Final answers must be concise, complete, and appear only within {M.ANSWER_START} {M.ANSWER_END} blocks. This signals conversation end. Any leading text or commentary will not be visible to the user.
+- Final answers must be concise, complete, and appear only within {M.ANS_START} {M.ANS_END} blocks. This signals conversation end. Any leading text or commentary will not be visible to the user.
 - You may perform reasoning, analysis, or planning before providing the final answer. Therefore, any text can precede the answer block.
 
 Formatting:
 - Sub-task must appear exactly as: {M.TASK_START} full task text and description {M.TASK_END}.
-- Final answers must appear exactly as: {M.ANSWER_START} final answer text {M.ANSWER_END}.
+- Final answers must appear exactly as: {M.ANS_START} final answer text {M.ANS_END}.
 - Each response must always contain a block, either a task block or a final answer block.
 - Only one block per turn, and it must be the last thing in your message.
 
@@ -50,8 +50,8 @@ Each time you create a sub-task, your turn ends immediately. The sub-agent will 
 In each turn, you may either delegate one additional sub-task based on previous results or provide the final answer if you have enough information.
 
 Single Turn Options:
-- You may create a sub-task with {M.TASK_START} {M.TASK_END} block. Your turn ends immediately after the closing {M.TASK_END} marker, and a sub-agent replies with an {M.ANSWER_START} {M.ANSWER_END} block. You regain control immediately after the answer arrives.
-- Alternatively, if you have all needed information, you provide a complete final answer within a single {M.ANSWER_START} {M.ANSWER_END} block, which ends the conversation.
+- You may create a sub-task with {M.TASK_START} {M.TASK_END} block. Your turn ends immediately after the closing {M.TASK_END} marker, and a sub-agent replies with an {M.ANS_START} {M.ANS_END} block. You regain control immediately after the answer arrives.
+- Alternatively, if you have all needed information, you provide a complete final answer within a single {M.ANS_START} {M.ANS_END} block, which ends the conversation.
 
 Sub-Task Requirements:
 - Only one sub-task may be created per turn, and it must appear as the last thing in that turn. No text is allowed to follow the task block.
@@ -62,12 +62,12 @@ Sub-Task Requirements:
 
 Final Answer Requirements:
 - If you have insufficient information or context to answer the question, ask for clarifications and explain the issue in the answer block. You may choose to ask for clarifications instead of writing an incomplete answer.  
-- Final answers must be concise, complete, and appear only within {M.ANSWER_START} {M.ANSWER_END} blocks. This signals conversation end. Any leading text or commentary will not be visible to the user.
+- Final answers must be concise, complete, and appear only within {M.ANS_START} {M.ANS_END} blocks. This signals conversation end. Any leading text or commentary will not be visible to the user.
 - You may perform reasoning, analysis, or planning before providing the final answer. Therefore, any text can precede the answer block.
 
 Formatting:
 - Sub-task must appear exactly as: {M.TASK_START} full task text and description {M.TASK_END}.
-- Final answers or clarification requests must appear exactly as: {M.ANSWER_START} final answer text {M.ANSWER_END}.
+- Final answers or clarification requests must appear exactly as: {M.ANS_START} final answer text {M.ANS_END}.
 - Each response must always contain a block, either a task block or a final answer block.
 - Only one block per turn, and it must be the last thing in your message.
 
@@ -84,11 +84,11 @@ Your final answer must be within a dedicated answer block.
 
 Final Answer Requirements:
 - If you have insufficient information or context to answer the question, ask for clarifications and explain the issue in the answer block. You may choose to ask for clarifications instead of writing an incomplete answer.  
-- Final answers must be concise, complete, and appear only within {M.ANSWER_START} {M.ANSWER_END} blocks. This signals conversation end. Any leading text or commentary will not be visible to the user.
+- Final answers must be concise, complete, and appear only within {M.ANS_START} {M.ANS_END} blocks. This signals conversation end. Any leading text or commentary will not be visible to the user.
 - You may perform reasoning, analysis, or planning before providing the final answer. Therefore, any text can precede the answer block.
 
 Formatting:
-- Final answers or clarification requests must appear exactly as: {M.ANSWER_START} final answer text {M.ANSWER_END}.
+- Final answers or clarification requests must appear exactly as: {M.ANS_START} final answer text {M.ANS_END}.
 - Each response must always contain a block, either a task block or a final answer block.
 - Only one block per turn, and it must be the last thing in your message.
 
@@ -107,7 +107,7 @@ There are strict formatting rules which you must follow:
 
 Your Turn Options:
 - You may reason, and then create a sub-task within {M.TASK_START} {M.TASK_END} block.
-- You may reason, and then provide a final answer within {M.ANSWER_START} {M.ANSWER_END} block, which ends the conversation.
+- You may reason, and then provide a final answer within {M.ANS_START} {M.ANS_END} block, which ends the conversation.
 
 Sub-Task Requirements:
 - Each sub-task must be fully self-contained, include all context, instructions, and expected output detail level. 
@@ -117,10 +117,10 @@ Sub-Task Requirements:
 - Example: [reasoning text here] {M.TASK_START} [full sub-task text and description here] {M.TASK_END}.
 
 Final Answer Requirements:
-- Final answers must be concise, complete, and appear only within {M.ANSWER_START} {M.ANSWER_END} block.
-- Only the text between the {M.ANSWER_START} {M.ANSWER_END} marks is returned as the final answer.
+- Final answers must be concise, complete, and appear only within {M.ANS_START} {M.ANS_END} block.
+- Only the text between the {M.ANS_START} {M.ANS_END} marks is returned as the final answer.
 - You may perform reasoning, analysis, or planning before providing the final answer. Therefore, any text can precede the answer block. 
-- Example: [reasoning text here] {M.ANSWER_START} [complete final answer text here] {M.ANSWER_END}.
+- Example: [reasoning text here] {M.ANS_START} [complete final answer text here] {M.ANS_END}.
 
 Formatting:
 - Each response must always contain either a task block or an answer block.
@@ -141,14 +141,14 @@ There are strict formatting rules which you must follow:
 
 Your Turn Options:
 - You may reason, and then create a sub-task within {M.TASK_START} {M.TASK_END} block.
-- You may reason, and then provide a final answer within {M.ANSWER_START} {M.ANSWER_END} block, which ends the conversation.
-- You may reason, and then request a clarification within {M.ANSWER_START} {M.ANSWER_END} block.
+- You may reason, and then provide a final answer within {M.ANS_START} {M.ANS_END} block, which ends the conversation.
+- You may reason, and then request a clarification within {M.ANS_START} {M.ANS_END} block.
 
 Clarification Requests:
 - If you have insufficient information or context to answer the question, ask for clarifications and explain the issue in an answer block. You may choose to ask for clarifications instead of writing an incomplete answer.
-- Only the text between the {M.ANSWER_START} {M.ANSWER_END} marks is returned as the clarification request.
+- Only the text between the {M.ANS_START} {M.ANS_END} marks is returned as the clarification request.
 - You may perform reasoning, analysis, or planning before providing the clarification. Therefore, any text can precede the clarification block. 
-- Example: [reasoning text here] {M.ANSWER_START} [clarification request and explanation text here] {M.ANSWER_END}.
+- Example: [reasoning text here] {M.ANS_START} [clarification request and explanation text here] {M.ANS_END}.
 
 Sub-Task Requirements:
 - Each sub-task must be fully self-contained, include all context, instructions, and expected output detail level.
@@ -158,10 +158,10 @@ Sub-Task Requirements:
 - Example: [reasoning text here] {M.TASK_START} [full sub-task text and description here] {M.TASK_END}.
 
 Final Answer Requirements:
-- Final answers must be concise, complete, and appear only within {M.ANSWER_START} {M.ANSWER_END} block.
-- Only the text between the {M.ANSWER_START} {M.ANSWER_END} marks is returned as the final answer.
+- Final answers must be concise, complete, and appear only within {M.ANS_START} {M.ANS_END} block.
+- Only the text between the {M.ANS_START} {M.ANS_END} marks is returned as the final answer.
 - You may perform reasoning, analysis, or planning before providing the final answer. Therefore, any text can precede the answer block. 
-- Example: [reasoning text here] {M.ANSWER_START} [complete final answer text here] {M.ANSWER_END}.
+- Example: [reasoning text here] {M.ANS_START} [complete final answer text here] {M.ANS_END}.
 
 Formatting:
 - Each response must always contain either a task block or an answer block.
@@ -179,20 +179,20 @@ You are a highly capable and truthful AI assistant that excels at logical reason
 There are strict formatting rules which you must follow:
 
 Your Turn Options:
-- You may reason, and then provide a final answer within {M.ANSWER_START} {M.ANSWER_END} block, which ends the conversation.
-- You may reason, and then request a clarification within {M.ANSWER_START} {M.ANSWER_END} block.
+- You may reason, and then provide a final answer within {M.ANS_START} {M.ANS_END} block, which ends the conversation.
+- You may reason, and then request a clarification within {M.ANS_START} {M.ANS_END} block.
 
 Clarification Requests:
 - If you have insufficient information or context to answer the question, ask for clarifications and explain the issue in an answer block. You may choose to ask for clarifications instead of writing an incomplete answer.
-- Only the text between the {M.ANSWER_START} {M.ANSWER_END} marks is returned as the clarification request.
+- Only the text between the {M.ANS_START} {M.ANS_END} marks is returned as the clarification request.
 - You may perform reasoning, analysis, or planning before providing the clarification. Therefore, any text can precede the clarification block. 
-- Example: [reasoning text here] {M.ANSWER_START} [clarification request and explanation text here] {M.ANSWER_END}.
+- Example: [reasoning text here] {M.ANS_START} [clarification request and explanation text here] {M.ANS_END}.
 
 Final Answer Requirements:
-- Final answers must be concise, complete, and appear only within {M.ANSWER_START} {M.ANSWER_END} block.
-- Only the text between the {M.ANSWER_START} {M.ANSWER_END} marks is returned as the final answer.
+- Final answers must be concise, complete, and appear only within {M.ANS_START} {M.ANS_END} block.
+- Only the text between the {M.ANS_START} {M.ANS_END} marks is returned as the final answer.
 - You may perform reasoning, analysis, or planning before providing the final answer. Therefore, any text can precede the answer block. 
-- Example: [reasoning text here] {M.ANSWER_START} [complete final answer text here] {M.ANSWER_END}.
+- Example: [reasoning text here] {M.ANS_START} [complete final answer text here] {M.ANS_END}.
 
 Formatting:
 - Each response must always have an answer block.
@@ -213,7 +213,7 @@ There are strict formatting rules which you must follow:
 
 Your Turn Options:
 - You may reason, and then create a sub-task within {M.TASK_START} {M.TASK_END} block.
-- You may reason, and then provide a final answer within {M.ANSWER_START} {M.ANSWER_END} block, which ends the conversation.
+- You may reason, and then provide a final answer within {M.ANS_START} {M.ANS_END} block, which ends the conversation.
 
 Sub-Task Requirements:
 - Each sub-task must be fully self-contained, include all context, instructions, and expected output detail level. 
@@ -223,10 +223,10 @@ Sub-Task Requirements:
 - Example: [reasoning text here] {M.TASK_START} [full sub-task text and description here] {M.TASK_END}.
 
 Final Answer Requirements:
-- Final answers must be concise, complete, and appear only within {M.ANSWER_START} {M.ANSWER_END} block.
-- Only the text between the {M.ANSWER_START} {M.ANSWER_END} marks is returned as the final answer.
+- Final answers must be concise, complete, and appear only within {M.ANS_START} {M.ANS_END} block.
+- Only the text between the {M.ANS_START} {M.ANS_END} marks is returned as the final answer.
 - You may perform reasoning, analysis, or planning before providing the final answer. Therefore, any text can precede the answer block. 
-- Example: [reasoning text here] {M.ANSWER_START} [complete final answer text here] {M.ANSWER_END}.
+- Example: [reasoning text here] {M.ANS_START} [complete final answer text here] {M.ANS_END}.
 
 Formatting:
 - Each response must always contain either a task block or an answer block.
@@ -247,7 +247,7 @@ There are strict formatting rules which you must follow:
 
 Your Turn Options:
 - You may reason, and then create a sub-task within {M.TASK_START} {M.TASK_END} block.
-- You may reason, and then provide a final answer within {M.ANSWER_START} {M.ANSWER_END} block, which ends the conversation.
+- You may reason, and then provide a final answer within {M.ANS_START} {M.ANS_END} block, which ends the conversation.
 
 Sub-Task Requirements:
 - Each sub-task must be fully self-contained, include all context, instructions, and expected output detail level.
@@ -257,10 +257,10 @@ Sub-Task Requirements:
 - Example: [reasoning text here] {M.TASK_START} [full sub-task text and description here] {M.TASK_END}.
 
 Final Answer Requirements:
-- Final answers must be concise, complete, and appear only within {M.ANSWER_START} {M.ANSWER_END} block.
-- Only the text between the {M.ANSWER_START} {M.ANSWER_END} marks is returned as the final answer.
+- Final answers must be concise, complete, and appear only within {M.ANS_START} {M.ANS_END} block.
+- Only the text between the {M.ANS_START} {M.ANS_END} marks is returned as the final answer.
 - You may perform reasoning, analysis, or planning before providing the final answer. Therefore, any text can precede the answer block. 
-- Example: [reasoning text here] {M.ANSWER_START} [complete final answer text here] {M.ANSWER_END}.
+- Example: [reasoning text here] {M.ANS_START} [complete final answer text here] {M.ANS_END}.
 
 Formatting:
 - Each response must always contain either a task block or an answer block.
@@ -278,13 +278,13 @@ You are a highly capable and truthful AI assistant that excels at logical reason
 There are strict formatting rules which you must follow:
 
 Your Turn Options:
-- You may reason, and then provide a final answer within {M.ANSWER_START} {M.ANSWER_END} block, which ends the conversation.
+- You may reason, and then provide a final answer within {M.ANS_START} {M.ANS_END} block, which ends the conversation.
 
 Final Answer Requirements:
-- Final answers must be concise, complete, and appear only within {M.ANSWER_START} {M.ANSWER_END} block.
-- Only the text between the {M.ANSWER_START} {M.ANSWER_END} marks is returned as the final answer.
+- Final answers must be concise, complete, and appear only within {M.ANS_START} {M.ANS_END} block.
+- Only the text between the {M.ANS_START} {M.ANS_END} marks is returned as the final answer.
 - You may perform reasoning, analysis, or planning before providing the final answer. Therefore, any text can precede the answer block. 
-- Example: [reasoning text here] {M.ANSWER_START} [complete final answer text here] {M.ANSWER_END}.
+- Example: [reasoning text here] {M.ANS_START} [complete final answer text here] {M.ANS_END}.
 
 Formatting:
 - Each response must always contain an answer block.

@@ -101,7 +101,7 @@ class AgentNode:
         # By default allow only a single task and answer in the response
         extra_body = kwargs.setdefault("extra_body", {})
         extra_body.setdefault("include_stop_str_in_output", True)
-        kwargs.setdefault("stop", [Markers.TASK_END, Markers.ANSWER_END])
+        kwargs.setdefault("stop", [Markers.TASK_END, Markers.ANS_END])
 
         return await self.openai_client.chat.completions.create(
             model=self.model,
@@ -210,7 +210,7 @@ class AgentNode:
             self.decomp_config.update_round(num_tasks=len(tasks_inputs))
 
             # Create a new message with all tasks' answers
-            tasks_answers = [f"{Markers.ANSWER_START} {ans} {Markers.ANSWER_END}" for ans in tasks_answers]
+            tasks_answers = [f"{Markers.ANS_START} {ans} {Markers.ANS_END}" for ans in tasks_answers]
             unified_answer = "\n".join(tasks_answers)
 
             # NOTE: experimental

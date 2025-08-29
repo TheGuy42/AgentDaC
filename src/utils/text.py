@@ -26,7 +26,7 @@ def extract_between(text: str, start_marker: str, end_marker: str) -> list[str]:
 
 
 def extract_answer(text: str) -> str:
-    answer_list = extract_between(text, Markers.ANSWER_START, Markers.ANSWER_END)
+    answer_list = extract_between(text, Markers.ANS_START, Markers.ANS_END)
     if len(answer_list) > 0:
         answer = answer_list[-1]  # Take the last answer if multiple are found
     else:

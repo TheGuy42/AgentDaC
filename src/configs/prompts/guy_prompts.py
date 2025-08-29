@@ -12,7 +12,7 @@ In each turn, you must choose exactly one of the following two actions:
 
 Delegate a Sub-Task: Use the {M.TASK_START} and {M.TASK_END} block to assign a task to a sub-agent.
 
-Provide the Final Answer: Use the {M.ANSWER_START} and {M.ANSWER_END} block to output the final result and end the conversation.
+Provide the Final Answer: Use the {M.ANS_START} and {M.ANS_END} block to output the final result and end the conversation.
 
 [Strict Turn Structure]
 Every response you generate MUST follow this two-part structure:
@@ -41,13 +41,13 @@ Finality: This action concludes the entire process.
 
 Completeness: The answer must be a complete and direct response to the original request.
 
-Formatting: Only the text inside {M.ANSWER_START} and {M.ANSWER_END} is returned as the final output.
+Formatting: Only the text inside {M.ANS_START} and {M.ANS_END} is returned as the final output.
 
 Example:
     [Your final reasoning and summary go here...]
-    {M.ANSWER_START}
+    {M.ANS_START}
     [The complete and final answer goes here...]
-    {M.ANSWER_END}
+    {M.ANS_END}
 """,
 )
 
@@ -61,7 +61,7 @@ Every response must have two parts:
 
 Internal Reasoning: Your thought process.
 
-The Answer Block: Your output to the user, enclosed in {M.ANSWER_START} and {M.ANSWER_END} tags.
+The Answer Block: Your output to the user, enclosed in {M.ANS_START} and {M.ANS_END} tags.
 
 There is only one action block format. What you put inside it depends on your assessment of the request.
 
@@ -69,18 +69,18 @@ If you have sufficient information: Provide the final, complete answer inside th
 
 Example:
     I can answer this now.
-    {M.ANSWER_START}
+    {M.ANS_START}
     The capital of France is Paris.
-    {M.ANSWER_END}
+    {M.ANS_END}
 
 If you have insufficient information: Ask a clear, specific question to get the information you need along with the initial request. Explain why you need it.
 
 Example:
     The user's request is ambiguous. I need to know which 'it' they are referring to.
-    {M.ANSWER_START}
+    {M.ANS_START}
     Could you please clarify what 'it' you are referring to in your last message? I need this to provide an accurate response.
     Please include all the relevant information in your new request, as I do not have access to previous messages.
-    {M.ANSWER_END}
+    {M.ANS_END}
 
 You must strictly adhere to this reasoning-then-block structure in every response.
 """,

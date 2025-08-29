@@ -11,7 +11,7 @@ def _single_message_format_reward(content: str) -> float:
     # Conversation structure:
 
     num_tasks = len(text_utils.extract_between(content, Markers.TASK_START, Markers.TASK_END))
-    num_answers = len(text_utils.extract_between(content, Markers.ANSWER_START, Markers.ANSWER_END))
+    num_answers = len(text_utils.extract_between(content, Markers.ANS_START, Markers.ANS_END))
 
     if num_tasks == 0 and num_answers == 0:
         # Penalize for no tasks or answers
@@ -28,7 +28,7 @@ def _single_message_format_reward(content: str) -> float:
     # Improper marker formatting:
 
     tasks_diff = abs(content.count(Markers.TASK_START) - content.count(Markers.TASK_END))
-    answers_diff = abs(content.count(Markers.ANSWER_START) - content.count(Markers.ANSWER_END))
+    answers_diff = abs(content.count(Markers.ANS_START) - content.count(Markers.ANS_END))
 
     if tasks_diff > 0:
         total_reward -= 0.5 ** (1 / tasks_diff)  # at most 1
@@ -45,7 +45,7 @@ def format_reward(trajectory: art.Trajectory) -> float:
     It does not provide positive rewards or incentives for good formatting or structure.
     """
     # TODO: currently does nothing and do not analyzes tool calls at all
-    # Also does not address failed tool calls properly (i.e if Markers.TOOL_CALL_START appears in content)
+    # Also does not address failed tool calls properly (i.e if Markers.TOOL_START appears in content)
     total_reward = 0.0
     for item in trajectory.messages_and_choices:
         if isinstance(item, Choice) and not item.message.tool_calls:
@@ -81,7 +81,7 @@ def behavior_reward(
 
     total_reward = 0.0
 
-    num_answers = len(text_utils.extract_between(last_content, Markers.ANSWER_START, Markers.ANSWER_END))
+    num_answers = len(text_utils.extract_between(last_content, Markers.ANS_START, Markers.ANS_END))
     if num_answers == 0:
         total_reward -= no_answer_factor * 1.0
 

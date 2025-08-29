@@ -25,10 +25,10 @@ def colorize_markers(content: str) -> str:
         Markers.THINK_END: Colors.GREEN,
         Markers.TASK_START: Colors.PURPLE,
         Markers.TASK_END: Colors.PURPLE,
-        Markers.TOOL_CALL_START: Colors.PURPLE,
-        Markers.TOOL_CALL_END: Colors.PURPLE,
-        Markers.ANSWER_START: Colors.BLUE,
-        Markers.ANSWER_END: Colors.BLUE,
+        Markers.TOOL_START: Colors.PURPLE,
+        Markers.TOOL_END: Colors.PURPLE,
+        Markers.ANS_START: Colors.BLUE,
+        Markers.ANS_END: Colors.BLUE,
     }
 
     for marker, color in marker_colors.items():

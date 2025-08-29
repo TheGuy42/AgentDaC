@@ -23,7 +23,7 @@ def format_prompt(sample: dict) -> str:
     # instruction = "Please reason step by step, and put your final answer within \\boxed{}."
 
     # for some reason leads to 5% accuracy drop compared to the official Qwen instruction.
-    # instruction = f"Please reason step by step, and put your final answer within {Markers.ANSWER_START} $ LaTeX-here $ {Markers.ANSWER_END}."
+    # instruction = f"Please reason step by step, and put your final answer within {Markers.ANS_START} $ LaTeX-here $ {Markers.ANS_END}."
 
     problem = sample["problem"].strip()
     content = f"{problem}\n{instruction}"
