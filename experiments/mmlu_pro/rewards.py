@@ -38,7 +38,7 @@ def answer_reward(sample: dict[str, str], message: Message) -> tuple[float, bool
             logger.warning(f"Expected match to be a string, got {type(last_match)}")
             return (0.0, False)
 
-        is_correct = gold_answer.strip().lower() == last_match.strip().lower()
+        is_correct = gold_answer.strip().casefold() == last_match.strip().casefold()
         return (1.0 if is_correct else 0.0, True)
 
     except Exception as e:

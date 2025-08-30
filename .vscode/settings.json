@@ -2,6 +2,7 @@
     "cSpell.words": [
         "decomp",
         "loras",
+        "Multistep",
         "OPENPIPE"
     ],
     "python.analysis.typeCheckingMode": "standard"
