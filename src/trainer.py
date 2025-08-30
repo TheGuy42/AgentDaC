@@ -9,7 +9,7 @@ import art
 from art.utils import iterate_dataset
 from art.local import LocalBackend
 
-from src.agent import BaseAgent
+from src.agents import BaseAgent
 from src.utils.logging import create_logger
 from src.vllm_client import VllmRouter
 

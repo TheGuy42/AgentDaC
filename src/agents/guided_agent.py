@@ -7,7 +7,7 @@ import json_repair
 from openai.types.chat import ChatCompletion
 from art import Trajectory
 
-from src.agent.base import BaseAgent
+from src.agents.base import BaseAgent
 from src.openai_types import Message, UserMessage
 from src.utils.visualize import trajectory_string, message_string
 from src.utils.markers import Markers
@@ -30,6 +30,7 @@ class AgentTurn:
     raw: dict[str, Any]
 
 
+# TODO: guided decoding only works when setting: internal_config["engine_args"]["num_scheduler_steps"] = 1
 class GuidedSchema:
     def __init__(self, *actions: TurnAction) -> None:
         self.actions = actions

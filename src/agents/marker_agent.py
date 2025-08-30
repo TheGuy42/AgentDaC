@@ -4,7 +4,7 @@ from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion
 from art import Trajectory
 
-from src.agent.base import BaseAgent
+from src.agents.base import BaseAgent
 from src.utils import text as text_utils
 from src.utils.visualize import trajectory_string, message_string
 from src.utils.markers import Markers
