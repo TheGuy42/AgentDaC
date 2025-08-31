@@ -246,13 +246,15 @@ class ExperimentRunner(ABC):
 
         # If eval only, create a non-trainable version of the model
         if args.eval_only:
-            model = art.Model(
-                name=model.name,
+            eval_model = art.Model(
+                name=f"{model.name}_eval",
                 project=model.project,
                 inference_api_key=model.inference_api_key,
                 inference_base_url=model.inference_base_url,
                 inference_model_name=model.base_model,
             )
+            await eval_model.register(model.backend())
+            model = eval_model
 
         # Create inference clients
         vllm_router = self._create_inference_clients(model, args.vllm_ports)
@@ -288,7 +290,7 @@ class ExperimentRunner(ABC):
                 stage=RolloutStage.Test,
                 max_exceptions=train_config.max_exceptions,
             )
-            await trainer.model.log(groups, split=RolloutStage.Test)
+            await trainer.model.log(groups, split=RolloutStage.Test.value)
 
         finally:
             await trainer.close()
