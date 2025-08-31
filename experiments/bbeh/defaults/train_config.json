@@ -1,11 +1,11 @@
 {
-    "epochs": 10,
+    "epochs": 100,
     "num_groups": 20,
     "group_size": 16,
     "train_size": null,
     "val_log_steps": 5,
     "val_size": 500,
-    "delete_checkpoints": false,
+    "delete_checkpoints": true,
     "checkpoint_metric": "reward",
     "art_config": {
         "learning_rate": 0.000002,

@@ -350,6 +350,9 @@ class Trainer:
         Returns:
             (art.TrajectoryGroup | None): The scored group of trajectories or None if scoring failed.
         """
+        if stage != RolloutStage.Train:
+            return group
+
         ruler_config = self.train_config().ruler_config
         if ruler_config is not None and ruler_config.judge_model is not None:
             logger.warning(

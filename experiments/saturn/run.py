@@ -1,7 +1,7 @@
 import sys
 import pathlib
 
-from art import TrainableModel
+import art
 from datasets import Dataset
 
 # set pythonpath to the main module directory
@@ -22,14 +22,14 @@ class Runner(ExperimentRunner):
     def default_config_dir(self) -> str:
         return "experiments/saturn/defaults"
 
-    def load_data(self) -> tuple[Dataset, Dataset]:
+    def load_data(self) -> tuple[Dataset, Dataset, Dataset]:
         data = Dataset.load_from_disk("experiments/saturn/data", keep_in_memory=True)
         split_dict = data.train_test_split(test_size=0.3, seed=0)
         train_data = split_dict["train"]
         test_data = split_dict["test"]
-        return train_data, test_data
+        return train_data, test_data, test_data
 
-    def create_trainer(self, model: TrainableModel, **kwargs) -> Trainer:
+    def create_trainer(self, model: art.Model, **kwargs) -> Trainer:
         return SaturnTrainer(model=model, **kwargs)
 
 

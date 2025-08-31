@@ -101,10 +101,10 @@ add_config(
     engine_args=EngineArgs(
         max_model_len=1024 * 16,
         gpu_memory_utilization=0.9,
-        max_lora_rank=64,
+        max_lora_rank=16,
     ),
     peft_args=PeftArgs(
-        r=64,
+        r=16,
     ),
     openai_config=OpenAIServerConfig(
         server_args=ServerArgs(

@@ -1,7 +1,7 @@
 import sys
 import pathlib
 
-from art import TrainableModel
+import art
 from datasets import Dataset, load_dataset, DatasetDict
 
 # set pythonpath to the main module directory
@@ -21,7 +21,7 @@ class Runner(ExperimentRunner):
     def default_config_dir(self) -> str:
         return "experiments/big_code_bench/defaults"
 
-    def load_data(self) -> tuple[Dataset, Dataset]:
+    def load_data(self) -> tuple[Dataset, Dataset, Dataset]:
         data: Dataset = load_dataset(
             "bigcode/bigcodebench",
             split="v0.1.4",
@@ -30,9 +30,9 @@ class Runner(ExperimentRunner):
         split_dict = data.train_test_split(test_size=0.2, seed=0)
         train_data: Dataset = split_dict["train"]
         test_data: Dataset = split_dict["test"]
-        return train_data, test_data
+        return train_data, test_data, test_data
 
-    def create_trainer(self, model: TrainableModel, **kwargs) -> Trainer:
+    def create_trainer(self, model: art.Model, **kwargs) -> Trainer:
         return BigCodeBenchTrainer(model=model, **kwargs)
 
 

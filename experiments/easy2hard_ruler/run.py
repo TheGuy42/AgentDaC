@@ -1,6 +1,7 @@
 import sys
 import pathlib
-from art import TrainableModel
+import art
+
 
 # set pythonpath to the main module directory
 module_dir = pathlib.Path(__file__).parent.parent.parent.resolve()
@@ -20,7 +21,7 @@ class Runner(RunnerEasy2hard):
     def default_config_dir(self) -> str:
         return "experiments/easy2hard_ruler/defaults"
 
-    def create_trainer(self, model: TrainableModel, **kwargs) -> Trainer:
+    def create_trainer(self, model: art.Model, **kwargs) -> Trainer:
         return Easy2HardRulerTrainer(model=model, **kwargs)
 
 

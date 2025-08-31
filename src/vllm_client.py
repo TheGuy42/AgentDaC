@@ -27,7 +27,7 @@ class VllmClient:
             if api_key is None:
                 api_key = "default"
                 logger.info(f"No OpenAI API key provided, using '{api_key}' key.")
-                
+
         if model_name is None:
             model_name = base_model
 
@@ -94,7 +94,7 @@ class VllmClient:
         resp = await self.http_client.post("load_lora_adapter", json=payload)
         resp.raise_for_status()
         self.model_name = lora_name  # Update the inference name to the loaded LORA
-        
+
         lora_path = pathlib.Path(lora_path).relative_to(pathlib.Path.cwd()).as_posix()
         logger.info(f"[{self.base_url}] Loaded LORA adapter: {lora_name} at path: {lora_path}")
 
@@ -137,19 +137,30 @@ class VllmClient:
 
 class ArtClient(VllmClient):
     @staticmethod
-    def from_art_model(art_model: art.TrainableModel, **kwargs) -> VllmClient:
+    def from_art_model(art_model: art.TrainableModel | art.Model, **kwargs) -> VllmClient:
         """
-        Create a VllmClient instance from an ART TrainableModel.
+        Create a VllmClient instance from an ART Model.
         """
         client = art_model.openai_client()
-        return ArtClient(
-            base_url=client.base_url,
-            base_model=art_model.base_model,
-            model_name=art_model.get_inference_name(),
-            api_key=client.api_key,
-            timeout=client.timeout,
-            **kwargs,
-        )
+
+        if isinstance(art_model, art.TrainableModel):
+            return ArtClient(
+                base_url=client.base_url,
+                base_model=art_model.base_model,
+                model_name=art_model.get_inference_name(),
+                api_key=client.api_key,
+                timeout=client.timeout,
+                **kwargs,
+            )
+        else:
+            return ArtClient(
+                base_url=client.base_url,
+                base_model=art_model.get_inference_name(),
+                model_name=None,
+                api_key=client.api_key,
+                timeout=client.timeout,
+                **kwargs,
+            )
 
     async def load_lora(self, lora_name: str, lora_path: str):
         return  # No-op for ArtClient, as it uses ART's LORA management
@@ -176,7 +187,7 @@ class VllmRouter:
     def next(self) -> VllmClient:
         if len(self) == 0:
             raise ValueError("No clients available in the router.")
-        
+
         client = self.clients[self.idx]
         self.idx = (self.idx + 1) % len(self)
         return client
@@ -193,7 +204,7 @@ class VllmRouter:
         """
         if len(self) == 0:
             raise ValueError("No clients available in the router.")
-        
+
         client = self.clients[self.idx]
         return client
 

@@ -2,7 +2,7 @@ from argparse import ArgumentParser
 import sys
 import pathlib
 
-from art import TrainableModel
+import art
 from datasets import Dataset, load_dataset, DatasetDict
 
 # set pythonpath to the main module directory
@@ -35,7 +35,7 @@ class Runner(ExperimentRunner):
             default=100,
         )
 
-    def load_data(self) -> tuple[Dataset, Dataset]:
+    def load_data(self) -> tuple[Dataset, Dataset, Dataset]:
         dataset_dict: DatasetDict = load_dataset(
             path="furonghuang-lab/Easy2Hard-Bench",
             name="E2H-AMC",
@@ -51,10 +51,9 @@ class Runner(ExperimentRunner):
         max_dif = self.args().max_difficulty
         ds_train = ds_train.filter(lambda sample: max_dif >= sample["item_difficulty"] >= min_dif)
         ds_val = ds_val.filter(lambda sample: max_dif >= sample["item_difficulty"] >= min_dif)
+        return ds_train, ds_val, ds_val
 
-        return ds_train, ds_val
-
-    def create_trainer(self, model: TrainableModel, **kwargs) -> Trainer:
+    def create_trainer(self, model: art.Model, **kwargs) -> Trainer:
         return Easy2HardTrainer(model=model, **kwargs)
 
 

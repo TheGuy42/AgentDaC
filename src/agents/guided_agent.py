@@ -35,56 +35,72 @@ class GuidedSchema:
     def __init__(self, *actions: TurnAction) -> None:
         self.actions = actions
 
-    def build(self) -> dict[str, Any]:
-        """Return the schema descriptor for response_format."""
+    # def build(self) -> dict[str, Any]:
+    #     """Return the schema descriptor for response_format."""
 
-        # TODO: investigate appropriate format of the expected json schema
-        # TODO: make sure the comments are descriptive enough for the model to understand
-        # TODO: the comments themselves are decorative only, they do not matter at all. The only thing that matters is the actual schema
-        # We need to supply the schema in the message to the model in the system prompt with the actual documentation.
+    #     # TODO: make sure the comments are descriptive enough for the model to understand
+    #     # TODO: the comments themselves are decorative only, they do not matter at all. The only thing that matters is the actual schema
+    #     # We need to supply the schema in the message to the model in the system prompt with the actual documentation.
+    #     turn_schema = {
+    #         "type": "object",
+    #         "additionalProperties": False,
+    #         "description": (
+    #             "Return exactly two fields: 'action' and 'text'.\n"
+    #             "- action: one of " + str([a.value for a in self.actions]) + " for this turn.\n"
+    #             "- text: UTF-8 text. Always required, regardless of action."
+    #         ),
+    #         "properties": {
+    #             "action": {
+    #                 "type": "string",
+    #                 "enum": [a.value for a in self.actions],
+    #                 "description": "What to do this turn.",
+    #             },
+    #             "text": {
+    #                 "type": "string",
+    #                 "description": (
+    #                     "Text content for the chosen action.\n"
+    #                     + "".join(
+    #                         [
+    #                             f"- {TurnAction.Think.value}: reasoning notes or plan" + "\n"
+    #                             if TurnAction.Think in self.actions
+    #                             else "",
+    #                             f"- {TurnAction.Issue_Task.value}: fully self-contained sub-task prompt" + "\n"
+    #                             if TurnAction.Issue_Task in self.actions
+    #                             else "",
+    #                             f"- {TurnAction.Answer.value}: final answer to the original question" + "\n"
+    #                             if TurnAction.Answer in self.actions
+    #                             else "",
+    #                         ]
+    #                     )
+    #                 ),
+    #             },
+    #         },
+    #         "required": ["action", "text"],
+    #     }
+    #     return {
+    #         "name": "assistant_turn",
+    #         "description": (
+    #             "Json schema for a single assistant turn. "
+    #             "The assistant must choose one of the allowed actions and provide the corresponding text."
+    #         ),
+    #         "strict": True,
+    #         "schema": turn_schema,
+    #     }
+
+    def build(self) -> dict[str, Any]:
         turn_schema = {
             "type": "object",
             "additionalProperties": False,
-            "description": (
-                "Return exactly two fields: 'action' and 'text'.\n"
-                "- action: one of " + str([a.value for a in self.actions]) + " for this turn.\n"
-                "- text: UTF-8 text. Always required, regardless of action."
-            ),
             "properties": {
-                "action": {
-                    "type": "string",
-                    "enum": [a.value for a in self.actions],
-                    "description": "What to do this turn.",
-                },
-                "text": {
-                    "type": "string",
-                    "description": (
-                        "Text content for the chosen action.\n"
-                        + "".join(
-                            [
-                                f"- {TurnAction.Think.value}: reasoning notes or plan" + "\n"
-                                if TurnAction.Think in self.actions
-                                else "",
-                                f"- {TurnAction.Issue_Task.value}: fully self-contained sub-task prompt" + "\n"
-                                if TurnAction.Issue_Task in self.actions
-                                else "",
-                                f"- {TurnAction.Answer.value}: final answer to the original question" + "\n"
-                                if TurnAction.Answer in self.actions
-                                else "",
-                            ]
-                        )
-                    ),
-                },
+                "action": {"type": "string", "enum": [a.value for a in self.actions]},
+                "text": {"type": "string"},
             },
             "required": ["action", "text"],
         }
         return {
             "name": "assistant_turn",
-            "description": (
-                "Json schema for a single assistant turn. "
-                "The assistant must choose one of the allowed actions and provide the corresponding text."
-            ),
-            "strict": True,  # TODO: maybe should be false actually, investigate
+            "description": "Json schema for a single assistant turn.",
+            "strict": True,
             "schema": turn_schema,
         }
 

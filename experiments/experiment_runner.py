@@ -12,7 +12,7 @@ import random
 import json
 import pydantic
 from datasets import Dataset
-from art import TrainableModel
+import art
 
 from src.utils.rng import set_seed
 from src.utils.env import prepare_environment
@@ -22,7 +22,7 @@ from src.utils.loaders import load_art_model
 from src.vllm_client import VllmClient, ArtClient, VllmRouter
 from src.configs.models.art import available_configs, ArtConfig
 from src.configs import PathConfig, TrainingConfig, PromptConfig, DecompConfig, RolloutConfig
-from src.trainer import Trainer
+from src.trainer import Trainer, RolloutStage
 
 
 logger = create_logger(__name__)
@@ -48,14 +48,14 @@ class ExperimentRunner(ABC):
         pass
 
     @abstractmethod
-    def load_data(self) -> Tuple[Dataset, Dataset]:
-        """Load and return (train_dataset, val_dataset)."""
+    def load_data(self) -> Tuple[Dataset, Dataset, Dataset]:
+        """Load and return (train_dataset, val_dataset, test_data)."""
         pass
 
     @abstractmethod
     def create_trainer(
         self,
-        model: TrainableModel,
+        model: art.Model,
         **kwargs,
     ) -> Trainer:
         """Return the trainer class to use."""
@@ -126,6 +126,12 @@ class ExperimentRunner(ABC):
             help="Disable verbose outputs.",
         )
 
+        parser.add_argument(
+            "--eval_only",
+            action="store_true",
+            help="Run evaluation only of base model (skip training).",
+        )
+
         self.add_arguments(parser)
         self._parser_args = parser.parse_args()
         args = self.args()
@@ -167,15 +173,17 @@ class ExperimentRunner(ABC):
             rollout_config.kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": False}}
         return configs
 
-    def _create_inference_clients(self, model: TrainableModel, vllm_ports: list[int]) -> VllmRouter:
+    def _create_inference_clients(self, model: art.Model, vllm_ports: list[int]) -> VllmRouter:
         """Create and configure inference clients."""
-        inference_clients = [ArtClient.from_art_model(model)]
+        art_client = ArtClient.from_art_model(model)
+        inference_clients = [art_client]
         for port in vllm_ports:
             inference_clients.append(
                 VllmClient.from_connection(
                     port=port,
-                    base_model=model.base_model,
-                    model_name=model.get_inference_name(),
+                    api_key=art_client.api_key,
+                    base_model=art_client.base_model,
+                    model_name=art_client.model_name,
                 )
             )
         return VllmRouter(inference_clients)
@@ -189,7 +197,7 @@ class ExperimentRunner(ABC):
                     cfg_str = json.dumps(cfg_obj, indent=2)
             except Exception:
                 cfg_str = str(cfg_obj)
-                
+
             logger.info(f"Configuration for {cfg_name} ({type(cfg_obj).__name__}): {cfg_str}")
 
     async def _main(self) -> None:
@@ -225,7 +233,7 @@ class ExperimentRunner(ABC):
 
         # Load dataset
         logger.info("Loading data...")
-        train_dataset, val_dataset = self.load_data()
+        train_dataset, val_dataset, test_dataset = self.load_data()
         logger.info(f"Train dataset size: {len(train_dataset)}")
         logger.info(f"Validation dataset size: {len(val_dataset)}")
 
@@ -235,6 +243,16 @@ class ExperimentRunner(ABC):
             art_config=art_config,
             seed=args.seed,
         )
+
+        # If eval only, create a non-trainable version of the model
+        if args.eval_only:
+            model = art.Model(
+                name=model.name,
+                project=model.project,
+                inference_api_key=model.inference_api_key,
+                inference_base_url=model.inference_base_url,
+                inference_model_name=model.base_model,
+            )
 
         # Create inference clients
         vllm_router = self._create_inference_clients(model, args.vllm_ports)
@@ -252,13 +270,26 @@ class ExperimentRunner(ABC):
             trainer.wandb_run.log_code(root="scripts", name="scripts")
             trainer.wandb_run.log_code(root="experiments", name="experiments")
 
-        # Start training
         try:
-            await trainer.train(
-                config=train_config,
-                train_dataset=train_dataset.to_list(),
-                val_dataset=val_dataset.to_list(),
+            if not args.eval_only:
+                # Run training if applicable
+                logger.info("Starting training")
+                await trainer.train(
+                    config=train_config,
+                    train_dataset=train_dataset.to_list(),
+                    val_dataset=val_dataset.to_list(),
+                )
+
+            # Run evaluation
+            logger.info("Starting test-set evaluation")
+            groups = await trainer.rollout(
+                dataset=test_dataset.to_list(),
+                group_size=1,
+                stage=RolloutStage.Test,
+                max_exceptions=train_config.max_exceptions,
             )
+            await trainer.model.log(groups, split=RolloutStage.Test)
+
         finally:
             await trainer.close()
 

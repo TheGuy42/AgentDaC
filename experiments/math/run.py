@@ -2,7 +2,7 @@ from argparse import ArgumentParser
 import sys
 import pathlib
 
-from art import TrainableModel
+import art
 from datasets import Dataset, load_dataset, DatasetDict
 
 # set pythonpath to the main module directory
@@ -36,7 +36,7 @@ class Runner(ExperimentRunner):
             default=5,
         )
 
-    def load_data(self) -> tuple[Dataset, Dataset]:
+    def load_data(self) -> tuple[Dataset, Dataset, Dataset]:
         dataset_dict: DatasetDict = load_dataset(
             path="nlile/hendrycks-MATH-benchmark",
             split=None,
@@ -51,9 +51,9 @@ class Runner(ExperimentRunner):
         ds_train = ds_train.filter(lambda sample: max_level >= sample["level"] >= min_level)
         ds_val = ds_val.filter(lambda sample: max_level >= sample["level"] >= min_level)
 
-        return ds_train, ds_val
+        return ds_train, ds_val, ds_val
 
-    def create_trainer(self, model: TrainableModel, **kwargs) -> Trainer: 
+    def create_trainer(self, model: art.Model, **kwargs) -> Trainer: 
         return MathTrainer(model=model, **kwargs)
 
 
