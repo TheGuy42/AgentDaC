@@ -15,7 +15,7 @@ def format_prompt_boolean_expressions(sample: dict) -> str:
 def format_prompt_multistep_arithmetic(sample: dict) -> str:
     verify_task(sample, SupportedTasks.Multistep_Arithmetic)
 
-    instruction = ""
+    instruction = "Put your final answer within \\boxed{}."
     problem = sample["input"].strip()
     content = f"{problem}\n\n{instruction}"
     return content.strip()
