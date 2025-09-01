@@ -3,8 +3,8 @@ from src.trainer import Trainer, RolloutStage
 from src.openai_types import UserMessage
 from src.configs import DecompConfig
 
-from experiments.math.rewards import answer_reward
-from experiments.math.format import format_prompt
+from experiments.math_guided.format import format_prompt
+from experiments.math_guided.rewards import answer_reward
 
 import art
 import random
