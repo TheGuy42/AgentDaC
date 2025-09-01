@@ -18,11 +18,13 @@ from art.utils import trajectory_logging as art_logging
 from collections import defaultdict
 import glob
 from abc import ABC, abstractmethod
+from src.utils.logging import create_logger
+
+
+logger = create_logger(__name__)
 
 
 # TODO: integrate into trainer
-
-
 class GeneralReplayBuffer(ABC):
     """
     A general replay buffer that loads trajectory data from multiple JSONL files in a directory.
@@ -34,7 +36,10 @@ class GeneralReplayBuffer(ABC):
     """
 
     def __init__(
-        self, directory: str, grouping_keys: Optional[Union[str, List[str]]] = None, buffer_size: Optional[int] = None
+        self,
+        directory: str,
+        grouping_keys: Optional[Union[str, List[str]]] = None,
+        buffer_size: Optional[int] = None,
     ):
         """
         Initialize the general replay buffer.
@@ -82,7 +87,7 @@ class GeneralReplayBuffer(ABC):
         # If buffer_size is specified, only keep the last buffer_size files
         if self.buffer_size is not None and len(jsonl_files) > self.buffer_size:
             jsonl_files = jsonl_files[-self.buffer_size :]
-            print(
+            logger.info(
                 f"Buffer size limit: using last {self.buffer_size} files out of {len(glob.glob(jsonl_pattern))} total files"
             )
 
@@ -110,7 +115,7 @@ class GeneralReplayBuffer(ABC):
                     return []
                 return art_logging.deserialize_trajectory_groups(content)
         except Exception as e:
-            print(f"Warning: Failed to load file {file_path}: {e}")
+            logger.warning(f"Failed to load file {file_path}: {e}")
             return []
 
     def _get_grouping_key(self, trajectory: art.Trajectory) -> Tuple:
@@ -127,7 +132,7 @@ class GeneralReplayBuffer(ABC):
             return ()
 
         key_values = []
-        metadata = getattr(trajectory, "metadata", {}) or {}
+        metadata = trajectory.metadata
 
         for key in self.grouping_keys:
             value = metadata.get(key, None)
@@ -187,7 +192,7 @@ class GeneralReplayBuffer(ABC):
 
         # Remove old files if buffer_size enforcement requires it
         if files_to_remove:
-            print(f"Buffer size enforcement: removing {len(files_to_remove)} old files")
+            logger.info(f"Buffer size enforcement: removing {len(files_to_remove)} old files")
             # Get epochs to remove
             epochs_to_remove = {Path(f).stem for f in files_to_remove}
             # Remove trajectory groups associated with old files
@@ -208,7 +213,7 @@ class GeneralReplayBuffer(ABC):
         new_trajectory_groups = []
         for filename in new_files:
             file_path = current_files[filename]
-            print(f"Loading new trajectory file: {filename}")
+            logger.info(f"Loading new trajectory file: {filename}")
 
             groups = self._load_file(file_path)
             epoch = Path(file_path).stem  # Use filename (without extension) as epoch identifier
@@ -662,7 +667,7 @@ class RewardBasedDoubleQuantileReplayBuffer(GeneralReplayBuffer):
         """
         return sorted(
             trajectories,
-            key=lambda traj: getattr(traj, "reward", float("-inf")),
+            key=lambda traj: traj.reward,
             reverse=True,
         )
 
@@ -708,7 +713,7 @@ class RewardBasedReplayBuffer(GeneralReplayBuffer):
         """
         return sorted(
             trajectories,
-            key=lambda traj: getattr(traj, "reward", float("-inf")),
+            key=lambda traj: traj.reward,
             reverse=True,
         )
 

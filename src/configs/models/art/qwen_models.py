@@ -99,7 +99,7 @@ add_config(
         max_lora_rank=16,
     ),
     engine_args=EngineArgs(
-        max_model_len=1024 * 16,
+        max_model_len=1024 * 8,
         gpu_memory_utilization=0.9,
         max_lora_rank=16,
     ),
@@ -117,11 +117,12 @@ add_config(
     "unsloth/Qwen3-32B",
     init_args=InitArgs(
         load_in_4bit=False,
-        gpu_memory_utilization=0.8,
+        gpu_memory_utilization=0.9,
         max_lora_rank=16,
     ),
     engine_args=EngineArgs(
-        gpu_memory_utilization=0.8,
+        max_model_len=1024 * 8,
+        gpu_memory_utilization=0.9,
         max_lora_rank=16,
     ),
     peft_args=PeftArgs(

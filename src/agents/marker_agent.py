@@ -157,7 +157,8 @@ class MarkerAgent(BaseAgent):
 
         return self.trajectory
 
-    def parse_answer(self, message: Message) -> str:
+    @staticmethod
+    def parse_answer(message: Message) -> str:
         if message["role"] != "assistant":
             logger.error(f"Expected message role 'assistant', got {message['role']}")
             raise ValueError("Message role must be 'assistant' to extract answer.")

@@ -1,6 +1,7 @@
 import re
 from src.utils.markers import Markers
 
+# TODO: all of this should be in the src.utils.markers namespace
 
 def extract_between(text: str, start_marker: str, end_marker: str) -> list[str]:
     """

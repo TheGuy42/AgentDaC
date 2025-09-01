@@ -38,6 +38,7 @@ class VllmConfig(BaseModel, frozen=False, extra="allow"):
             self.openai_config["server_args"]["api_key"] = api_key  # type: ignore
         self.openai_config["engine_args"]["enable_lora"] = True  # type: ignore
         self.openai_config["engine_args"]["seed"] = seed or 0  # type: ignore
+        self.openai_config["engine_args"]["num_scheduler_steps"] = 1 # type: ignore
         return self
 
     def save(self, dir_name: str, file_name: str = "vllm_config.json") -> None:

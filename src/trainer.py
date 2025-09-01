@@ -210,7 +210,7 @@ class Trainer:
     async def predict(
         self,
         dataset: list[dict],
-        stage: RolloutStage = RolloutStage.Val,
+        stage: RolloutStage = RolloutStage.Test,
         max_exceptions: int | float = 0,
     ) -> list[str | Exception]:
         """

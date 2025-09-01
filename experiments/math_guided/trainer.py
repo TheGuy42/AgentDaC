@@ -1,19 +1,16 @@
-from src.agents import BaseAgent, MarkerAgent
+from src.agents import BaseAgent, GuidedAgent
 from src.trainer import Trainer, RolloutStage
 from src.openai_types import UserMessage
-from src.utils.markers import Markers
-from src.utils.text import extract_between
 from src.configs import DecompConfig
 
-from experiments.general_rewards import format_reward, behavior_reward
-from experiments.bbeh.rewards import answer_reward
-from experiments.bbeh.format import format_prompt
+from experiments.math.rewards import answer_reward
+from experiments.math.format import format_prompt
 
 import art
 import random
 
 
-class BbehTrainer(Trainer):
+class MathGuidedTrainer(Trainer):
     def create_agent(self, stage: RolloutStage) -> BaseAgent:
         client = self.vllm_router.next()
 
@@ -35,7 +32,7 @@ class BbehTrainer(Trainer):
             max_rounds=max_rounds,
         )
         
-        return MarkerAgent(
+        return GuidedAgent(
             model_name=self.model.get_inference_name(),
             openai_client=client.openai_client,
             prompt_config=self.prompt_config,
@@ -68,24 +65,13 @@ class BbehTrainer(Trainer):
         # Compute rewards
         trajectory.reward = 0.0
         ans_reward, parse_success = answer_reward(sample, ans_message)
-        ans_reward = 3.0 * ans_reward
         trajectory.reward += ans_reward
-        fmt_reward = format_reward(trajectory)
-        trajectory.reward += fmt_reward
-        bhv_reward = behavior_reward(trajectory)
-        trajectory.reward += bhv_reward
-
-        agent_answer = MarkerAgent.parse_answer(ans_message)
-        num_answers = len(extract_between(ans_content, Markers.ANS_START, Markers.ANS_END))
 
         # Update metrics
         trajectory.metrics.update(
             {
                 "answer_reward": ans_reward,
-                "format_reward": fmt_reward,
-                "behavior_reward": bhv_reward,
                 "is_correct": ans_reward > 0.0,
-                "gave_answer": num_answers > 0,
                 "parse_success": parse_success,
             }
         )
@@ -93,9 +79,11 @@ class BbehTrainer(Trainer):
         # Update metadata
         trajectory.metadata.update(
             {
-                "answer": sample["target"],
-                "agent_answer": agent_answer,
-                "task": sample["task"],
+                "answer": sample["answer"],
+                "agent_answer": GuidedAgent.parse_answer(ans_message),
+                "subject": sample["subject"],
+                "level": sample["level"],
+                "unique_id": sample["unique_id"],
             }
         )
 

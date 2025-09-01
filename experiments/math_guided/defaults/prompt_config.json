@@ -1,0 +1,6 @@
+{
+    "system_root": "sys_prompt_gilad_inter_guided",
+    "system_inter": "sys_prompt_gilad_inter_guided",
+    "system_leaf": "sys_prompt_gilad_leaf_guided",
+    "tasks_depleted": ""
+}

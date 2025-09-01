@@ -14,6 +14,7 @@ __all__ = [
 
 # import modules to register relevant prompts
 import src.configs.prompts.gilad_prompts  # noqa: F401
+import src.configs.prompts.guided_prompts  # noqa: F401
 import src.configs.prompts.guy_prompts  # noqa: F401
 import src.configs.prompts.old_prompts  # noqa: F401
 import src.configs.prompts.tasks_depleted  # noqa: F401

@@ -45,7 +45,7 @@ class BigCodeBenchTrainer(Trainer):
         assert isinstance(ans_content, str), f"Expected content to be a string, got {type(ans_content)}"
 
         answer = sample["canonical_solution"]  # sample["answer"].strip()
-        agent_answer = extract_answer(ans_content)
+        agent_answer = MarkerAgent.parse_answer(ans_message)
         num_answers = len(extract_between(ans_content, Markers.ANS_START, Markers.ANS_END))
 
         result = execute_code(sample, ans_message)

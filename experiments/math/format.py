@@ -1,4 +1,3 @@
-from src.utils.markers import Markers
 
 def format_prompt(sample: dict) -> str:
     # base model doesn't work well with this instruction

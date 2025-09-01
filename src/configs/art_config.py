@@ -41,6 +41,7 @@ class ArtConfig(BaseModel, frozen=False, extra="allow"):
         self.openai_config.setdefault("engine_args", EngineArgs())
 
         self.internal_config["engine_args"].setdefault("seed", 0)  # type: ignore
+        self.internal_config["engine_args"]["num_scheduler_steps"] = 1 # type: ignore
 
         if seed is not None:
             self.internal_config["init_args"]["random_state"] = seed # type: ignore

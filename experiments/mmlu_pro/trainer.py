@@ -2,7 +2,7 @@ from src.agents import BaseAgent, MarkerAgent
 from src.trainer import Trainer, RolloutStage
 from src.openai_types import UserMessage
 from src.utils.markers import Markers
-from src.utils.text import extract_answer, extract_between
+from src.utils.text import extract_between
 
 from experiments.general_rewards import format_reward, behavior_reward
 from experiments.mmlu_pro.rewards import answer_reward
@@ -55,7 +55,7 @@ class MmluProTrainer(Trainer):
         trajectory.reward += bhv_reward
 
         answer = sample["answer"].strip()
-        agent_answer = extract_answer(ans_content)
+        agent_answer = MarkerAgent.parse_answer(ans_message)
         num_answers = len(extract_between(ans_content, Markers.ANS_START, Markers.ANS_END))
 
         # Update metrics
