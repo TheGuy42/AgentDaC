@@ -41,7 +41,7 @@ def parse_args() -> tuple[argparse.Namespace, list[str]]:
     )
 
     parser.add_argument(
-        "--gpu",
+        "--gpus",
         type=int,
         nargs="+",
         default=[0],
@@ -105,7 +105,7 @@ def main(args: argparse.Namespace, extra_args: list[str]) -> None:
     env.update(
         {
             "VLLM_ALLOW_RUNTIME_LORA_UPDATING": "True",
-            "CUDA_VISIBLE_DEVICES": ",".join([str(gpu) for gpu in args.gpu]),
+            "CUDA_VISIBLE_DEVICES": ",".join([str(gpu) for gpu in args.gpus]),
             # "VLLM_ATTENTION_BACKEND": "FLASH_ATTN",   # TODO: does modifying attn backend can significantly improve performance?
             # "VLLM_FLASH_ATTN_VERSION": "3", # TODO: comment / uncomment when necessary
         }

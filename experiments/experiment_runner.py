@@ -91,7 +91,7 @@ class ExperimentRunner(ABC):
         )
 
         parser.add_argument(
-            "--gpu",
+            "--gpus",
             type=int,
             nargs="+",
             default=[0],
@@ -127,7 +127,7 @@ class ExperimentRunner(ABC):
         )
 
         parser.add_argument(
-            "--eval_only",
+            "--eval",
             action="store_true",
             help="Run evaluation only of base model (skip training).",
         )
@@ -137,9 +137,9 @@ class ExperimentRunner(ABC):
         args = self.args()
 
         # verify valid GPU IDs
-        if not all(0 <= gpu < torch.cuda.device_count() for gpu in args.gpu):
+        if not all(0 <= gpu < torch.cuda.device_count() for gpu in args.gpus):
             raise ValueError(
-                f"Invalid GPU IDs provided: {args.gpu}. Available GPUs: {list(range(torch.cuda.device_count()))}"
+                f"Invalid GPU IDs provided: {args.gpus}. Available GPUs: {list(range(torch.cuda.device_count()))}"
             )
 
         # print the parsed arguments
@@ -211,7 +211,7 @@ class ExperimentRunner(ABC):
         logger.info(f"Random seed set to {args.seed}")
 
         # Set the GPU environment variable
-        os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, args.gpu))
+        os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, args.gpus))
 
         path_config = PathConfig(
             base_model=args.model,
@@ -245,7 +245,7 @@ class ExperimentRunner(ABC):
         )
 
         # If eval only, create a non-trainable version of the model
-        if args.eval_only:
+        if args.eval:
             eval_model = art.Model(
                 name=f"{model.name}_eval",
                 project=model.project,
@@ -273,7 +273,7 @@ class ExperimentRunner(ABC):
             trainer.wandb_run.log_code(root="experiments", name="experiments")
 
         try:
-            if not args.eval_only:
+            if not args.eval:
                 # Run training if applicable
                 logger.info("Starting training")
                 await trainer.train(

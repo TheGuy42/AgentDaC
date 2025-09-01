@@ -31,7 +31,6 @@ class Runner(ExperimentRunner):
             nargs="+",
             default=None,
             required=True,
-            choices=SupportedTasks.list_values(),
             help=f"Which tasks of the BBEH dataset to use. Available tasks: {SupportedTasks.list_values()}",
         )
 
