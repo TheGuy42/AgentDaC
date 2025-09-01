@@ -3,7 +3,7 @@ import math_verify as mv
 from math_verify.errors import TimeoutException
 
 from src.utils.logging import create_logger
-from src.utils import text as text_utils
+from src.utils import markers
 from src.openai_types import Message
 from experiments.bbeh.tasks import SupportedTasks, verify_task
 
@@ -19,7 +19,7 @@ def answer_reward_boolean_expressions(sample: dict[str, str], message: Message) 
         assert isinstance(content, str), f"Expected content to be a string, got {type(content)}"
 
         gold_answer = sample["target"]
-        pred_answer = text_utils.extract_answer(content)
+        pred_answer = markers.extract_answer(content)
 
         # match (X) pattern
         pred_matches = re.findall(r"\(\s*([A-Za-z])\s*\)", pred_answer)
@@ -53,7 +53,7 @@ def answer_reward_multistep_arithmetic(sample: dict[str, str], message: Message)
         assert isinstance(content, str), f"Expected content to be a string, got {type(content)}"
 
         gold_answer = sample["answer"]
-        llm_answer = text_utils.extract_answer(content)
+        llm_answer = markers.extract_answer(content)
 
         gold_parsed = mv.parse(f"${gold_answer}$", raise_on_error=True)
         llm_parsed = mv.parse(llm_answer, raise_on_error=True)

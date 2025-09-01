@@ -1,7 +1,7 @@
 import math_verify as mv
 from math_verify.errors import TimeoutException
 
-from src.utils import text as text_utils
+from src.utils import markers
 from src.openai_types import Message
 from src.utils.logging import create_logger
 
@@ -27,7 +27,7 @@ def answer_reward(sample: dict[str, str], message: Message) -> tuple[float, bool
         assert isinstance(content, str), f"Expected content to be a string, got {type(content)}"
 
         gold_answer = sample["answer"]
-        llm_answer = text_utils.extract_answer(content)
+        llm_answer = markers.extract_answer(content)
 
         gold_parsed = mv.parse(f"${gold_answer}$", raise_on_error=True)
         llm_parsed = mv.parse(llm_answer, raise_on_error=True)

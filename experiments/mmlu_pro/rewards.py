@@ -1,5 +1,5 @@
 from src.utils.logging import create_logger
-from src.utils import text as text_utils
+from src.utils import markers
 from src.openai_types import Message
 import re
 
@@ -26,7 +26,7 @@ def answer_reward(sample: dict[str, str], message: Message) -> tuple[float, bool
         assert isinstance(content, str), f"Expected content to be a string, got {type(content)}"
 
         gold_answer = sample["answer"]
-        pred_answer = text_utils.extract_answer(content)
+        pred_answer = markers.extract_answer(content)
 
         # match (X) pattern
         matches = re.findall(r"\(\s*([A-Za-z])\s*\)", pred_answer)

@@ -1,8 +1,7 @@
 from src.agents import BaseAgent, MarkerAgent
 from src.trainer import Trainer, RolloutStage
 from src.openai_types import UserMessage
-from src.utils.markers import Markers
-from src.utils.text import extract_between
+from src.utils.markers import Markers, extract_between
 
 from experiments.general_rewards import format_reward, behavior_reward
 from experiments.mmlu_pro.rewards import answer_reward

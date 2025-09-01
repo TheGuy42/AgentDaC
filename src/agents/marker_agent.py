@@ -5,7 +5,7 @@ from openai.types.chat import ChatCompletion
 from art import Trajectory
 
 from src.agents.base import BaseAgent
-from src.utils import text as text_utils
+from src.utils import markers
 from src.utils.visualize import trajectory_string, message_string
 from src.utils.markers import Markers
 from src.utils.logging import create_logger
@@ -168,7 +168,7 @@ class MarkerAgent(BaseAgent):
             logger.error(f"Expected message content to be a string, got {type(content).__name__}")
             raise ValueError("Message content must be a string.")
 
-        return text_utils.extract_answer(content)
+        return markers.extract_answer(content)
 
     def _parse_tasks(self, message: Message) -> list[UserMessage]:
         if message["role"] != "assistant":
@@ -179,5 +179,5 @@ class MarkerAgent(BaseAgent):
             logger.error(f"Expected message content to be a string, got {type(content).__name__}")
             raise ValueError("Message content must be a string.")
 
-        tasks = text_utils.extract_tasks(content)
+        tasks = markers.extract_tasks(content)
         return [UserMessage(role="user", content=task) for task in tasks]
