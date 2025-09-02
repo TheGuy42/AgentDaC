@@ -54,4 +54,5 @@ class SingleAgentNodeFrozen(AgentNode):
             **kwargs,
         )
 
+        return completion
         return patch_completion(completion)

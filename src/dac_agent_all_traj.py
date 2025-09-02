@@ -58,7 +58,8 @@ class AllTrajSingleTaskAgentNode(AgentNode):
             extra_body=extra_body,
             **kwargs,
         )
-
+        
+        return completion
         return patch_completion(completion)
     
     async def chat(

@@ -650,6 +650,7 @@ class RewardBasedDoubleQuantileReplayBuffer(GeneralReplayBuffer):
         directory: str,
         grouping_keys: Optional[Union[str, List[str]]] = None,
         quantile_fraction: float = 0.2,
+        upper_only: bool = True,
         buffer_size: Optional[int] = None,
     ):
         """
@@ -666,6 +667,7 @@ class RewardBasedDoubleQuantileReplayBuffer(GeneralReplayBuffer):
         if not (0 < quantile_fraction < 0.5):
             raise ValueError("quantile_fraction must be between 0 and 0.5")
         self.quantile_fraction = quantile_fraction
+        self.upper_only = upper_only
 
     def _sort_group(self, trajectories: List[art.Trajectory]) -> List[art.Trajectory]:
         """
@@ -702,7 +704,11 @@ class RewardBasedDoubleQuantileReplayBuffer(GeneralReplayBuffer):
         
         top_k = trajectories[top_k_idx-n//4:][:n//2]
         bottom_k = trajectories[:bottom_k_idx+n//4][-n//2:]
-        return bottom_k + top_k
+
+        if self.upper_only:
+            return top_k
+        else:
+            return bottom_k + top_k
 
 
 class RewardBasedReplayBuffer(GeneralReplayBuffer):

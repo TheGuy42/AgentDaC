@@ -9,13 +9,14 @@ dependencies = [
     "ipywidgets",
     "numpy<2.0",
     "openpipe",
-    "openpipe-art[backend]==0.4.9",
+    "openpipe-art[backend]==0.4.8",
     "datasets",
     "torch",
     "torchtune",
     "nbformat",
     "transformers<4.54.0",
     "math-verify>=0.8.0",
+    "vllm==0.9.2",
 ]
 
 [tool.uv.workspace]

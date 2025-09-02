@@ -14,3 +14,4 @@ api_keys/*
 unsloth_compiled_cache
 experiments/SATURN/data/*
 experiments/BigCodeBench/Server/trash/*
+experiments/MULT/datasets/*

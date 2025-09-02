@@ -2,8 +2,6 @@ from __future__ import annotations
 import openai
 import httpx
 import asyncio
-import os
-import pathlib
 
 import art
 from art.openai import patch_openai
@@ -19,27 +17,18 @@ class VllmClient:
         base_url: str | httpx.URL,
         base_model: str,
         model_name: str | None = None,
-        api_key: str | None = None,
+        api_key: str | None = "default",
         timeout: float | httpx.Timeout | None = httpx.Timeout(timeout=1200, connect=5.0),
     ):
-        if api_key is None:
-            api_key = os.getenv("OPENAI_API_KEY")
-            if api_key is None:
-                api_key = "default"
-                logger.info(f"No OpenAI API key provided, using '{api_key}' key.")
-                
-        if model_name is None:
-            model_name = base_model
-
         self.base_url = base_url
         self.base_model = base_model
-        self.model_name = model_name
+        self.model_name = model_name if model_name else base_model
         self.api_key = api_key
         self.timeout = timeout
 
         self.http_client = openai.DefaultAsyncHttpxClient(
             base_url=base_url,
-            headers={"Authorization": f"Bearer {api_key}"},
+            headers={"Authorization": f"Bearer {api_key}"} if api_key else None,
             timeout=timeout,
             limits=httpx.Limits(max_connections=100_000, max_keepalive_connections=100_000),
         )
@@ -59,7 +48,7 @@ class VllmClient:
         base_model: str,
         model_name: str | None = None,
         host: str = "0.0.0.0",
-        api_key: str | None = None,
+        api_key: str | None = "default",
         timeout: float | httpx.Timeout | None = httpx.Timeout(timeout=1200, connect=5.0),
         **kwargs,
     ) -> VllmClient:
@@ -91,11 +80,9 @@ class VllmClient:
     @art.utils.retry(max_attempts=3)
     async def load_lora(self, lora_name: str, lora_path: str):
         payload = {"lora_name": lora_name, "lora_path": lora_path}
-        resp = await self.http_client.post("load_lora_adapter", json=payload)
+        resp = await self.http_client.post("/load_lora_adapter", json=payload)
         resp.raise_for_status()
         self.model_name = lora_name  # Update the inference name to the loaded LORA
-        
-        lora_path = pathlib.Path(lora_path).relative_to(pathlib.Path.cwd()).as_posix()
         logger.info(f"[{self.base_url}] Loaded LORA adapter: {lora_name} at path: {lora_path}")
 
     @art.utils.retry(max_attempts=3)
@@ -105,7 +92,7 @@ class VllmClient:
             return
 
         payload = {"lora_name": lora_name}
-        response = await self.http_client.post("unload_lora_adapter", json=payload)
+        response = await self.http_client.post("/unload_lora_adapter", json=payload)
         response.raise_for_status()
         logger.info(f"[{self.base_url}] Unloaded LORA adapter: {lora_name}")
 
@@ -156,7 +143,7 @@ class ArtClient(VllmClient):
 
     async def unload_lora(self, lora_name: str):
         return  # No-op for ArtClient, as it uses ART's LORA management
-
+    
 
 class VllmRouter:
     """
@@ -174,9 +161,6 @@ class VllmRouter:
         return len(self.clients)
 
     def next(self) -> VllmClient:
-        if len(self) == 0:
-            raise ValueError("No clients available in the router.")
-        
         client = self.clients[self.idx]
         self.idx = (self.idx + 1) % len(self)
         return client
@@ -191,9 +175,6 @@ class VllmRouter:
         """
         Get the current client in the round-robin rotation.
         """
-        if len(self) == 0:
-            raise ValueError("No clients available in the router.")
-        
         client = self.clients[self.idx]
         return client
 

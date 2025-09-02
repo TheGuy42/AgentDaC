@@ -189,20 +189,20 @@ add_config(
     init_args=InitArgs(
         load_in_4bit=False,
         gpu_memory_utilization=0.9,
-        max_lora_rank=16,
-        max_seq_length=1024 * 8,
+        max_lora_rank=32,
+        max_seq_length=1024 * 10,
     ),
     engine_args=EngineArgs(
-        max_model_len=1024 * 8,
+        max_model_len=1024 * 10,
         gpu_memory_utilization=0.9,
-        max_lora_rank=16,
+        max_lora_rank=32,
     ),
     peft_args=PeftArgs(
-        r=16,
+        r=32,
     ),
     openai_config=OpenAIServerConfig(
         server_args=ServerArgs(
-            port=8001,
+            port=8009,
         ),
     ),
 )
@@ -213,10 +213,10 @@ add_config(
         load_in_4bit=False,
         gpu_memory_utilization=0.9,
         max_lora_rank=16,
-        max_seq_length=1024 * 12,
+        max_seq_length=1024 * 8,
     ),
     engine_args=EngineArgs(
-        max_model_len=1024 * 12,
+        max_model_len=1024 * 8,
         gpu_memory_utilization=0.9,
         max_lora_rank=16,
     ),
@@ -259,6 +259,7 @@ add_config(
     "Qwen/Qwen3-32B-FP8",
     init_args=InitArgs(
         load_in_8bit=True,
+        load_in_4bit=False,
         gpu_memory_utilization=0.85,
         max_lora_rank=16,
         max_seq_length=1024 * 6,

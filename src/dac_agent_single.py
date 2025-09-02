@@ -27,7 +27,9 @@ class SingleAgentNode(AgentNode):
             logprobs=True,
             stop=stop,
             extra_body=extra_body,
+            timeout=500,
             **kwargs,
         )
-
-        return patch_completion(completion)
+        
+        return completion
+        # return patch_completion(completion)

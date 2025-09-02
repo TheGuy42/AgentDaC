@@ -1,12 +1,12 @@
 {
     "epochs": 100,
-    "num_groups": 24,
-    "group_size": 16,
+    "num_groups": 64,
+    "group_size": 12,
     "min_reward_stdev": null,
     "train_log_steps": 1,
     "eval_log_steps": 3,
-    "eval_size": 250,
-    "delete_checkpoints": true,
+    "eval_size": 512,
+    "delete_checkpoints": false,
     "checkpoint_metric": "reward",
     "rollout_kwargs": {
         "max_completion_tokens": 650
