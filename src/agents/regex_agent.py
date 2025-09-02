@@ -64,13 +64,29 @@ class GuidedRegex:
 
 class RegexAgent(BaseAgent):
     def _create_regex(self) -> GuidedRegex:
-        if self.decomp_config.should_stop(self.current_depth):
-            regex = GuidedRegex(TurnAction.ANSWER)
-        else:
-            regex = GuidedRegex(TurnAction.THINK, TurnAction.ISSUE_TASK, TurnAction.ANSWER)
-        return regex
+        """
+        Rules for allowed actions:
+        1) If at a leaf (depth >= max_depth): cannot ISSUE_TASK.
+        2) If rounds remain (total_rounds < max_rounds): may THINK.
+        3) If no rounds remain: must ANSWER.
+        4) If tasks exhausted (total_tasks >= max_tasks): cannot ISSUE_TASK.
+        5) ANSWER is always allowed.
+        """
 
-    async def _call(self, messages: list[Message], **kwargs) -> ChatCompletion:
+        dc = self.decomp_config
+        is_leaf = self.current_depth >= dc.max_depth
+        has_rounds = dc.total_rounds < dc.max_rounds
+        tasks_available = dc.total_tasks < dc.max_tasks
+
+        allowed = [TurnAction.ANSWER]
+        if has_rounds:
+            allowed.append(TurnAction.THINK)
+            if (not is_leaf) and tasks_available:
+                allowed.append(TurnAction.ISSUE_TASK)
+
+        return GuidedRegex(*allowed)
+
+    async def call(self, messages: list[Message], **kwargs) -> ChatCompletion:
         regex: GuidedRegex = kwargs.pop("regex")
         extra_body: dict = kwargs.setdefault("extra_body", {})
         extra_body.setdefault("include_stop_str_in_output", True)
@@ -83,7 +99,7 @@ class RegexAgent(BaseAgent):
             **kwargs,
         )
 
-    def create_sub_agent(self) -> BaseAgent:
+    def _create_sub_agent(self) -> BaseAgent:
         return RegexAgent(
             openai_client=self.openai_client,
             model_name=self.model,
@@ -117,7 +133,7 @@ class RegexAgent(BaseAgent):
         while True:
             # Model turn
             regex = self._create_regex()
-            completion = await self._call(self.trajectory.messages(), regex=regex, **kwargs)
+            completion = await self.call(self.trajectory.messages(), regex=regex, **kwargs)
             choice = completion.choices[0]
             self.trajectory.messages_and_choices.append(choice)
 
@@ -134,10 +150,6 @@ class RegexAgent(BaseAgent):
             assistant_msg = self.trajectory.messages()[-1]
             turn = regex.parse(assistant_msg.get("content"))
 
-            # Check if we should stop
-            if self.decomp_config.should_stop(self.current_depth):
-                break
-
             # Finish if the model chose to answer
             if turn.action == TurnAction.ANSWER:
                 break
@@ -150,7 +162,7 @@ class RegexAgent(BaseAgent):
 
             # Issue a task and get the answer from a sub-agent
             elif turn.action == TurnAction.ISSUE_TASK:
-                sub_agent = self.create_sub_agent()
+                sub_agent = self._create_sub_agent()
                 task = UserMessage(role="user", content=turn.text)
                 task_answer = await sub_agent.answer(task, verbose, **kwargs)
                 task_response = UserMessage(role="user", name="sub-agent", content=task_answer)

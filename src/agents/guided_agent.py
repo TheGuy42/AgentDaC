@@ -81,13 +81,29 @@ class GuidedSchema:
 
 class GuidedAgent(BaseAgent):
     def _create_schema(self) -> GuidedSchema:
-        if self.decomp_config.should_stop(self.current_depth):
-            schema = GuidedSchema(TurnAction.ANSWER)
-        else:
-            schema = GuidedSchema(TurnAction.THINK, TurnAction.ISSUE_TASK, TurnAction.ANSWER)
-        return schema
+        """
+        Rules for allowed actions:
+        1) If at a leaf (depth >= max_depth): cannot ISSUE_TASK.
+        2) If rounds remain (total_rounds < max_rounds): may THINK.
+        3) If no rounds remain: must ANSWER.
+        4) If tasks exhausted (total_tasks >= max_tasks): cannot ISSUE_TASK.
+        5) ANSWER is always allowed.
+        """
 
-    async def _call(self, messages: list[Message], **kwargs) -> ChatCompletion:
+        dc = self.decomp_config
+        is_leaf = self.current_depth >= dc.max_depth
+        has_rounds = dc.total_rounds < dc.max_rounds
+        tasks_available = dc.total_tasks < dc.max_tasks
+
+        allowed = [TurnAction.ANSWER]
+        if has_rounds:
+            allowed.append(TurnAction.THINK)
+            if (not is_leaf) and tasks_available:
+                allowed.append(TurnAction.ISSUE_TASK)
+
+        return GuidedSchema(*allowed)
+
+    async def call(self, messages: list[Message], **kwargs) -> ChatCompletion:
         schema: GuidedSchema = kwargs.pop("schema")
         schema_descriptor = schema.build()
 
@@ -103,7 +119,7 @@ class GuidedAgent(BaseAgent):
             **kwargs,
         )
 
-    def create_sub_agent(self) -> BaseAgent:
+    def _create_sub_agent(self) -> BaseAgent:
         return GuidedAgent(
             openai_client=self.openai_client,
             model_name=self.model,
@@ -137,7 +153,7 @@ class GuidedAgent(BaseAgent):
         while True:
             # Model turn
             schema = self._create_schema()
-            completion = await self._call(self.trajectory.messages(), schema=schema, **kwargs)
+            completion = await self.call(self.trajectory.messages(), schema=schema, **kwargs)
             choice = completion.choices[0]
             self.trajectory.messages_and_choices.append(choice)
 
@@ -159,10 +175,6 @@ class GuidedAgent(BaseAgent):
                 turn = AgentTurn(action=TurnAction.ERROR, text="", raw={})
                 break
 
-            # Check if we should stop
-            if self.decomp_config.should_stop(self.current_depth):
-                break
-
             # Finish if the model chose to answer
             if turn.action == TurnAction.ANSWER:
                 break
@@ -175,7 +187,7 @@ class GuidedAgent(BaseAgent):
 
             # Issue a task and get the answer from a sub-agent
             elif turn.action == TurnAction.ISSUE_TASK:
-                sub_agent = self.create_sub_agent()
+                sub_agent = self._create_sub_agent()
                 task = UserMessage(role="user", content=turn.text)
                 task_answer = await sub_agent.answer(task, verbose, **kwargs)
                 task_response = UserMessage(role="user", name="sub-agent", content=task_answer)

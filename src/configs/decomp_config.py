@@ -5,9 +5,9 @@ from src.utils.io import save_base_model
 
 
 class DecompConfig(BaseModel):
-    max_depth: int | None = 1
-    max_tasks: int | None = 5
-    max_rounds: int | None = 5
+    max_depth: int = 1
+    max_tasks: int = 4
+    max_rounds: int = 5
 
     # Internal counter fields
     total_rounds: int = Field(default=0, exclude=True, init=False)
@@ -28,19 +28,6 @@ class DecompConfig(BaseModel):
         """Update round and task counters"""
         self.total_rounds += 1
         self.total_tasks += num_tasks
-
-    def should_stop(self, cur_depth: int) -> bool:
-        """Check if stopping criteria are met"""
-        if self.max_depth is not None and cur_depth >= self.max_depth:
-            return True
-
-        if self.max_tasks is not None and self.total_tasks >= self.max_tasks:
-            return True
-
-        if self.max_rounds is not None and self.total_rounds >= self.max_rounds:
-            return True
-
-        return False
 
     def save(self, dir_name: str, file_name: str = "decomp_config.json") -> None:
         """

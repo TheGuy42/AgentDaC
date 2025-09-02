@@ -42,7 +42,7 @@ class BaseAgent(ABC):
             },
         )
 
-        if sys_msg := self._create_system_message():
+        if sys_msg := self._get_system_message():
             self.trajectory.messages_and_choices.append(sys_msg)
 
     @property
@@ -56,33 +56,26 @@ class BaseAgent(ABC):
     def __str__(self) -> str:
         return trajectory_string(self.trajectory)
 
-    def _create_system_message(self) -> SystemMessage | None:
-        prompt_config = self.prompt_config
-        max_depth = self.decomp_config.max_depth
+    def _get_system_message(self) -> SystemMessage | None:
+        pc = self.prompt_config
+        dc = self.decomp_config
 
-        if max_depth is None:
-            max_depth = float("inf")
-
-        content: str | None = None
-
-        if self.decomp_config.should_stop(self.current_depth):
-            # Leaf if we need to stop for any reason
-            content = get_prompt(prompt_config.system_leaf)
-
-        elif self.current_depth == 0:
-            content = get_prompt(prompt_config.system_root)
-
-        elif self.current_depth < max_depth:
-            content = get_prompt(prompt_config.system_inter)
+        if self.current_depth == 0:
+            content = get_prompt(pc.system_root)
+        elif self.current_depth < dc.max_depth:
+            content = get_prompt(pc.system_inter)
+        else:
+            content = get_prompt(pc.system_leaf)
 
         if content is not None:
             return SystemMessage(role="system", content=content)
 
         return None
 
-    async def _call(self, messages: list[Message], **kwargs) -> ChatCompletion:
+    async def call(self, messages: list[Message], **kwargs) -> ChatCompletion:
         """
         Call the OpenAI API to get a chat completion.
+        Should not be used directly; use `chat` instead.
 
         Args:
             messages (list[Message]): The list of messages to send to the API.
@@ -110,10 +103,6 @@ class BaseAgent(ABC):
         return self.parse_answer(trajectory.messages()[-1]).strip()
 
     @abstractmethod
-    def create_sub_agent(self) -> BaseAgent:
-        pass
-
-    @abstractmethod
     async def chat(
         self,
         prompt: Message,
@@ -137,4 +126,13 @@ class BaseAgent(ABC):
     @staticmethod
     @abstractmethod
     def parse_answer(message: Message) -> str:
+        """
+        Parse the final answer from the agent's message.
+
+        Args:
+            message (Message): The agent's message containing the answer.
+
+        Returns:
+            (str): The parsed answer text.
+        """
         pass

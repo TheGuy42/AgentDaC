@@ -34,7 +34,7 @@ class MarkerAgent(BaseAgent):
             current_depth=current_depth,
         )
 
-    def create_sub_agent(self) -> MarkerAgent:
+    def _create_sub_agent(self) -> MarkerAgent:
         return MarkerAgent(
             openai_client=self.openai_client,
             model_name=self.model,
@@ -43,20 +43,30 @@ class MarkerAgent(BaseAgent):
             current_depth=self.current_depth + 1,
         )
 
-    async def _call(self, messages: list[Message], **kwargs) -> ChatCompletion:
+    async def call(self, messages: list[Message], **kwargs) -> ChatCompletion:
         # By default allow only a single task and answer in the response
         extra_body = kwargs.setdefault("extra_body", {})
         extra_body.setdefault("include_stop_str_in_output", True)
         kwargs.setdefault("stop", [Markers.TASK_END, Markers.ANS_END])
-        return await super()._call(messages, **kwargs)
+        return await super().call(messages, **kwargs)
 
     # NOTE: experimental
-    def remaining_budget_string(self) -> str:
+    def _remaining_budget_string(self) -> str:
         if self.decomp_config.max_tasks is None:
             return "INFO: Unlimited number of tasks available."
         return (
             f"INFO: Number of available tasks: {max(self.decomp_config.max_tasks - self.decomp_config.total_tasks, 0)}"
         )
+
+    def _should_stop(self) -> bool:
+        dc = self.decomp_config
+        if self.current_depth >= dc.max_depth:
+            return True
+        if dc.total_tasks >= dc.max_tasks:
+            return True
+        if dc.total_rounds >= dc.max_rounds:
+            return True
+        return False
 
     async def chat(
         self,
@@ -68,9 +78,8 @@ class MarkerAgent(BaseAgent):
             logger.warning(f"Prompt role is expected to be 'user', but got {prompt['role']}.")
 
         # NOTE: experimental
-        if not self.decomp_config.should_stop(self.current_depth):
-            # prompt["content"] = f"{prompt.get('content')}\n\n{self.remaining_budget_string()}"
-            pass
+        # if not self._should_stop():
+        #     prompt["content"] = f"{prompt.get('content')}\n\n{self._remaining_budget_string()}"
 
         self.trajectory.messages_and_choices.append(prompt)
 
@@ -86,7 +95,7 @@ class MarkerAgent(BaseAgent):
 
         while True:
             # Call the OpenAI API to get a response
-            completion = await self._call(self.trajectory.messages(), **kwargs)
+            completion = await self.call(self.trajectory.messages(), **kwargs)
             choice = completion.choices[0]
             self.trajectory.messages_and_choices.append(choice)
 
@@ -108,7 +117,7 @@ class MarkerAgent(BaseAgent):
 
             tasks_answers: list[str] = []
 
-            if self.decomp_config.should_stop(self.current_depth):
+            if self._should_stop():
                 mock_answer = get_prompt(self.prompt_config.tasks_depleted)
 
                 # If no mock answer provided then immediately stop
@@ -123,7 +132,7 @@ class MarkerAgent(BaseAgent):
             else:
                 for task in tasks_inputs:
                     # create a sub-agent and get answer the task
-                    sub_agent = self.create_sub_agent()
+                    sub_agent = self._create_sub_agent()
                     ans = await sub_agent.answer(task, verbose, **kwargs)
                     tasks_answers.append(ans)
 
