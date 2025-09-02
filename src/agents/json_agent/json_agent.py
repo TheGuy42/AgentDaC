@@ -1,69 +1,79 @@
 from __future__ import annotations
 from typing import Any
-from enum import Enum
 from dataclasses import dataclass
 
+import json_repair
 from openai.types.chat import ChatCompletion
 from art import Trajectory
 
 from src.agents.base import BaseAgent
+from src.agents.json_agent.actions import TurnAction
 from src.openai_types import Message, UserMessage
 from src.utils.visualize import trajectory_string, message_string
 from src.utils.logging import create_logger
-import re
 
 
 logger = create_logger(__name__)
-
-
-class TurnAction(str, Enum):
-    THINK = "think"
-    ISSUE_TASK = "issue_task"
-    ANSWER = "answer"
-
-    def __str__(self) -> str:
-        return self.value
 
 
 @dataclass
 class AgentTurn:
     action: TurnAction
     text: str
-    raw: str
+    raw: dict[str, Any]
 
 
-class GuidedRegex:
+class GuidedJson:
     def __init__(self, *actions: TurnAction) -> None:
-        if not actions:
-            raise ValueError("At least one allowed action must be provided.")
         self.actions = actions
 
-        alt = "|".join(re.escape(act.value) for act in self.actions)
-        self.pattern = rf"(?s)\A\s?Action: (?P<action>{alt})\r?\nText: (?P<text>.*)\Z"
-        self.regex = re.compile(self.pattern)
+    def build(self) -> dict[str, Any]:
+        json_schema = {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "action": {"type": "string", "enum": [a.value for a in self.actions]},
+                "text": {"type": "string"},
+            },
+            "required": ["action", "text"],
+        }
+
+        return {
+            "name": "assistant_turn",
+            "description": "Json schema for a single assistant turn.",
+            "strict": True,
+            "schema": json_schema,
+        }
 
     def parse(self, content: Any) -> AgentTurn:
         if not isinstance(content, str):
             raise ValueError("Content to parse must be a string.")
 
-        m = self.regex.match(content)
-        if not m:
-            logger.debug(f"Failed to match content against regex: {self.pattern}")
-            logger.debug(f"Raw content was: {content}")
-            raise ValueError(f"Content does not match the required pattern: {self.pattern}")
+        json_obj = json_repair.loads(content, skip_json_loads=True)
+        if not isinstance(json_obj, dict):
+            logger.debug(f"Failed to parse JSON content: {content}")
+            logger.debug(f"Parsed JSON object: {json_obj}")
+            raise ValueError(f"Parsed content is not a dictionary, got {type(json_obj)}")
 
-        action_val = m.group("action").strip()
-        text_val = m.group("text").strip()
+        action_val = json_obj["action"]
+        if not isinstance(action_val, str):
+            raise ValueError(f"Field 'action' must be a string, got {type(action_val)}.")
+
+        text_val = json_obj["text"]
+        if not isinstance(text_val, str):
+            raise ValueError(f"Field 'text' must be a string, got {type(text_val)}.")
 
         action = TurnAction(action_val)
+        text = text_val.strip()
+
         if action not in self.actions:
             raise ValueError(f"Action {action} is not allowed for this turn. Allowed: {self.actions}")
 
-        return AgentTurn(action=action, text=text_val, raw=content)
+        return AgentTurn(action=action, text=text, raw=json_obj)
 
 
-class RegexAgent(BaseAgent):
-    def _create_regex(self) -> GuidedRegex:
+class JsonAgent(BaseAgent):
+    def _create_schema(self) -> GuidedJson:
         """
         Rules for allowed actions:
         1) If at a leaf (depth >= max_depth): cannot ISSUE_TASK.
@@ -84,13 +94,15 @@ class RegexAgent(BaseAgent):
             if (not is_leaf) and tasks_available:
                 allowed.append(TurnAction.ISSUE_TASK)
 
-        return GuidedRegex(*allowed)
+        return GuidedJson(*allowed)
 
     async def call(self, messages: list[Message], **kwargs) -> ChatCompletion:
-        regex: GuidedRegex = kwargs.pop("regex")
+        schema: GuidedJson = kwargs.pop("schema")
+        schema_descriptor = schema.build()
+
         extra_body: dict = kwargs.setdefault("extra_body", {})
         extra_body.setdefault("include_stop_str_in_output", True)
-        extra_body["guided_regex"] = regex.pattern
+        kwargs["response_format"] = {"type": "json_schema", "json_schema": schema_descriptor}
 
         return await self.openai_client.chat.completions.create(
             model=self.model,
@@ -100,7 +112,7 @@ class RegexAgent(BaseAgent):
         )
 
     def _create_sub_agent(self) -> BaseAgent:
-        return RegexAgent(
+        return JsonAgent(
             openai_client=self.openai_client,
             model_name=self.model,
             prompt_config=self.prompt_config,
@@ -132,8 +144,8 @@ class RegexAgent(BaseAgent):
 
         while True:
             # Model turn
-            regex = self._create_regex()
-            completion = await self.call(self.trajectory.messages(), regex=regex, **kwargs)
+            schema = self._create_schema()
+            completion = await self.call(self.trajectory.messages(), schema=schema, **kwargs)
             choice = completion.choices[0]
             self.trajectory.messages_and_choices.append(choice)
 
@@ -147,8 +159,13 @@ class RegexAgent(BaseAgent):
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
 
             # Extract raw content and parse it
-            assistant_msg = self.trajectory.messages()[-1]
-            turn = regex.parse(assistant_msg.get("content"))
+            try:
+                assistant_msg = self.trajectory.messages()[-1]
+                turn = schema.parse(assistant_msg.get("content"))
+            except Exception as e:
+                logger.warning(f"Failed to parse model output: {e}")
+                turn = AgentTurn(action=TurnAction.ERROR, text="", raw={})
+                break
 
             # Finish if the model chose to answer
             if turn.action == TurnAction.ANSWER:
@@ -201,7 +218,7 @@ class RegexAgent(BaseAgent):
             raise ValueError("Message content must be a string.")
 
         try:
-            schema = GuidedRegex(TurnAction.ANSWER)
+            schema = GuidedJson(TurnAction.ANSWER)
             turn = schema.parse(content)
             return turn.text
         except Exception as e:

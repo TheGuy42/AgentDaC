@@ -1,8 +1,8 @@
 from src.configs.prompts import add_prompt
-from src.agents.guided_agent import TurnAction
+from src.agents.json_agent.actions import TurnAction
 
 add_prompt(
-    name="sys_prompt_gilad_inter_json_guided",
+    name="sys_prompt_gilad_inter_json",
     content="""
 You are a highly capable and truthful AI assistant that excels at logical reasoning.
 
@@ -39,7 +39,7 @@ Follow these rules strictly.
 )
 
 add_prompt(
-    name="sys_prompt_gilad_leaf_json_guided",
+    name="sys_prompt_gilad_leaf_json",
     content="""
 You are a highly capable and truthful AI assistant that excels at logical reasoning.
 
@@ -66,7 +66,7 @@ Follow these rules strictly.
 )
 
 add_prompt(
-    name="sys_prompt_gilad_inter_json_guided_v2",
+    name="sys_prompt_gilad_inter_json_v2",
     content=f"""
 You are a highly capable and truthful AI assistant that excels at logical reasoning.
 
@@ -101,7 +101,7 @@ Follow these rules strictly.
 )
 
 add_prompt(
-    name="sys_prompt_gilad_leaf_json_guided_v2",
+    name="sys_prompt_gilad_leaf_json_v2",
     content=f"""
 You are a highly capable and truthful AI assistant that excels at logical reasoning.
 

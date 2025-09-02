@@ -1,6 +1,5 @@
 from art import Trajectory
 from src.openai_types import Message
-from src.utils.markers import Markers
 import re
 
 
@@ -16,26 +15,6 @@ class Colors:
     BOLD = "\033[1m"
     UNDERLINE = "\033[4m"
     RESET = "\033[0m"
-
-
-def colorize_markers(content: str) -> str:
-    """Add color formatting to special markers in content."""
-    marker_colors = {
-        Markers.THINK_START: Colors.GREEN,
-        Markers.THINK_END: Colors.GREEN,
-        Markers.TASK_START: Colors.PURPLE,
-        Markers.TASK_END: Colors.PURPLE,
-        Markers.TOOL_START: Colors.PURPLE,
-        Markers.TOOL_END: Colors.PURPLE,
-        Markers.ANS_START: Colors.BLUE,
-        Markers.ANS_END: Colors.BLUE,
-    }
-
-    for marker, color in marker_colors.items():
-        colored = f"{Colors.BOLD}{color}{marker}{Colors.RESET}"
-        content = content.replace(marker, colored)
-
-    return content
 
 
 def normalize_newlines(text: str) -> str:
@@ -73,7 +52,6 @@ def message_string(message: Message, indent: int = 0) -> str:
     if content := message.get("content"):
         if not isinstance(content, str):
             raise ValueError("Message content must be a string.")
-        content = colorize_markers(content)
         content_lines = normalize_newlines(content).strip().split("\n")
         content_text = format_field("content", content_lines, indent)
         texts.append(content_text)
@@ -81,7 +59,6 @@ def message_string(message: Message, indent: int = 0) -> str:
     if refusal := message.get("refusal"):
         if not isinstance(refusal, str):
             raise ValueError("Message refusal must be a string.")
-        refusal = colorize_markers(refusal)
         refusal_lines = normalize_newlines(refusal).strip().split("\n")
         refusal_text = format_field("refusal", refusal_lines, indent)
         texts.append(refusal_text)

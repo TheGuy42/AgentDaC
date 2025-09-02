@@ -1,9 +1,9 @@
 from src.configs.prompts import add_prompt
-from src.agents.regex_agent import TurnAction
+from src.agents.regex_agent.actions import TurnAction
 
 
 add_prompt(
-    name="sys_prompt_gilad_inter_regex_guided",
+    name="sys_prompt_gilad_inter_regex",
     content=f"""
 You are a highly capable and truthful AI assistant that excels at logical reasoning.
 
@@ -36,7 +36,7 @@ Follow these rules strictly.
 )
 
 add_prompt(
-    name="sys_prompt_gilad_leaf_regex_guided",
+    name="sys_prompt_gilad_leaf_regex",
     content=f"""
 You are a highly capable and truthful AI assistant that excels at logical reasoning.
 

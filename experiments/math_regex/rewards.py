@@ -2,7 +2,7 @@ import math_verify as mv
 from math_verify.errors import TimeoutException
 
 from src.openai_types import Message
-from src.agents.guided_agent import GuidedAgent
+from src.agents import RegexAgent
 from src.utils.logging import create_logger
 
 
@@ -23,7 +23,7 @@ def answer_reward(sample: dict[str, str], message: Message) -> tuple[float, bool
     """
     try:
         gold_answer = sample["answer"]
-        llm_answer = GuidedAgent.parse_answer(message)
+        llm_answer = RegexAgent.parse_answer(message)
 
         gold_parsed = mv.parse(f"${gold_answer}$", raise_on_error=True)
         llm_parsed = mv.parse(llm_answer, raise_on_error=True)

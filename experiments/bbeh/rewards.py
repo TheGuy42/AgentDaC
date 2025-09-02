@@ -3,7 +3,7 @@ import math_verify as mv
 from math_verify.errors import TimeoutException
 
 from src.utils.logging import create_logger
-from src.utils import markers
+from src.agents.marker_agent import markers
 from src.openai_types import Message
 from experiments.bbeh.tasks import SupportedTasks, verify_task
 

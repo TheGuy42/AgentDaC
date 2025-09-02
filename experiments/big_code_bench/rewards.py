@@ -1,5 +1,5 @@
 from src.openai_types import Message
-from src.utils.markers import extract_answer
+from src.agents.marker_agent.markers import extract_answer
 from experiments.big_code_bench.server.code_client import CodeClient, ExecutionResult
 from experiments.big_code_bench.format import create_test_code
 from src.utils.logging import create_logger

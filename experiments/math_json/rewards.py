@@ -1,8 +1,8 @@
 import math_verify as mv
 from math_verify.errors import TimeoutException
 
-from src.agents.marker_agent import markers
 from src.openai_types import Message
+from src.agents import JsonAgent
 from src.utils.logging import create_logger
 
 
@@ -22,16 +22,12 @@ def answer_reward(sample: dict[str, str], message: Message) -> tuple[float, bool
             and parsed is True if the answer was successfully parsed, False otherwise.
     """
     try:
-        content = message.get("content")
-        assert message["role"] == "assistant", f"Expected role 'assistant', got '{message['role']}'"
-        assert isinstance(content, str), f"Expected content to be a string, got {type(content)}"
+        gold_answer = sample["answer"]
+        llm_answer = JsonAgent.parse_answer(message)
 
-        gold_answer = f"${sample['answer']}$"
-        pred_answer = markers.extract_answer(content)
-
-        parsed_gold = mv.parse(gold_answer, raise_on_error=True)
-        parsed_pred = mv.parse(pred_answer, raise_on_error=True)
-        is_correct = mv.verify(parsed_gold, parsed_pred, raise_on_error=True)
+        gold_parsed = mv.parse(f"${gold_answer}$", raise_on_error=True)
+        llm_parsed = mv.parse(llm_answer, raise_on_error=True)
+        is_correct = mv.verify(gold_parsed, llm_parsed, raise_on_error=True)
         return (1.0 if is_correct else 0.0, True)
 
     except TimeoutException as e:

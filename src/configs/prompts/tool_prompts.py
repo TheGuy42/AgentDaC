@@ -1,4 +1,4 @@
-from src.utils.markers import Markers as M
+from src.agents.marker_agent.markers import Markers as M
 from src.configs.prompts import add_prompt
 
 

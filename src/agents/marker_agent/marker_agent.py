@@ -5,9 +5,9 @@ from openai.types.chat import ChatCompletion
 from art import Trajectory
 
 from src.agents.base import BaseAgent
-from src.utils import markers
 from src.utils.visualize import trajectory_string, message_string
-from src.utils.markers import Markers
+import src.agents.marker_agent.markers as markers
+from src.agents.marker_agent.markers import Markers
 from src.utils.logging import create_logger
 from src.openai_types import Message, UserMessage
 from src.configs import PromptConfig, DecompConfig

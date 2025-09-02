@@ -1,8 +1,6 @@
 import art
 from openai.types.chat.chat_completion import Choice
-
-from src.utils import markers
-from src.utils.markers import Markers
+from src.agents.marker_agent.markers import Markers, extract_between
 
 
 def _single_message_format_reward(content: str) -> float:
@@ -10,8 +8,8 @@ def _single_message_format_reward(content: str) -> float:
 
     # Conversation structure:
 
-    num_tasks = len(markers.extract_between(content, Markers.TASK_START, Markers.TASK_END))
-    num_answers = len(markers.extract_between(content, Markers.ANS_START, Markers.ANS_END))
+    num_tasks = len(extract_between(content, Markers.TASK_START, Markers.TASK_END))
+    num_answers = len(extract_between(content, Markers.ANS_START, Markers.ANS_END))
 
     if num_tasks == 0 and num_answers == 0:
         # Penalize for no tasks or answers
@@ -81,7 +79,7 @@ def behavior_reward(
 
     total_reward = 0.0
 
-    num_answers = len(markers.extract_between(last_content, Markers.ANS_START, Markers.ANS_END))
+    num_answers = len(extract_between(last_content, Markers.ANS_START, Markers.ANS_END))
     if num_answers == 0:
         total_reward -= no_answer_factor * 1.0
 

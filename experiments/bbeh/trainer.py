@@ -1,7 +1,7 @@
 from src.agents import BaseAgent, MarkerAgent
 from src.trainer import Trainer, RolloutStage
 from src.openai_types import UserMessage
-from src.utils.markers import Markers, extract_between
+from src.agents.marker_agent.markers import Markers, extract_between
 from src.configs import DecompConfig
 
 from experiments.general_rewards import format_reward, behavior_reward
@@ -22,11 +22,11 @@ class BbehTrainer(Trainer):
 
         if stage == RolloutStage.TRAIN:
             if self.extra_config.get("randomize_decomp_depth", False):
-                max_depth = random.randint(0, self.decomp_config.max_depth or 10)
+                max_depth = random.randint(0, self.decomp_config.max_depth)
             if self.extra_config.get("randomize_decomp_tasks", False):
-                max_tasks = random.randint(0, self.decomp_config.max_tasks or 10)
+                max_tasks = random.randint(0, self.decomp_config.max_tasks)
             if self.extra_config.get("randomize_decomp_rounds", False):
-                max_rounds = random.randint(0, self.decomp_config.max_rounds or 10)
+                max_rounds = random.randint(0, self.decomp_config.max_rounds)
 
         decomp_config = DecompConfig(
             max_depth=max_depth,

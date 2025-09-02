@@ -1,30 +1,38 @@
-from src.agents import BaseAgent, MarkerAgent
+from src.agents import BaseAgent, RegexAgent
 from src.trainer import Trainer, RolloutStage
 from src.openai_types import UserMessage
-from src.agents.marker_agent.markers import Markers, extract_between
 from src.configs import DecompConfig
-import random
 
-from experiments.general_rewards import format_reward, behavior_reward
-from experiments.easy2hard.rewards import answer_reward
-from experiments.easy2hard.format import format_prompt
+from experiments.math.format import format_prompt
+from experiments.math_regex.rewards import answer_reward
 
 import art
+import random
 
 
-class Easy2HardTrainer(Trainer):
+class MathRegexTrainer(Trainer):
     def create_agent(self, stage: RolloutStage) -> BaseAgent:
         client = self.vllm_router.next()
-        decomp_config = self.decomp_config
 
-        if stage == RolloutStage.TRAIN and self.extra_config.get("randomize_decomp_depth", False):
-            decomp_config = DecompConfig(
-                max_depth=random.randint(0, decomp_config.max_depth),
-                max_tasks=decomp_config.max_tasks,
-                max_rounds=decomp_config.max_rounds,
-            )
+        max_depth = self.decomp_config.max_depth
+        max_tasks = self.decomp_config.max_tasks
+        max_rounds = self.decomp_config.max_rounds
 
-        return MarkerAgent(
+        if stage == RolloutStage.TRAIN:
+            if self.extra_config.get("randomize_decomp_depth", False):
+                max_depth = random.randint(0, self.decomp_config.max_depth or 10)
+            if self.extra_config.get("randomize_decomp_tasks", False):
+                max_tasks = random.randint(0, self.decomp_config.max_tasks or 10)
+            if self.extra_config.get("randomize_decomp_rounds", False):
+                max_rounds = random.randint(0, self.decomp_config.max_rounds or 10)
+
+        decomp_config = DecompConfig(
+            max_depth=max_depth,
+            max_tasks=max_tasks,
+            max_rounds=max_rounds,
+        )
+
+        return RegexAgent(
             model_name=self.model.get_inference_name(),
             openai_client=client.openai_client,
             prompt_config=self.prompt_config,
@@ -57,25 +65,13 @@ class Easy2HardTrainer(Trainer):
         # Compute rewards
         trajectory.reward = 0.0
         ans_reward, parse_success = answer_reward(sample, ans_message)
-        ans_reward = 3.0 * ans_reward
         trajectory.reward += ans_reward
-        fmt_reward = format_reward(trajectory)
-        trajectory.reward += fmt_reward
-        bhv_reward = behavior_reward(trajectory)
-        trajectory.reward += bhv_reward
-
-        answer = sample["answer"].strip()
-        agent_answer = MarkerAgent.parse_answer(ans_message)
-        num_answers = len(extract_between(ans_content, Markers.ANS_START, Markers.ANS_END))
 
         # Update metrics
         trajectory.metrics.update(
             {
                 "answer_reward": ans_reward,
-                "format_reward": fmt_reward,
-                "behavior_reward": bhv_reward,
                 "is_correct": ans_reward > 0.0,
-                "gave_answer": num_answers > 0,
                 "parse_success": parse_success,
             }
         )
@@ -83,12 +79,11 @@ class Easy2HardTrainer(Trainer):
         # Update metadata
         trajectory.metadata.update(
             {
-                "answer": answer,
-                "agent_answer": agent_answer,
-                "item_difficulty": sample["item_difficulty"],
-                "rating": sample["rating"],
-                "rating_quantile": sample["rating_quantile"],
-                "contest": sample["contest"],
+                "answer": sample["answer"],
+                "agent_answer": RegexAgent.parse_answer(ans_message),
+                "subject": sample["subject"],
+                "level": sample["level"],
+                "unique_id": sample["unique_id"],
             }
         )
 

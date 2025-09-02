@@ -1,5 +1,5 @@
 from src.utils.logging import create_logger
-from src.utils import markers
+import src.agents.marker_agent.markers as markers
 from src.openai_types import Message
 import re
 

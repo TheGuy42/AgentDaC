@@ -1,16 +1,16 @@
-from src.agents import BaseAgent, GuidedAgent
+from src.agents import BaseAgent, JsonAgent
 from src.trainer import Trainer, RolloutStage
 from src.openai_types import UserMessage
 from src.configs import DecompConfig
 
 from experiments.math.format import format_prompt
-from experiments.math_guided.rewards import answer_reward
+from experiments.math_json.rewards import answer_reward
 
 import art
 import random
 
 
-class MathGuidedTrainer(Trainer):
+class MathJsonTrainer(Trainer):
     def create_agent(self, stage: RolloutStage) -> BaseAgent:
         client = self.vllm_router.next()
 
@@ -31,8 +31,8 @@ class MathGuidedTrainer(Trainer):
             max_tasks=max_tasks,
             max_rounds=max_rounds,
         )
-        
-        return GuidedAgent(
+
+        return JsonAgent(
             model_name=self.model.get_inference_name(),
             openai_client=client.openai_client,
             prompt_config=self.prompt_config,
@@ -80,7 +80,7 @@ class MathGuidedTrainer(Trainer):
         trajectory.metadata.update(
             {
                 "answer": sample["answer"],
-                "agent_answer": GuidedAgent.parse_answer(ans_message),
+                "agent_answer": JsonAgent.parse_answer(ans_message),
                 "subject": sample["subject"],
                 "level": sample["level"],
                 "unique_id": sample["unique_id"],
@@ -88,5 +88,3 @@ class MathGuidedTrainer(Trainer):
         )
 
         return trajectory
-
-

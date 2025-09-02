@@ -1,0 +1,20 @@
+{
+    "epochs": 10,
+    "num_groups": 20,
+    "group_size": 16,
+    "train_size": null,
+    "val_log_steps": 5,
+    "val_size": 350,
+    "delete_checkpoints": false,
+    "checkpoint_metric": "reward",
+    "art_config": {
+        "learning_rate": 0.000002,
+        "beta": 0.001
+    },
+    "dev_art_config": {
+        "epsilon": 25
+    },
+    "ruler_config": null,
+    "verbose": false,
+    "max_exceptions": 4
+}

@@ -1,6 +1,6 @@
 from src.agents import MarkerAgent
 from src.trainer import RolloutStage
-from src.utils.markers import Markers, extract_between
+from src.agents.marker_agent.markers import Markers, extract_between
 
 from experiments.general_rewards import format_reward, behavior_reward
 from experiments.easy2hard.trainer import Easy2HardTrainer

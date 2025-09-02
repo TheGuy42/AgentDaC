@@ -1,7 +1,4 @@
-from src.utils.markers import Markers
-
 def format_prompt(sample: dict) -> str:
-
     instruction = "Write a function to solve the following problem:\n"
     instruction = ""
 
@@ -61,6 +58,7 @@ if __name__ == '__main__':
     ratio, was_successful = run_tests_and_get_ratio()
     sys.exit(int(ratio * 100))
 """
+
 
 def create_test_code(sample, code: str) -> str:
     # code = sample['complete_prompt'] + sample['canonical_solution']

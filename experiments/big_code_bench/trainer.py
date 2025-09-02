@@ -1,7 +1,7 @@
 from src.agents import BaseAgent, MarkerAgent
 from src.trainer import Trainer, RolloutStage
 from src.openai_types import UserMessage
-from src.utils.markers import Markers, extract_between
+from src.agents.marker_agent.markers import Markers, extract_between
 
 from experiments.general_rewards import format_reward, behavior_reward
 from experiments.big_code_bench.rewards import answer_reward, execute_code

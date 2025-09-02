@@ -1,0 +1,6 @@
+{
+    "system_root": "sys_prompt_gilad_inter_json_v2",
+    "system_inter": "sys_prompt_gilad_inter_json_v2",
+    "system_leaf": "sys_prompt_gilad_leaf_json_v2",
+    "tasks_depleted": ""
+}
