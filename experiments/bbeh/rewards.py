@@ -12,7 +12,7 @@ logger = create_logger(__name__)
 
 
 def answer_reward_boolean_expressions(sample: dict[str, str], message: Message) -> tuple[float, bool]:
-    verify_task(sample, SupportedTasks.Boolean_Expressions)
+    verify_task(sample, SupportedTasks.BOOLEAN_EXPRESSIONS)
     try:
         content = message.get("content")
         assert message["role"] == "assistant", f"Expected role 'assistant', got '{message['role']}'"
@@ -46,7 +46,7 @@ def answer_reward_boolean_expressions(sample: dict[str, str], message: Message) 
 
 
 def answer_reward_multistep_arithmetic(sample: dict[str, str], message: Message) -> tuple[float, bool]:
-    verify_task(sample, SupportedTasks.Multistep_Arithmetic)
+    verify_task(sample, SupportedTasks.MULTISTEP_ARITHMETIC)
     try:
         content = message.get("content")
         assert message["role"] == "assistant", f"Expected role 'assistant', got '{message['role']}'"
@@ -81,9 +81,9 @@ def answer_reward(sample: dict[str, str], message: Message) -> tuple[float, bool
             and parsed is True if the answer was successfully parsed, False otherwise.
     """
 
-    if sample["task"] == SupportedTasks.Boolean_Expressions:
+    if sample["task"] == SupportedTasks.BOOLEAN_EXPRESSIONS:
         return answer_reward_boolean_expressions(sample, message)
-    if sample["task"] == SupportedTasks.Multistep_Arithmetic:
+    if sample["task"] == SupportedTasks.MULTISTEP_ARITHMETIC:
         return answer_reward_multistep_arithmetic(sample, message)
 
     raise ValueError(f"Unknown task: {sample['task']}")

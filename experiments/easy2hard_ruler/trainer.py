@@ -67,7 +67,7 @@ class Easy2HardRulerTrainer(Easy2HardTrainer):
         group: art.TrajectoryGroup,
         stage: RolloutStage,
     ) -> art.TrajectoryGroup | None:
-        if stage != RolloutStage.Train:
+        if stage != RolloutStage.TRAIN:
             return group
 
         ruler_config = self.train_config().ruler_config

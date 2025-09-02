@@ -287,10 +287,10 @@ class ExperimentRunner(ABC):
             groups = await trainer.rollout(
                 dataset=test_dataset.to_list(),
                 group_size=1,
-                stage=RolloutStage.Test,
+                stage=RolloutStage.TEST,
                 max_exceptions=train_config.max_exceptions,
             )
-            await trainer.model.log(groups, split=RolloutStage.Test.value)
+            await trainer.model.log(groups, split=RolloutStage.TEST.value)
 
         finally:
             await trainer.close()

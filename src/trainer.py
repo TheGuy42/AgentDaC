@@ -26,9 +26,12 @@ logger = create_logger(__name__)
 
 
 class RolloutStage(str, Enum):
-    Train = "train"
-    Val = "val"
-    Test = "test"
+    TRAIN = "train"
+    VAL = "val"
+    TEST = "test"
+    
+    def __str__(self) -> str:
+        return self.value
 
 
 class Trainer:
@@ -168,24 +171,24 @@ class Trainer:
                     self.rollout(
                         dataset=val_dataset,
                         group_size=1,
-                        stage=RolloutStage.Val,
+                        stage=RolloutStage.VAL,
                         max_exceptions=config.max_exceptions,
                     ),
                     self.rollout(
                         dataset=train_batch.items,
                         group_size=config.group_size,
-                        stage=RolloutStage.Train,
+                        stage=RolloutStage.TRAIN,
                         max_exceptions=config.max_exceptions,
                     ),
                 )
-                await self.model.log(val_groups, split=RolloutStage.Val.value)
+                await self.model.log(val_groups, split=RolloutStage.VAL.value)
 
             else:
                 # Perform training rollout
                 train_groups = await self.rollout(
                     dataset=train_batch.items,
                     group_size=config.group_size,
-                    stage=RolloutStage.Train,
+                    stage=RolloutStage.TRAIN,
                     max_exceptions=config.max_exceptions,
                 )
 
@@ -201,7 +204,7 @@ class Trainer:
 
             # Update checkpoints
             if config.delete_checkpoints:
-                metric_name = f"{RolloutStage.Val.value}/{config.checkpoint_metric}"
+                metric_name = f"{RolloutStage.VAL.value}/{config.checkpoint_metric}"
                 await self.model.delete_checkpoints(best_checkpoint_metric=metric_name)
 
         await self.sync_lora()
@@ -210,7 +213,7 @@ class Trainer:
     async def predict(
         self,
         dataset: list[dict],
-        stage: RolloutStage = RolloutStage.Test,
+        stage: RolloutStage = RolloutStage.TEST,
         max_exceptions: int | float = 0,
     ) -> list[str | Exception]:
         """
@@ -252,7 +255,7 @@ class Trainer:
         self,
         dataset: list[dict],
         group_size: int,
-        stage: RolloutStage = RolloutStage.Train,
+        stage: RolloutStage = RolloutStage.TRAIN,
         max_exceptions: int | float = 0,
     ) -> list[art.TrajectoryGroup]:
         async def sample_forward(sample: dict) -> art.Trajectory:
@@ -350,7 +353,7 @@ class Trainer:
         Returns:
             (art.TrajectoryGroup | None): The scored group of trajectories or None if scoring failed.
         """
-        if stage != RolloutStage.Train:
+        if stage != RolloutStage.TRAIN:
             return group
 
         ruler_config = self.train_config().ruler_config

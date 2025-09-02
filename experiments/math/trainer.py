@@ -20,7 +20,7 @@ class MathTrainer(Trainer):
         max_tasks = self.decomp_config.max_tasks
         max_rounds = self.decomp_config.max_rounds
 
-        if stage == RolloutStage.Train:
+        if stage == RolloutStage.TRAIN:
             if self.extra_config.get("randomize_decomp_depth", False):
                 max_depth = random.randint(0, self.decomp_config.max_depth or 10)
             if self.extra_config.get("randomize_decomp_tasks", False):

@@ -17,7 +17,7 @@ class Easy2HardTrainer(Trainer):
         client = self.vllm_router.next()
         decomp_config = self.decomp_config
 
-        if stage == RolloutStage.Train and self.extra_config.get("randomize_decomp_depth", False):
+        if stage == RolloutStage.TRAIN and self.extra_config.get("randomize_decomp_depth", False):
             decomp_config = DecompConfig(
                 max_depth=random.randint(0, decomp_config.max_depth or 10),
                 max_tasks=decomp_config.max_tasks,
