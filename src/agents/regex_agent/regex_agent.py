@@ -1,6 +1,5 @@
 from __future__ import annotations
 from typing import Any
-from enum import Enum
 from dataclasses import dataclass
 
 from openai.types.chat import ChatCompletion
@@ -31,7 +30,7 @@ class GuidedRegex:
         self.actions = actions
 
         alt = "|".join(re.escape(act.value) for act in self.actions)
-        self.model_pattern = rf"^\s?Action: ({alt})\r?\nText: ([\s\S]*)$"
+        self.model_pattern = rf"^\s?Action: (?:{alt})\r?\nText: [\s\S]*$"
         self.parse_pattern = rf"^\s?Action: (?P<action>{alt})\r?\nText: (?P<text>[\s\S]*)$"
         self.regex = re.compile(self.parse_pattern)
 
