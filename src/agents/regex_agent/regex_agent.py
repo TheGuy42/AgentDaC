@@ -91,7 +91,7 @@ class RegexAgent(BaseAgent):
             **kwargs,
         )
 
-    def _create_sub_agent(self) -> BaseAgent:
+    def _create_subagent(self) -> BaseAgent:
         return RegexAgent(
             openai_client=self.openai_client,
             model_name=self.model,
@@ -154,7 +154,7 @@ class RegexAgent(BaseAgent):
 
             # Issue a task and get the answer from a sub-agent
             elif turn.action == TurnAction.ISSUE_TASK:
-                sub_agent = self._create_sub_agent()
+                sub_agent = self._create_subagent()
                 task = UserMessage(role="user", content=turn.text)
                 task_answer = await sub_agent.answer(task, verbose, **kwargs)
                 task_response = UserMessage(role="user", name="sub-agent", content=task_answer)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion
 from art import Trajectory
@@ -34,7 +35,7 @@ class MarkerAgent(BaseAgent):
             current_depth=current_depth,
         )
 
-    def _create_sub_agent(self) -> MarkerAgent:
+    def _create_subagent(self) -> MarkerAgent:
         return MarkerAgent(
             openai_client=self.openai_client,
             model_name=self.model,
@@ -115,8 +116,6 @@ class MarkerAgent(BaseAgent):
             if should_break or len(tasks_inputs) == 0:
                 break
 
-            tasks_answers: list[str] = []
-
             if self._should_stop():
                 mock_answer = get_prompt(self.prompt_config.tasks_depleted)
 
@@ -125,21 +124,22 @@ class MarkerAgent(BaseAgent):
                     break
 
                 should_break = True
-                for task in tasks_inputs:
-                    # Provide mock answer indicating no more tasks available
-                    tasks_answers.append(mock_answer)
+                tasks_answers = [mock_answer] * len(tasks_inputs)
 
             else:
-                for task in tasks_inputs:
+
+                async def subagent_forward(task: UserMessage):
                     # create a sub-agent and get answer the task
-                    sub_agent = self._create_sub_agent()
-                    ans = await sub_agent.answer(task, verbose, **kwargs)
-                    tasks_answers.append(ans)
+                    sub_agent = self._create_subagent()
+                    answer = await sub_agent.answer(task, verbose, **kwargs)
 
                     # update metrics from sub-agent
                     self.metrics["total_tasks"] += sub_agent.metrics["total_tasks"]
                     self.metrics["total_calls"] += sub_agent.metrics["total_calls"]
                     self.metrics["max_depth"] = max(1 + sub_agent.metrics["max_depth"], self.metrics["max_depth"])
+                    return answer
+
+                tasks_answers = await asyncio.gather(*[subagent_forward(task) for task in tasks_inputs])
 
             # Update metrics
             self.metrics["direct_tasks"] += len(tasks_inputs)
