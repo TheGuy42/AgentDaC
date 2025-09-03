@@ -10,8 +10,8 @@ class DecompConfig(BaseModel):
     max_rounds: int = 5
 
     # Internal counter fields
-    total_rounds: int = Field(default=0, exclude=True, init=False)
-    total_tasks: int = Field(default=0, exclude=True, init=False)
+    total_rounds: int = Field(default=0, exclude=True)
+    total_tasks: int = Field(default=0, exclude=True)
 
     def clone(self) -> DecompConfig:
         """Create a deep copy and reset the counters"""

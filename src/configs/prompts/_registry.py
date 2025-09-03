@@ -15,13 +15,13 @@ def available_prompts() -> list[str]:
     return list(PROMPTS.keys())
 
 
-def add_prompt(name: str, content: str, allow_override: bool = False):
+def add_prompt(name: str, content: str, allow_override: bool = False) -> None:
     """
     Add a prompt to the global prompts dictionary.
     """
     if name in PROMPTS:
         if allow_override:
-            logger.warning(f"Prompt '{name}' already exists. Overring with this prompt.")
+            logger.warning(f"Prompt '{name}' already exists. Overriding with this prompt.")
         else:
             raise ValueError(f"Prompt '{name}' already exists.")
 

@@ -1,15 +1,23 @@
 import os
-from dotenv import load_dotenv
 from pathlib import Path
 import huggingface_hub as hf
 from src.utils.logging import create_logger
+
+try:
+    from dotenv import load_dotenv
+    DOTENV_AVAILABLE = True
+except ImportError:
+    DOTENV_AVAILABLE = False
 
 
 logger = create_logger(__name__)
 
 
 def prepare_environment(tokens_folder: str = "./api_keys"):
-    load_dotenv()
+    if DOTENV_AVAILABLE:
+        load_dotenv()
+    else:
+        logger.warning("python-dotenv not available, skipping .env file loading")
 
     folder_path = Path(tokens_folder)
 

@@ -112,7 +112,7 @@ def load_object(
     path: str | Path,
     do_raise: bool = True,
     **kwargs,
-) -> object:
+) -> object | None:
     """
     Load an object from a JSON file.
     """

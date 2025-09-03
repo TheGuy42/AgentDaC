@@ -139,8 +139,13 @@ class RegexAgent(BaseAgent):
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
 
             # Extract raw content and parse it
-            assistant_msg = self.trajectory.messages()[-1]
-            turn = regex.parse(assistant_msg.get("content"))
+            try:
+                assistant_msg = self.trajectory.messages()[-1]
+                turn = regex.parse(assistant_msg.get("content"))
+            except Exception as e:
+                logger.warning(f"Failed to parse model output: {e}")
+                turn = AgentTurn(action=TurnAction.ERROR, text="", raw="")
+                break
 
             # Finish if the model chose to answer
             if turn.action == TurnAction.ANSWER:

@@ -12,8 +12,6 @@ def parse_log_level(value: str, default: int = logging.INFO) -> int:
     name_to_level = logging.getLevelNamesMapping()
     value = value.strip().upper()
 
-    level = int(value) if value.isdecimal() else None
-
     if value.isdecimal():
         level = int(value)
         if level not in name_to_level.values():

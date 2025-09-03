@@ -40,6 +40,7 @@ class BaseAgent(ABC):
                 "total_tasks": 0,
                 "max_depth": 0,
             },
+            metadata={},
         )
 
         if sys_msg := self._get_system_message():
