@@ -8,9 +8,10 @@ def format_prompt(sample: dict) -> str:
     #     "Final answer format examples: $42$, $1,2,3,4$, $(1,2)$, $x^2$, $y=1$, $\\frac{1}{2}$, $\\sqrt{2} \\pi$, $\\text{Michael}$, $\\text{no}$, and so on."
     # )
 
-    instruction = "Please solve the following equation:"
+    # instruction = "Please solve the following equation:"
+    instruction = "Please calculate the value of the following logical expression:"
 
-    format_inst = "Give the final answer inside \\boxed{}"
+    format_inst = "Give the final answer (true/false) inside \\boxed{}"
 
     # TODO: find a unified instruction that works for both base model and task agents.
     

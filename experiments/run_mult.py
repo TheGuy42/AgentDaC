@@ -112,8 +112,8 @@ def parse_args() -> argparse.Namespace:
 
 def load_data() -> tuple[Dataset, Dataset]:
     dataset_dict: DatasetDict = load_dataset_as_datasetdict(
-        dataset_dir="/home/guycoh/dac_test/AgentDaC/experiments/MULT/datasets/advanced_v2",
-        dataset_name="advanced_multiplication"
+        dataset_dir="/home/guycoh/dac_test/AgentDaC/experiments/MULT/datasets/bbeh",
+        dataset_name="bbeh_boolean_expressions"
     )  # type: ignore
 
     train_data: Dataset = dataset_dict["train"]

@@ -6,7 +6,7 @@
     "train_log_steps": 1,
     "eval_log_steps": 3,
     "eval_size": 512,
-    "delete_checkpoints": false,
+    "delete_checkpoints": true,
     "checkpoint_metric": "reward",
     "rollout_kwargs": {
         "max_completion_tokens": 650

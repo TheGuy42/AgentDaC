@@ -4,6 +4,7 @@ from typing import Dict, List, Any, Optional, Tuple, Union, TYPE_CHECKING
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
+from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     from datasets import Dataset, DatasetDict
@@ -35,11 +36,18 @@ class DatasetConfig:
             raise ValueError("All splits must be between 0 and 1")
 
 
+class Sample(BaseModel):
+    """Base class for a dataset sample."""
+    index: int
+    problem: str
+    answer: str
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
 class SampleGenerator(ABC):
     """Abstract base class for sample generators."""
     
     @abstractmethod
-    def generate_sample(self, index: int) -> Dict[str, Any]:
+    def generate_sample(self, index: int) -> Sample:
         """Generate a single sample with the given index."""
         pass
 
@@ -71,7 +79,7 @@ class MultiplicationGenerator(SampleGenerator):
         self.max_value = max_value
         self.rng = random.Random(seed)
     
-    def generate_sample(self, index: int) -> Dict[str, Any]:
+    def generate_sample(self, index: int) -> Sample:
         """Generate a multiplication problem sample."""
         # Determine number of numbers to multiply
         num_count = self.rng.randint(self.min_numbers, self.max_numbers)
@@ -90,6 +98,11 @@ class MultiplicationGenerator(SampleGenerator):
         for num in numbers:
             answer *= num
         
+        return Sample(
+            index=index,
+            problem=problem,
+            answer=str(answer)
+        )
         return {
             "index": index,
             "problem": problem,
@@ -125,7 +138,7 @@ class AdvancedMultiplicationGenerator(SampleGenerator):
             "hard": {"min_numbers": 3, "max_numbers": 5, "min_value": 100, "max_value": 9999}
         }
     
-    def generate_sample(self, index: int) -> Dict[str, Any]:
+    def generate_sample(self, index: int) -> Sample:
         """Generate a multiplication problem with varying difficulty."""
         # Sample difficulty level
         difficulty = self.rng.choices(self.difficulty_levels, weights=self.difficulty_weights)[0]
@@ -146,63 +159,12 @@ class AdvancedMultiplicationGenerator(SampleGenerator):
         for num in numbers:
             answer *= num
         
-        return {
-            "index": index,
-            "problem": problem,
-            "answer": str(answer),
-            "difficulty": difficulty
-        }
-
-
-class AdvancedMultiplicationGenerator(SampleGenerator):
-    """Advanced multiplication generator with more complex patterns."""
-    
-    def __init__(
-        self,
-        difficulty_levels: List[str] = ["easy", "medium", "hard"],
-        difficulty_weights: Optional[List[float]] = None,
-        seed: Optional[int] = None
-    ):
-        """
-        Initialize advanced multiplication generator.
-        
-        Args:
-            difficulty_levels: List of difficulty levels
-            difficulty_weights: Weights for sampling difficulty levels
-            seed: Random seed for reproducibility
-        """
-        self.difficulty_levels = difficulty_levels
-        self.difficulty_weights = difficulty_weights or [1.0] * len(difficulty_levels)
-        self.rng = random.Random(seed)
-        
-        # Define difficulty parameters
-        self.difficulty_params = {
-            "easy": {"min_numbers": 2, "max_numbers": 2, "min_value": 1, "max_value": 99},
-            "medium": {"min_numbers": 2, "max_numbers": 4, "min_value": 10, "max_value": 999},
-            "hard": {"min_numbers": 3, "max_numbers": 5, "min_value": 100, "max_value": 9999}
-        }
-    
-    def generate_sample(self, index: int) -> Dict[str, Any]:
-        """Generate a multiplication problem with varying difficulty."""
-        # Sample difficulty level
-        difficulty = self.rng.choices(self.difficulty_levels, weights=self.difficulty_weights)[0]
-        params = self.difficulty_params[difficulty]
-        
-        # Generate numbers based on difficulty
-        num_count = self.rng.randint(params["min_numbers"], params["max_numbers"])
-        numbers = [
-            self.rng.randint(params["min_value"], params["max_value"])
-            for _ in range(num_count)
-        ]
-        
-        # Create problem string
-        problem = " * ".join(map(str, numbers))
-        
-        # Calculate answer
-        answer = 1
-        for num in numbers:
-            answer *= num
-        
+        return Sample(
+            index=index,
+            problem=problem,
+            answer=str(answer),
+            metadata={"difficulty": difficulty}
+        )
         return {
             "index": index,
             "problem": problem,
@@ -236,7 +198,7 @@ class TextDatasetGenerator:
         self.samples = []
         for i in range(self.config.num_samples):
             sample = self.generator.generate_sample(i)
-            self.samples.append(sample)
+            self.samples.append(sample.model_dump())
             
             # if (i + 1) % 100 == 0:
             #     print(f"Generated {i + 1}/{self.config.num_samples} samples")
@@ -498,11 +460,41 @@ def main():
     # print("\n" + "="*80 + "\n")
     
     # Example 2: Advanced multiplication generator with difficulty levels
-    print("=== Advanced Multiplication Dataset ===")
+    # print("=== Advanced Multiplication Dataset ===")
+    # config2 = DatasetConfig(
+    #     num_samples=3000,
+    #     dataset_name="advanced_multiplication",
+    #     output_dir="datasets/advanced_v2",
+    #     train_split=0.7,
+    #     val_split=0.2,
+    # )
+    
+    # generator2 = AdvancedMultiplicationGenerator(
+    #     difficulty_levels=["easy", "medium", "hard"],
+    #     difficulty_weights=[0.2, 0.4, 0.4],  # More medium difficulty
+    #     seed=42
+    # )
+    
+    # dataset2 = TextDatasetGenerator(config2, generator2)
+    # dataset2.generate_dataset()
+    # dataset2.print_sample_examples()
+    
+    # # Save splits
+    # filepaths2 = dataset2.save_split_datasets()
+    # print("Saved files:", filepaths2)
+    
+    # # Print statistics
+    # stats2 = dataset2.get_sample_statistics()
+    # print("Dataset statistics:", json.dumps(stats2, indent=2))
+    
+    # print("\n" + "="*80 + "\n")
+
+    # Example 2: Advanced multiplication generator with difficulty levels
+    print("=== Advanced Multiplication Dataset Long ===")
     config2 = DatasetConfig(
         num_samples=3000,
         dataset_name="advanced_multiplication",
-        output_dir="datasets/advanced_v2",
+        output_dir="datasets/advanced_long",
         train_split=0.7,
         val_split=0.2,
     )
@@ -512,6 +504,11 @@ def main():
         difficulty_weights=[0.2, 0.4, 0.4],  # More medium difficulty
         seed=42
     )
+    generator2.difficulty_params = {
+        "easy": {"min_numbers": 2, "max_numbers": 3, "min_value": 1, "max_value": 999},
+        "medium": {"min_numbers": 3, "max_numbers": 20, "min_value": 1, "max_value": 10},
+        "hard": {"min_numbers": 20, "max_numbers": 50, "min_value": 1, "max_value": 5}
+    }
     
     dataset2 = TextDatasetGenerator(config2, generator2)
     dataset2.generate_dataset()
@@ -527,33 +524,33 @@ def main():
     
     print("\n" + "="*80 + "\n")
     
-    # Example 3: Loading datasets as DatasetDict (if datasets library is available)
-    if DATASETS_AVAILABLE:
-        print("=== Loading Dataset as DatasetDict ===")
-        try:
-            # Load the basic multiplication dataset
-            dataset_dict = load_dataset_as_datasetdict(
-                dataset_dir="datasets/basic",
-                dataset_name="basic_multiplication"
-            )
+    # # Example 3: Loading datasets as DatasetDict (if datasets library is available)
+    # if DATASETS_AVAILABLE:
+    #     print("=== Loading Dataset as DatasetDict ===")
+    #     try:
+    #         # Load the basic multiplication dataset
+    #         dataset_dict = load_dataset_as_datasetdict(
+    #             dataset_dir="datasets/basic",
+    #             dataset_name="basic_multiplication"
+    #         )
             
-            print(f"DatasetDict keys: {list(dataset_dict.keys())}")
-            if 'train' in dataset_dict:
-                print(f"Train dataset: {dataset_dict['train']}")
-                print(f"First sample: {dataset_dict['train'][0]}")
+    #         print(f"DatasetDict keys: {list(dataset_dict.keys())}")
+    #         if 'train' in dataset_dict:
+    #             print(f"Train dataset: {dataset_dict['train']}")
+    #             print(f"First sample: {dataset_dict['train'][0]}")
             
-            # Example of loading a single dataset file
-            full_dataset = load_full_dataset_as_dataset(
-                "datasets/basic/basic_multiplication_train.json"
-            )
-            print(f"Full dataset: {full_dataset}")
+    #         # Example of loading a single dataset file
+    #         full_dataset = load_full_dataset_as_dataset(
+    #             "datasets/basic/basic_multiplication_train.json"
+    #         )
+    #         print(f"Full dataset: {full_dataset}")
             
-        except Exception as e:
-            print(f"Error loading datasets: {e}")
-    else:
-        print("=== Datasets library not available ===")
-        print("To use DatasetDict loading functionality, install the datasets library:")
-        print("pip install datasets")
+    #     except Exception as e:
+    #         print(f"Error loading datasets: {e}")
+    # else:
+    #     print("=== Datasets library not available ===")
+    #     print("To use DatasetDict loading functionality, install the datasets library:")
+    #     print("pip install datasets")
 
 
 if __name__ == "__main__":
