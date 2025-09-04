@@ -4,7 +4,7 @@
     "group_size": 16,
     "train_size": null,
     "val_log_steps": 5,
-    "val_size": 350,
+    "val_size": 500,
     "delete_checkpoints": false,
     "checkpoint_metric": "reward",
     "art_config": {
@@ -12,7 +12,7 @@
         "beta": 0.001
     },
     "dev_art_config": {
-        "epsilon": 1
+        "epsilon": 25
     },
     "ruler_config": null,
     "verbose": false,

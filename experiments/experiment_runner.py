@@ -275,7 +275,7 @@ class ExperimentRunner(ABC):
         try:
             if not args.eval:
                 # Run training if applicable
-                logger.info("Starting training")
+                logger.info("Starting training...")
                 await trainer.train(
                     config=train_config,
                     train_dataset=train_dataset.to_list(),
@@ -283,7 +283,7 @@ class ExperimentRunner(ABC):
                 )
 
             # Run evaluation
-            logger.info("Starting test-set evaluation")
+            logger.info("Starting test-set evaluation...")
             groups = await trainer.rollout(
                 dataset=test_dataset.to_list(),
                 group_size=1,

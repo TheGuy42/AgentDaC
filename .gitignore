@@ -6,7 +6,6 @@ dist/
 wheels/
 *.egg-info
 wandb/
-api_keys/*
 
 # Virtual environments
 .venv
@@ -15,3 +14,7 @@ unsloth_compiled_cache
 
 # Other
 tmux.inner.conf
+
+# API keys
+api_keys/*
+.env

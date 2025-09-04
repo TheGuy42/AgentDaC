@@ -1,6 +1,5 @@
 import os
-from dotenv import load_dotenv
-from pathlib import Path
+import dotenv
 import huggingface_hub as hf
 from src.utils.logging import create_logger
 
@@ -8,23 +7,22 @@ from src.utils.logging import create_logger
 logger = create_logger(__name__)
 
 
-def prepare_environment(tokens_folder: str = "./api_keys"):
-    load_dotenv()
+def prepare_environment(dotenv_path: str | None = None):
+    if dotenv_path is None:
+        dotenv_path = dotenv.find_dotenv()
 
-    folder_path = Path(tokens_folder)
+    logger.info(f"Using .env file at: {dotenv_path}")
+    token_dict = dotenv.dotenv_values(dotenv_path=dotenv_path, verbose=True)
 
-    token_dict = {
-        "WANDB_API_KEY": token_from_file(folder_path / "WANDB_KEY.txt"),
-        "OPENPIPE_API_KEY": token_from_file(folder_path / "OPENPIPE_KEY.txt"),
-        "HF_TOKEN": token_from_file(folder_path / "HF_KEY.txt") or hf.get_token(),
-        "OPENAI_API_KEY": token_from_file(folder_path / "OPENAI_KEY.txt"),
-    }
+    if not token_dict.get("OPENAI_API_KEY"):
+        openai_token = "default"
+        token_dict["OPENAI_API_KEY"] = openai_token
+        logger.info(f"OpenAI API key set to '{openai_token}'")
+
+    if not token_dict.get("HF_TOKEN"):
+        token_dict["HF_TOKEN"] = hf.get_token()
 
     token_dict = {k: v for k, v in token_dict.items() if v is not None}  # Filter out empty tokens
-
-    if "OPENAI_API_KEY" not in token_dict:
-        token_dict["OPENAI_API_KEY"] = "default"
-        logger.info("OpenAI API key set to 'default'")
 
     os.environ.update(token_dict)
     logger.info(f"Setting API tokens: {list(token_dict.keys())}")
@@ -42,34 +40,3 @@ def prepare_environment(tokens_folder: str = "./api_keys"):
 
     os.environ.update(flag_dict)
     logger.info(f"Setting additional variables: {flag_dict}")
-
-
-def token_from_file(path: str | Path, do_raise: bool = False) -> str | None:
-    """
-    Read an API key from a file.
-
-    Args:
-        path (str | pathlib.Path): Path to the file containing the API key.
-        do_raise (bool): If True, raises FileNotFoundError if the file does not exist.
-            If False, returns None and logs a message.
-
-    Returns:
-        (str | None): The API key if found, None otherwise.
-
-    Raises:
-        FileNotFoundError: If the file is not found.
-    """
-    if isinstance(path, str):
-        path = Path(path)
-
-    key_file = Path(path).resolve()
-
-    if key_file.exists():
-        with key_file.open("r", encoding="utf-8") as f:
-            return f.read().strip()
-    else:
-        if do_raise:
-            raise FileNotFoundError("API key file not found")
-        else:
-            logger.info(f"API key file not found at {path}")
-            return None
