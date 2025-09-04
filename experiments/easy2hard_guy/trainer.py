@@ -212,7 +212,7 @@ class Easy2HardTrainerVariableDepthReplay(Trainer):
         self.replay_buffer: GeneralReplayBuffer = RewardBasedDoubleQuantileReplayBuffer(
             directory=train_logs_path,
             grouping_keys=["index", "stop_depth"],
-            quantile_fraction=0.2,
+            upper_quantile=0.8,
             buffer_size=70,  # Only keep the last N epoch files
         )
         self.buffer_ratio:float = buffer_ratio
@@ -409,6 +409,27 @@ class Easy2HardTrainerFrozen(Trainer):
 
 class Easy2HardTrainer_Multi(Trainer):
     include_histories: bool = False
+    def __init__(
+        self,
+        model: art.Model,
+        vllm_router: VllmRouter,
+        path_config: PathConfig,
+        prompt_config: PromptConfig,
+        stop_criteria: StopCriteria,
+        default_kwargs: dict | None = None,
+        buffer_ratio: float = 0.33,
+    ):
+        super().__init__(model, vllm_router, path_config, prompt_config, stop_criteria, default_kwargs)
+        train_logs_path = output_dirs.get_trajectories_split_dir(self.path_config.model_output_dir, "train")
+        os.makedirs(train_logs_path, exist_ok=True)
+        self.replay_buffer: GeneralReplayBuffer = RewardBasedDoubleQuantileReplayBuffer(
+            directory=train_logs_path,
+            grouping_keys=["index", "root"],
+            upper_quantile=0.9,
+            # buffer_size=70,  # Only keep the last N steps files
+        )
+        self.buffer_ratio:float = buffer_ratio
+
     def create_agent(self) -> AllTrajSingleTaskAgentNode:
         client = self.vllm_router.next()
         return AllTrajSingleTaskAgentNode(
@@ -419,7 +440,7 @@ class Easy2HardTrainer_Multi(Trainer):
             include_histories=self.include_histories,
         )
     
-    async def rollout_step_multi(self, sample: dict, sample_id:int, **kwargs) -> art.TrajectoryGroup:
+    async def rollout_step_multi(self, sample: dict, **kwargs) -> art.TrajectoryGroup:
         # Perform a forward step to get the trajectory
         # trajectory = await self.forward_step(sample, **kwargs)
         content = format_prompt(sample)
@@ -462,9 +483,9 @@ class Easy2HardTrainer_Multi(Trainer):
                 "answer": answer,
                 "agent_answer": agent_answer,
                 "item_difficulty": sample["item_difficulty"],
-                "sample_id": sample_id,
                 "index": sample["index"],
                 "root": True,
+                "replay": False,
             }
         )
 
@@ -472,8 +493,8 @@ class Easy2HardTrainer_Multi(Trainer):
         sub_trajectories = agent.sub_trajectories
 
         for sub_traj in sub_trajectories:
-            sub_traj.reward = format_reward(sub_traj) + ans_reward * 0.1
-            sub_traj.metadata.update({"root": False, "sample_id": sample_id})
+            sub_traj.reward = format_reward(sub_traj) + ans_reward * 0.05
+            sub_traj.metadata.update({"root": False, "index": sample["index"], "replay": False})
 
         return art.TrajectoryGroup([trajectory] + sub_trajectories)
 
@@ -505,7 +526,7 @@ class Easy2HardTrainer_Multi(Trainer):
 
         groups = []
         for i, sample in enumerate(dataset):
-            group = [(self.rollout_step_multi(sample, i, **kwargs)) for _ in range(group_size)]
+            group = [(self.rollout_step_multi(sample, **kwargs)) for _ in range(group_size)]
             groups.extend(group)
 
         trajectories = []
@@ -522,7 +543,7 @@ class Easy2HardTrainer_Multi(Trainer):
         sample_groups:dict[tuple[int, bool], list[art.Trajectory]] = {}
         for trajectory_group in trajectory_groups:
             for trajectory in trajectory_group.trajectories:
-                sample_id:int = trajectory.metadata.get("sample_id", None)
+                sample_id:int = trajectory.metadata.get("index", None)
                 root:bool = trajectory.metadata.get("root", True)
                 key = (sample_id, root)
                 if key not in sample_groups:
@@ -530,9 +551,21 @@ class Easy2HardTrainer_Multi(Trainer):
                 sample_groups[key].append(trajectory)
                 if root is False:
                     has_sub_trajectories = True
-
+        
         trajectory_groups_list:list[art.TrajectoryGroup] = []
         for (sample_id, root), trajectories in sample_groups.items():
             trajectory_groups_list.append(art.TrajectoryGroup(trajectories))
+
+        if "train" in pbar_desc: #TODO: better way to identify training
+            new_files = self.replay_buffer.update_trajectories()
+
+            for traj_group in trajectory_groups_list:
+                # group_key = tuple(traj_group.trajectories[0].metadata[k] for k in self.replay_buffer.grouping_keys)
+                group_key = self.replay_buffer._get_grouping_key(traj_group.trajectories[0])
+                n = max(1, int(len(traj_group.trajectories) * self.buffer_ratio))
+                replay_buffer = self.replay_buffer.sample_group(group_key=group_key, n=n)
+                for traj in replay_buffer: # mark as replay
+                    traj.metadata["replay"] = True
+                traj_group.trajectories.extend(replay_buffer) # add replay to the group
 
         return trajectory_groups_list

@@ -212,7 +212,7 @@ class MultTrainerVariableDepthReplay(Trainer):
         self.replay_buffer: GeneralReplayBuffer = RewardBasedDoubleQuantileReplayBuffer(
             directory=train_logs_path,
             grouping_keys=["index", "stop_depth"],
-            quantile_fraction=0.15,
+            upper_quantile=0.85,
             # buffer_size=70,  # Only keep the last N epoch files
         )
         self.buffer_ratio:float = buffer_ratio

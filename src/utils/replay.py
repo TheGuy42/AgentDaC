@@ -649,8 +649,8 @@ class RewardBasedDoubleQuantileReplayBuffer(GeneralReplayBuffer):
         self,
         directory: str,
         grouping_keys: Optional[Union[str, List[str]]] = None,
-        quantile_fraction: float = 0.2,
-        upper_only: bool = True,
+        upper_quantile: float = 0.8,
+        lower_quantile: float|None = None,
         buffer_size: Optional[int] = None,
     ):
         """
@@ -664,10 +664,10 @@ class RewardBasedDoubleQuantileReplayBuffer(GeneralReplayBuffer):
             buffer_size (Optional[int]): If specified, only load the last buffer_size epochs.
         """
         super().__init__(directory, grouping_keys, buffer_size)
-        if not (0 < quantile_fraction < 0.5):
+        if not (0 < upper_quantile < 0.5):
             raise ValueError("quantile_fraction must be between 0 and 0.5")
-        self.quantile_fraction = quantile_fraction
-        self.upper_only = upper_only
+        self.upper_quantile = upper_quantile
+        self.lower_quantile = lower_quantile
 
     def _sort_group(self, trajectories: List[art.Trajectory]) -> List[art.Trajectory]:
         """
@@ -699,15 +699,16 @@ class RewardBasedDoubleQuantileReplayBuffer(GeneralReplayBuffer):
             List[art.Trajectory]: List of top n trajectories by reward.
         """
         n_traj = len(trajectories)
-        top_k_idx = int(n_traj * (1-self.quantile_fraction))
-        bottom_k_idx = int(n_traj * self.quantile_fraction)
-        
-        top_k = trajectories[top_k_idx-n//4:][:n//2]
-        bottom_k = trajectories[:bottom_k_idx+n//4][-n//2:]
+        n_samples = n if self.lower_quantile is None else n // 2
 
-        if self.upper_only:
+        top_k_idx = int(n_traj * self.upper_quantile)
+        top_k = trajectories[top_k_idx-n_samples//2:][:n_samples]
+
+        if self.lower_quantile is None:
             return top_k
         else:
+            bottom_k_idx = int(n_traj * self.lower_quantile)
+            bottom_k = trajectories[:bottom_k_idx+n_samples//2][-n_samples:]
             return bottom_k + top_k
 
 
