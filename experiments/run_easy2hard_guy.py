@@ -123,8 +123,8 @@ def load_data(min_difficalty:float=0) -> tuple[Dataset, Dataset]:
         split=None,
     )  # type: ignore
 
-    train_data: Dataset = dataset_dict["train"]
-    test_data: Dataset = dataset_dict["eval"]
+    train_data: Dataset = dataset_dict["eval"]
+    test_data: Dataset = dataset_dict["train"]
 
     # filter low difficulty samples
     train_data = train_data.filter(lambda x: x["item_difficulty"] >= min_difficalty)
