@@ -53,20 +53,33 @@ class SimpleCombinator(ArgumentCombinator):
             self,
             n_args: int,
             generators: List[ArgumentGenerator],
-            method: str = "AND"
+            method: str|None = None,
+            not_ratio: float = 0.0
             ):
         super().__init__(n_args, generators)
-        if method not in ["AND", "OR"]:
+        if method not in ["AND", "OR", None]:
             raise ValueError("Method must be 'AND' or 'OR'")
-        self.method = method
+        self.method = method if method is not None else self.rng.choice(["AND", "OR"])
+        self.not_ratio = not_ratio
     
     def combine_arguments(self, arguments: List[Argument]) -> Argument:
-        combined_expr = f" {self.method} ".join([arg.argument for arg in arguments])
+        # Apply NOT to arguments based on not_ratio
+        processed_args = []
+        for arg in arguments:
+            if self.rng.random() < self.not_ratio:
+                # Apply NOT to this argument
+                negated_expr = f"NOT({arg.argument})"
+                negated_value = not arg.value
+                processed_args.append(Argument(argument=negated_expr, value=negated_value))
+            else:
+                processed_args.append(arg)
+        
+        combined_expr = f" {self.method} ".join([arg.argument for arg in processed_args])
         combined_expr = f"({combined_expr})"
         if self.method == "AND":
-            combined_value = all(arg.value for arg in arguments)
+            combined_value = all(arg.value for arg in processed_args)
         else:  # OR
-            combined_value = any(arg.value for arg in arguments)
+            combined_value = any(arg.value for arg in processed_args)
         
         return Argument(argument=combined_expr, value=combined_value)
 
@@ -258,7 +271,7 @@ class DifficultyArgument(BaseModel):
     min_args: int
     max_args: int
     leaf_generators: List[ArgumentGenerator]
-    combinators: List[type[ArgumentCombinator]]  # List of combinator classes
+    combinators: List[ArgumentCombinator]  # List of combinator instances
     
     class Config:
         arbitrary_types_allowed = True
@@ -268,73 +281,69 @@ class BBEHGenerator(SampleGenerator):
     
     def __init__(
         self,
-        difficulty_args: List[DifficultyArgument],
-        difficulty_weights: Optional[List[float]] = None,
+        root_config: DifficultyArgument,
+        inner_config: Optional[DifficultyArgument] = None,
         seed: Optional[int] = None
     ):
         """
         Initialize BBEH generator.
         
         Args:
-            difficulty_args: List of difficulty argument configurations
-            difficulty_weights: Weights for sampling difficulty levels
+            root_config: Configuration for the root node of the expression tree
+            inner_config: Configuration for inner nodes. If None, root_config is used for all nodes
             seed: Random seed for reproducibility
         """
-        self.difficulty_args = difficulty_args
-        self.difficulty_weights = difficulty_weights or [1.0] * len(difficulty_args)
+        self.root_config = root_config
+        self.inner_config = inner_config if inner_config is not None else root_config
         self.rng = random.Random(seed)
     
-    def _create_argument_tree(self, depth: int, difficulty_arg: DifficultyArgument) -> Argument:
-        """Recursively create a complex argument tree."""
-        if depth <= 0:
-            # Base case: use a leaf generator
-            generator = self.rng.choice(difficulty_arg.leaf_generators)
-            return generator.generate_argument()
+    def _create_generator_tree(self, depth: int, is_root: bool = False) -> ArgumentGenerator:
+        """Recursively create a tree of generators."""
+        # Choose config based on whether this is root or inner node
+        config = self.root_config if is_root else self.inner_config
         
-        # Choose between creating a combinator or a leaf node
-        # if depth == 1 or self.rng.random() < 0.3:  # 30% chance for leaf at any depth
-        #     generator = self.rng.choice(difficulty_arg.leaf_generators)
-        #     return generator.generate_argument()
+        if depth <= 0:
+            # Base case: return a leaf generator
+            return self.rng.choice(config.leaf_generators)
         
         # Create a combinator
-        combinator_class = self.rng.choice(difficulty_arg.combinators)
-        n_args = self.rng.randint(difficulty_arg.min_args, difficulty_arg.max_args)
+        combinator = self.rng.choice(config.combinators)
+        n_args = self.rng.randint(config.min_args, config.max_args)
         
-        # Create child arguments
+        # Create child generators
         child_generators = []
         for _ in range(n_args):
             child_depth = depth - 1
-            child_arg = self._create_argument_tree(child_depth, difficulty_arg)
-            
-            # Create a temporary generator that returns this specific argument
-            class TempGenerator(ArgumentGenerator):
-                def __init__(self, arg):
-                    self.arg = arg
-                def generate_argument(self):
-                    return self.arg
-            
-            child_generators.append(TempGenerator(child_arg))
+            child_generator = self._create_generator_tree(child_depth, is_root=False)
+            child_generators.append(child_generator)
         
-        # Create the combinator with the child generators
-        combinator_class = self.rng.choice(difficulty_arg.combinators)
+        # Create a new combinator instance with the child generators
+        # Handle different combinator types
+        if isinstance(combinator, SimpleCombinator):
+            new_combinator = SimpleCombinator(
+                n_args=n_args,
+                generators=child_generators,
+                method=combinator.method,
+                not_ratio=combinator.not_ratio
+            )
+        else:
+            # For other combinator types, create a basic copy
+            new_combinator = type(combinator)(n_args, child_generators)
         
-        # Create the combinator instance
-        method = self.rng.choice(["AND", "OR"])
-        combinator = combinator_class(n_args, child_generators, method) # only type currently is SimpleCombinator
+        new_combinator.rng = self.rng  # Use the same random state
         
-        return combinator.generate_argument()
+        return new_combinator
+    
+    def _create_argument_tree(self, depth: int, is_root: bool = True) -> Argument:
+        """Create a complex argument tree by generating a generator tree and then creating an argument."""
+        generator = self._create_generator_tree(depth, is_root)
+        return generator.generate_argument()
     
     def generate_sample(self, index: int) -> Sample:
         """Generate a boolean expression evaluation sample."""
-        # Sample difficulty level
-        difficulty_arg = self.rng.choices(
-            self.difficulty_args, 
-            weights=self.difficulty_weights
-        )[0]
-        
         # Generate the expression tree
-        max_depth = self.rng.randint(difficulty_arg.min_depth, difficulty_arg.max_depth)
-        main_argument = self._create_argument_tree(max_depth, difficulty_arg)
+        max_depth = self.rng.randint(self.root_config.min_depth, self.root_config.max_depth)
+        main_argument = self._create_argument_tree(max_depth, is_root=True)
         
         # Create the problem statement
         problem = f"{main_argument.argument}"
@@ -347,15 +356,15 @@ class BBEHGenerator(SampleGenerator):
             problem=problem,
             answer=answer,
             metadata={
-                "difficulty": difficulty_arg.difficulty,
-                "expression": main_argument.argument,
+                "difficulty": self.root_config.difficulty,
+                # "expression": main_argument.argument,
                 "max_depth": max_depth,
                 "actual_value": main_argument.value
             }
         )
 
 
-def create_example_difficulty_configs() -> List[DifficultyArgument]:
+def create_example_difficulty_configs() -> Tuple[DifficultyArgument, DifficultyArgument, DifficultyArgument]:
     """Create example difficulty configurations for testing."""
     
     # Create leaf generators
@@ -365,6 +374,11 @@ def create_example_difficulty_configs() -> List[DifficultyArgument]:
     prime_gen = PrimeArgumentGenerator(min_value=2, max_value=50, seed=42)
     range_gen = RangeArgumentGenerator(min_value=1, max_value=50, seed=42)
     
+    # Create combinator instances with different parameters
+    # simple_and_combinator = SimpleCombinator(2, [], "AND", not_ratio=0.1)
+    simple_combinator = SimpleCombinator(2, [], not_ratio=0.15)
+    complex_combinator = SimpleCombinator(3, [], not_ratio=0.35)
+    
     # Easy difficulty
     easy_config = DifficultyArgument(
         difficulty="easy",
@@ -373,7 +387,7 @@ def create_example_difficulty_configs() -> List[DifficultyArgument]:
         min_args=2,
         max_args=4,
         leaf_generators=[threshold_gen, comparison_gen, modulo_gen],
-        combinators=[SimpleCombinator]
+        combinators=[simple_combinator]
     )
     
     # Medium difficulty
@@ -384,7 +398,7 @@ def create_example_difficulty_configs() -> List[DifficultyArgument]:
         min_args=2,
         max_args=4,
         leaf_generators=[threshold_gen, comparison_gen, modulo_gen, prime_gen, range_gen],
-        combinators=[SimpleCombinator]
+        combinators=[simple_combinator, complex_combinator]
     )
     
     # Hard difficulty
@@ -392,13 +406,13 @@ def create_example_difficulty_configs() -> List[DifficultyArgument]:
         difficulty="hard",
         min_depth=2,
         max_depth=3,
-        min_args=3,
-        max_args=5,
+        min_args=4,
+        max_args=7,
         leaf_generators=[threshold_gen, comparison_gen, modulo_gen, prime_gen, range_gen],
-        combinators=[SimpleCombinator]
+        combinators=[complex_combinator, simple_combinator]
     )
     
-    return [easy_config, medium_config, hard_config]
+    return easy_config, medium_config, hard_config
 
 
 def main():
@@ -406,26 +420,48 @@ def main():
     print("=== Boolean Expression Evaluation with Hierarchy (BBEH) Dataset ===")
     
     # Create difficulty configurations
-    difficulty_configs = create_example_difficulty_configs()
+    easy_config, medium_config, hard_config = create_example_difficulty_configs()
     
-    # Create BBEH generator
-    generator = BBEHGenerator(
-        difficulty_args=difficulty_configs,
-        difficulty_weights=[0.3, 0.4, 0.3],  # Balanced distribution
+    # # Example 1: Using medium config for both root and inner nodes
+    # print("\n--- Example 1: Medium config for all nodes ---")
+    # generator1 = BBEHGenerator(
+    #     root_config=medium_config,
+    #     inner_config=None,  # Will use medium_config for all nodes
+    #     seed=42
+    # )
+    
+    # # Generate some example samples
+    # print("\nGenerating example samples:")
+    # print("-" * 80)
+    
+    # for i in range(3):
+    #     sample = generator1.generate_sample(i)
+    #     print(f"Sample {i}:")
+    #     print(f"  Problem: {sample.problem}")
+    #     print(f"  Answer: {sample.answer}")
+    #     print(f"  Difficulty: {sample.metadata['difficulty']}")
+    #     print(f"  Max Depth: {sample.metadata['max_depth']}")
+    #     print()
+
+
+    
+    # Example 2: Using hard config for root, easy config for inner nodes
+    print("\n--- Example 2: Hard root config, Easy inner config ---")
+    inner_config = hard_config.model_copy()
+    inner_config.min_args, inner_config.max_args = hard_config.min_args // 2, hard_config.max_args // 2
+
+    generator2 = BBEHGenerator(
+        root_config=hard_config,
+        inner_config=inner_config,
         seed=42
     )
     
-    # Generate some example samples
-    print("\nGenerating example samples:")
-    print("-" * 80)
-    
-    for i in range(5):
-        sample = generator.generate_sample(i)
-        print(f"Sample {i}:")
+    for i in range(2):
+        sample = generator2.generate_sample(i + 10)
+        print(f"Sample {i + 10}:")
         print(f"  Problem: {sample.problem}")
         print(f"  Answer: {sample.answer}")
         print(f"  Difficulty: {sample.metadata['difficulty']}")
-        print(f"  Expression: {sample.metadata['expression']}")
         print(f"  Max Depth: {sample.metadata['max_depth']}")
         print()
     
@@ -433,21 +469,26 @@ def main():
     from create_dataset import DatasetConfig, TextDatasetGenerator
     
     config = DatasetConfig(
-        num_samples=1000,
+        num_samples=3000,
         dataset_name="bbeh_boolean_expressions",
-        output_dir="datasets/bbeh",
+        output_dir="datasets/bbeh_v2",
         train_split=0.7,
         val_split=0.2,
         test_split=0.1,
         seed=42
     )
     
-    # Generate full dataset
-    dataset_generator = TextDatasetGenerator(config, generator)
-    dataset_generator.generate_dataset()
+    # Generate full dataset using the first generator
+    dataset_generator = TextDatasetGenerator(config, generator2)
+    ds = dataset_generator.generate_dataset()
     dataset_generator.print_sample_examples(3)
+
+    hist = {"true": 0, "false": 0}
+    for sample in ds:
+        hist[sample['answer']] += 1
+    print("Answer distribution:", hist)
     
-    # Save splits
+    # # Save splits
     filepaths = dataset_generator.save_split_datasets()
     print("Saved files:", filepaths)
     
