@@ -50,7 +50,7 @@ class Easy2HardTrainer(Trainer):
         trajectory.reward = 0.0
         ans_reward = answer_reward(sample, ans_message)# if train_step > 7 else 0.0
         trajectory.reward += ans_reward
-        fmt_reward = format_reward(trajectory) * 0.1
+        fmt_reward = format_reward(trajectory)# * 0.1
         trajectory.reward += fmt_reward
         bhv_reward = behavior_reward(trajectory)
         trajectory.reward += bhv_reward
@@ -114,7 +114,7 @@ class Easy2HardTrainerVariableDepth(Trainer):
         trajectory.reward = 0.0
         ans_reward = answer_reward(sample, ans_message)# if train_step > 7 else 0.0
         trajectory.reward += ans_reward
-        fmt_reward = format_reward(trajectory) * 0.1
+        fmt_reward = format_reward(trajectory)# * 0.1
         trajectory.reward += fmt_reward
         bhv_reward = behavior_reward(trajectory)
         trajectory.reward += bhv_reward
@@ -245,7 +245,7 @@ class Easy2HardTrainerVariableDepthReplay(Trainer):
         trajectory.reward = 0.0
         ans_reward = answer_reward(sample, ans_message)# if train_step > 7 else 0.0
         trajectory.reward += ans_reward
-        fmt_reward = format_reward(trajectory) * 0.1
+        fmt_reward = format_reward(trajectory)# * 0.1
         trajectory.reward += fmt_reward
         bhv_reward = behavior_reward(trajectory)
         trajectory.reward += bhv_reward
@@ -371,7 +371,7 @@ class Easy2HardTrainerFrozen(Trainer):
         trajectory.reward = 0.0
         ans_reward = answer_reward(sample, ans_message)# if train_step > 7 else 0.0
         trajectory.reward += ans_reward
-        fmt_reward = format_reward(trajectory) * 0.1
+        fmt_reward = format_reward(trajectory)# * 0.1
         trajectory.reward += fmt_reward
         bhv_reward = behavior_reward(trajectory)
         trajectory.reward += bhv_reward
