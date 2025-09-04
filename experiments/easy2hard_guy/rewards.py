@@ -1,13 +1,17 @@
 import math_verify as mv
+from math_verify import LatexExtractionConfig, ExprExtractionConfig
 
 from src.utils import text as text_utils
 from src.dac_agent import ChatMessage
 
 
 def verify(gold_answer: str, pred_answer: str) -> bool:
+    latex_config = LatexExtractionConfig(
+    boxed_match_priority=0,
+    )
     gold_answer = f"${gold_answer}$"
     parsed_gold = mv.parse(gold_answer, raise_on_error=False)
-    parsed_pred = mv.parse(pred_answer, raise_on_error=False)
+    parsed_pred = mv.parse(pred_answer, raise_on_error=False, extraction_config=[latex_config])
     return mv.verify(parsed_gold, parsed_pred, raise_on_error=False, timeout_seconds=10)
 
 

@@ -1,6 +1,6 @@
 {
     "epochs": 100,
-    "num_groups": 24,
+    "num_groups": 32,
     "group_size": 16,
     "min_reward_stdev": null,
     "train_log_steps": 1,
@@ -9,7 +9,7 @@
     "delete_checkpoints": true,
     "checkpoint_metric": "reward",
     "rollout_kwargs": {
-        "max_completion_tokens": 650
+        "max_completion_tokens": 250
     },
     "art_config": {
         "learning_rate": 2e-6,
@@ -17,7 +17,7 @@
     },
     "dev_art_config": {
         "allow_training_without_logprobs": true,
-        "epsilon_high": 50
+        "epsilon_high": 1
     },
     "verbose": false,
     "max_exceptions": 4
