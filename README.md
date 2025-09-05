@@ -31,23 +31,23 @@ OPENAI_API_KEY=...
 WANDB_API_KEY=...
 ```
 
-## Run experiments
+## Run experiment
 
 Pattern:
 
 ```bash
-python experiments/<exp_name>/run.py --model <MODEL_ID> [--gpus 0] [--vllm_ports 8200 8201] [--project <NAME>] [--run <RESUME>] [--eval]
+python experiments/<exp_name>/run.py --model <MODEL_ID> [--gpus 0] [--project <NAME>] [--run <RESUME>] [--eval]
 ```
 
-### (Optional) Start additional vLLM inference servers
+### (Optional) Additional vLLM inference servers
 
 Run one server per GPU with a unique port.
 
 ```bash
-# GPU 0 on port 8200
+# GPU 1 on port 8200
 python scripts/run_vllm_server.py --model <MODEL_ID> --port 8200 --gpus 1
 
-# GPU 1 on port 8201 (second server)
+# GPU 2 on port 8201 (second server)
 python scripts/run_vllm_server.py --model <MODEL_ID> --port 8201 --gpus 2
 ```
 
@@ -56,16 +56,16 @@ Note: Use the same `<MODEL_ID>` you’ll train/eval with (see available models v
 ### Examples:
 
 ```bash
-# Train Math experiment on GPU 0 using two vLLM servers
+# Train MATH experiment on GPU 0 using two additional vLLM servers on GPUs 1 and 2
 python experiments/math/run.py --model <MODEL_ID> --gpus 0 --vllm_ports 8200 8201
 
 # Evaluation-only (no training) of a clean model
-python experiments/math/run.py --model <MODEL_ID> --eval
+python experiments/math/run.py --model <MODEL_ID> --gpus 0 --eval
 ```
 
 Tips:
 
-- `--vllm_ports` lets the trainer route inference across your running vLLM servers.
+- `--vllm_ports` lets the trainer route inference across additional vLLM servers.
 - If omitted, default backend is used for inference.
 - Available experiments live under `experiments/` (e.g., `experiments/math/run.py`).
 
