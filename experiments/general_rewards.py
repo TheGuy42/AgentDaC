@@ -42,13 +42,14 @@ def format_reward(trajectory: art.Trajectory) -> float:
     Reward factor which penalizes for improper message formatting and conversation structure.
     It does not provide positive rewards or incentives for good formatting or structure.
     """
-    # TODO: currently does nothing and do not analyzes tool calls at all
-    # Also does not address failed tool calls properly (i.e if Markers.TOOL_START appears in content)
     total_reward = 0.0
+    count = 0
     for item in trajectory.messages_and_choices:
-        if isinstance(item, Choice) and not item.message.tool_calls:
+        if isinstance(item, Choice):
             content = item.message.content or ""
             total_reward += _single_message_format_reward(content)
+            count += 1
+    # return total_reward / count if count > 0 else 0.0 # TODO: test, bounds the format reward
     return total_reward
 
 
