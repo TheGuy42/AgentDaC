@@ -21,7 +21,7 @@ uv sync
 
 This creates .venv and installs dependencies from `pyproject.toml`/`uv.lock`.
 
-## Environment variables (.env)
+### Environment variables (.env)
 
 Create a `.env` file in the repo root with the API keys used for data, inference and logging:
 
