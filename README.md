@@ -85,3 +85,4 @@ Open in Jupyter/VS Code and select the project kernel (created by `uv sync`).
 - Ensure the ports you pass in `--vllm_ports` match running servers.
 - Set `--gpus` to local device IDs. `CUDA_VISIBLE_DEVICES` is handled internally.
 - Use `--silent` on runners to reduce log verbosity.
+- Run `scripts/benchmark_vllm.y` to appropriatly set-up vLLM inference settings.
