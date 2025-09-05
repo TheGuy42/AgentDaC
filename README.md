@@ -1,7 +1,5 @@
 # EPIC — Quickstart
 
-Focus: install, configure, and run.
-
 ## Prerequisites
 
 - Python 3.12+
