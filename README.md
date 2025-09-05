@@ -50,7 +50,7 @@ Note: Use the same `<MODEL_ID>` you’ll train/eval with (see available models v
 Pattern:
 
 ```bash
-python experiments/<exp_name>/run.py --model <MODEL_ID> [--gpus 0 1] [--vllm_ports 8200 8201] [--project <NAME>] [--run <RESUME>] [--eval]
+python experiments/<exp_name>/run.py --model <MODEL_ID> [--gpus 0] [--vllm_ports 8200 8201] [--project <NAME>] [--run <RESUME>] [--eval]
 ```
 
 Examples:
