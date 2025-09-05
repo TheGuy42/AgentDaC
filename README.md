@@ -14,7 +14,7 @@ Install uv (Linux/macOS):
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-## Installation
+### Installation
 
 ```bash
 # from repo root
