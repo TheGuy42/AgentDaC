@@ -1,6 +1,6 @@
 {
-    "system_root": "dac_sys_prompt_guy_v3_leaf",
-    "system_inter": "dac_sys_prompt_guy_v3_leaf",
-    "system_leaf": "dac_sys_prompt_guy_v3_leaf",
+    "system_root": "dac_sys_prompt_gilad_v2_root_no_clarification",
+    "system_inter": "dac_sys_prompt_gilad_v2_inter_no_clarification",
+    "system_leaf": "dac_sys_prompt_gilad_v2_leaf_no_clarification",
     "tasks_depleted": "tasks_depleted_v2"
 }

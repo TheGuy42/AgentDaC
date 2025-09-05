@@ -294,6 +294,7 @@ class ExperimentRunner(ABC):
 
         finally:
             await trainer.close()
+            await vllm_router.close()
 
     def run(self) -> None:
         """Entry point to run the experiment."""
