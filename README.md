@@ -1,6 +1,8 @@
 # EPIC — Quickstart
 
-## Prerequisites
+## Setup
+
+### Prerequisites
 
 - Python 3.12+
 - CUDA GPU(s) for training/inference
@@ -12,7 +14,7 @@ Install uv (Linux/macOS):
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-## Install
+## Installation
 
 ```bash
 # from repo root
