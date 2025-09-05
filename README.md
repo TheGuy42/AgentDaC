@@ -31,7 +31,15 @@ OPENAI_API_KEY=...
 WANDB_API_KEY=...
 ```
 
-## (Optional) Start additional vLLM inference servers
+## Run experiments
+
+Pattern:
+
+```bash
+python experiments/<exp_name>/run.py --model <MODEL_ID> [--gpus 0] [--vllm_ports 8200 8201] [--project <NAME>] [--run <RESUME>] [--eval]
+```
+
+### (Optional) Start additional vLLM inference servers
 
 Run one server per GPU with a unique port.
 
@@ -45,15 +53,7 @@ python scripts/run_vllm_server.py --model <MODEL_ID> --port 8201 --gpus 2
 
 Note: Use the same `<MODEL_ID>` you’ll train/eval with (see available models via `--help`).
 
-## Run experiments
-
-Pattern:
-
-```bash
-python experiments/<exp_name>/run.py --model <MODEL_ID> [--gpus 0] [--vllm_ports 8200 8201] [--project <NAME>] [--run <RESUME>] [--eval]
-```
-
-Examples:
+### Examples:
 
 ```bash
 # Train Math experiment on GPU 0 using two vLLM servers
