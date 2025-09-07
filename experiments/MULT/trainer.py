@@ -66,7 +66,7 @@ class MultTrainer(Trainer):
                 "answer_reward": ans_reward,
                 "format_reward": fmt_reward,
                 "behavior_reward": bhv_reward,
-                "is_correct": int(verify(answer, agent_answer)),
+                "is_correct": ans_reward > 0,
                 "gave_answer": int(num_answers > 0),
             }
         )
@@ -130,7 +130,7 @@ class MultTrainerVariableDepth(Trainer):
                 "answer_reward": ans_reward,
                 "format_reward": fmt_reward,
                 "behavior_reward": bhv_reward,
-                "is_correct": int(verify(answer, agent_answer)),
+                "is_correct": ans_reward > 0,
                 "gave_answer": int(num_answers > 0),
             }
         )
@@ -261,7 +261,7 @@ class MultTrainerVariableDepthReplay(Trainer):
                 "answer_reward": ans_reward,
                 "format_reward": fmt_reward,
                 "behavior_reward": bhv_reward,
-                "is_correct": int(verify(answer, agent_answer)),
+                "is_correct": ans_reward > 0,
                 "gave_answer": int(num_answers > 0),
             }
         )
@@ -387,7 +387,7 @@ class MultTrainerFrozen(Trainer):
                 "answer_reward": ans_reward,
                 "format_reward": fmt_reward,
                 "behavior_reward": bhv_reward,
-                "is_correct": int(verify(answer, agent_answer)),
+                "is_correct": ans_reward > 0,
                 "gave_answer": int(num_answers > 0),
             }
         )
@@ -450,7 +450,7 @@ class MultTrainer_Multi(Trainer):
                 "answer_reward": ans_reward,
                 "format_reward": fmt_reward,
                 "behavior_reward": bhv_reward,
-                "is_correct": int(verify(answer, agent_answer)),
+                "is_correct": ans_reward > 0,
                 "gave_answer": int(num_answers > 0),
             }
         )

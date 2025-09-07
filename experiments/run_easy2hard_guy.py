@@ -22,7 +22,7 @@ from src.models import load_art_model, PathConfig
 from src.vllm_client import VllmClient, ArtClient, VllmRouter
 from src.trainer import TrainingConfig, PromptConfig, StopCriteria
 from src.configs.art_configs import available_configs, ArtConfig
-from experiments.easy2hard_guy.trainer import Easy2HardTrainer, Easy2HardTrainer_Multi, Easy2HardTrainerFrozen, Easy2HardTrainerVariableDepth, Easy2HardTrainerVariableDepthReplay
+from experiments.easy2hard_guy.trainer import Easy2HardTrainer, Easy2HardTrainer_Multi, Easy2HardTrainerFrozen, Easy2HardTrainerVariableDepth, Easy2HardTrainerVariableDepthReplay, Easy2HardTrainerReplay
 
 
 def parse_args() -> argparse.Namespace:
@@ -41,7 +41,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--project",
         type=str,
-        default="easy2hard_dac_guy",
+        default="easy2hard_dac_guy3",
         help="The name of the project for saving results.",
     )
 
@@ -90,7 +90,7 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument(
         "--trainer",
-        choices=["standard", "multi", "frozen", "variable_depth", "variable_depth_replay"],
+        choices=["standard", "multi", "frozen", "variable_depth", "variable_depth_replay", "replay"],
         help="Choose the trainer type to use. Options are: standard, multi, frozen, variable_depth.",
         default="standard",
     )
@@ -263,6 +263,14 @@ async def main(args: argparse.Namespace):
         )
     elif args.trainer == "variable_depth_replay":
         trainer = Easy2HardTrainerVariableDepthReplay(
+            model=model,
+            vllm_router=vllm_router,
+            path_config=path_config,
+            prompt_config=prompt_config,
+            stop_criteria=stop_criteria,
+        )
+    elif args.trainer == "replay":
+        trainer = Easy2HardTrainerReplay(
             model=model,
             vllm_router=vllm_router,
             path_config=path_config,

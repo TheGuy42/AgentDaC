@@ -188,17 +188,17 @@ add_config(
     "unsloth/Qwen3-14B",
     init_args=InitArgs(
         load_in_4bit=False,
-        gpu_memory_utilization=0.9,
-        max_lora_rank=32,
-        max_seq_length=1024 * 10,
+        gpu_memory_utilization=0.93,
+        max_lora_rank=16,
+        max_seq_length=1024 * 6,
     ),
     engine_args=EngineArgs(
-        max_model_len=1024 * 10,
-        gpu_memory_utilization=0.9,
-        max_lora_rank=32,
+        max_model_len=1024 * 6,
+        gpu_memory_utilization=0.93,
+        max_lora_rank=16,
     ),
     peft_args=PeftArgs(
-        r=32,
+        r=16,
     ),
     openai_config=OpenAIServerConfig(
         server_args=ServerArgs(
@@ -213,10 +213,10 @@ add_config(
         load_in_4bit=False,
         gpu_memory_utilization=0.9,
         max_lora_rank=16,
-        max_seq_length=1024 * 8,
+        max_seq_length=1024 * 7,
     ),
     engine_args=EngineArgs(
-        max_model_len=1024 * 8,
+        max_model_len=1024 * 7,
         gpu_memory_utilization=0.9,
         max_lora_rank=16,
     ),

@@ -87,6 +87,12 @@ class Trainer:
             logger.error(f"Failed to finish wandb run: {e}")
 
         try:
+            if hasattr(self.vllm_router, 'close'):
+                await self.vllm_router.close()
+        except Exception as e:
+            logger.error(f"Failed to close vllm router: {e}")
+
+        try:
             backend = self.model._backend
             if backend is not None:
                 await backend.close()

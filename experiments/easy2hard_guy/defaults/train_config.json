@@ -1,15 +1,15 @@
 {
     "epochs": 100,
-    "num_groups": 32,
+    "num_groups": 64,
     "group_size": 16,
     "min_reward_stdev": null,
     "train_log_steps": 1,
-    "eval_log_steps": 3,
-    "eval_size": 250,
+    "eval_log_steps": 4,
+    "eval_size": 512,
     "delete_checkpoints": true,
     "checkpoint_metric": "reward",
     "rollout_kwargs": {
-        "max_completion_tokens": 250
+        "max_completion_tokens": 500
     },
     "art_config": {
         "learning_rate": 2e-6,
@@ -17,7 +17,7 @@
     },
     "dev_art_config": {
         "allow_training_without_logprobs": true,
-        "epsilon_high": 1
+        "epsilon": 1
     },
     "verbose": false,
     "max_exceptions": 4

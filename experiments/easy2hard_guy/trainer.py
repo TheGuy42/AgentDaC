@@ -66,7 +66,7 @@ class Easy2HardTrainer(Trainer):
                 "answer_reward": ans_reward,
                 "format_reward": fmt_reward,
                 "behavior_reward": bhv_reward,
-                "is_correct": int(verify(answer, agent_answer)),
+                "is_correct": ans_reward > 0,
                 "gave_answer": int(num_answers > 0),
             }
         )
@@ -130,7 +130,7 @@ class Easy2HardTrainerVariableDepth(Trainer):
                 "answer_reward": ans_reward,
                 "format_reward": fmt_reward,
                 "behavior_reward": bhv_reward,
-                "is_correct": int(verify(answer, agent_answer)),
+                "is_correct": ans_reward > 0,
                 "gave_answer": int(num_answers > 0),
             }
         )
@@ -261,7 +261,7 @@ class Easy2HardTrainerVariableDepthReplay(Trainer):
                 "answer_reward": ans_reward,
                 "format_reward": fmt_reward,
                 "behavior_reward": bhv_reward,
-                "is_correct": int(verify(answer, agent_answer)),
+                "is_correct": ans_reward > 0,
                 "gave_answer": int(num_answers > 0),
             }
         )
@@ -338,6 +338,146 @@ class Easy2HardTrainerVariableDepthReplay(Trainer):
                 traj_group.trajectories.extend(replay_buffer) # add replay to the group
 
         return trajectory_groups
+    
+class Easy2HardTrainerReplay(Trainer):
+    include_histories: bool = False
+    def __init__(
+        self,
+        model: art.Model,
+        vllm_router: VllmRouter,
+        path_config: PathConfig,
+        prompt_config: PromptConfig,
+        stop_criteria: StopCriteria,
+        default_kwargs: dict | None = None,
+        buffer_ratio: float = 0.33,
+    ):
+        super().__init__(model, vllm_router, path_config, prompt_config, stop_criteria, default_kwargs)
+        train_logs_path = output_dirs.get_trajectories_split_dir(self.path_config.model_output_dir, "train")
+        os.makedirs(train_logs_path, exist_ok=True)
+        self.replay_buffer: GeneralReplayBuffer = RewardBasedDoubleQuantileReplayBuffer(
+            directory=train_logs_path,
+            grouping_keys=["index"],
+            upper_quantile=0.9,
+            # buffer_size=70,  # Only keep the last N epoch files
+        )
+        self.buffer_ratio:float = buffer_ratio
+
+    def create_agent(self) -> SingleAgentNode:
+        client = self.vllm_router.next()
+        return SingleAgentNode(
+            model_name=self.model.get_inference_name(),
+            openai_client=client.openai_client,
+            prompt_config=self.prompt_config,
+            stop_criteria=self.stop_criteria,
+            include_histories=self.include_histories,
+        )
+
+    async def forward_step(self, sample: dict, **kwargs) -> art.Trajectory:
+        content = format_prompt(sample)
+        agent = self.create_agent()
+        message = ChatMessage(role="user", content=content)
+        trajectory = await agent.chat(message, **kwargs)
+        return trajectory
+
+    async def rollout_step(self, sample: dict, **kwargs) -> art.Trajectory:
+        # Perform a forward step to get the trajectory
+        trajectory = await self.forward_step(sample, **kwargs)
+
+        ans_message = ChatMessage.model_validate(trajectory.messages()[-1], from_attributes=True)
+
+        train_step = await self.model.get_step() # type: TrainableModel
+        # Compute rewards
+        trajectory.reward = 0.0
+        ans_reward = answer_reward(sample, ans_message)# if train_step > 7 else 0.0
+        trajectory.reward += ans_reward
+        fmt_reward = format_reward(trajectory)# * 0.1
+        trajectory.reward += fmt_reward
+        bhv_reward = behavior_reward(trajectory)
+        trajectory.reward += bhv_reward
+
+        problem = format_prompt(sample)
+        answer = sample["answer"].strip()
+        agent_answer = extract_answer(ans_message.content)
+        num_answers = len(extract_between(ans_message.content, Markers.ANSWER_START, Markers.ANSWER_END))
+
+        # Update metrics
+        trajectory.metrics.update(
+            {
+                "answer_reward": ans_reward,
+                "format_reward": fmt_reward,
+                "behavior_reward": bhv_reward,
+                "is_correct": ans_reward > 0,
+                "gave_answer": int(num_answers > 0),
+            }
+        )
+
+        # Update metadata
+        trajectory.metadata.update(
+            {
+                "problem": problem,
+                "answer": answer,
+                "agent_answer": agent_answer,
+                "item_difficulty": sample["item_difficulty"],
+                "index": sample["index"],
+                "replay": False,
+            }
+        )
+
+        return trajectory
+    
+    async def rollout(
+        self,
+        dataset: list[dict],
+        group_size: int,
+        max_exceptions: int | float = 0,
+        pbar_desc: str = "rollout",
+        **kwargs,
+    ) -> list[art.TrajectoryGroup]:
+        """
+        Performs a grouped rollout for the given dataset, generating a trajectory for each sample.
+        The dataset is split into groups of size `group_size` defined in the training configuration.
+
+        Args:
+            dataset (list[dict]): List of samples to process.
+            group_size (int): Number of rollouts for each sample.
+            max_exceptions (int | float): Maximum number of failed trajectories to allow before failing.
+                If float, then it is treated as a fraction of the dataset size.
+            pbar_desc (str): Description for the progress bar.
+            **kwargs: Additional keyword arguments for the rollout step.
+
+        Returns:
+            list[art.TrajectoryGroup]: List of trajectory groups generated by the model for the dataset.
+        """
+        if not kwargs:
+            kwargs = self.default_kwargs
+
+        groups = []
+        for sample in dataset:
+            group = art.TrajectoryGroup([self.rollout_step(sample, **kwargs) for _ in range(group_size)])
+            groups.append(group)
+
+        trajectory_groups = await art.gather_trajectory_groups(
+            groups,
+            pbar_desc=pbar_desc,
+            max_exceptions=max_exceptions,
+            pbar_total_completion_tokens=False,
+        )
+
+        import logging
+        # Load replay trajectories and add to the output
+        if "train" in pbar_desc: #TODO: better way to identify training
+            new_files = self.replay_buffer.update_trajectories()
+            logging.info(f"Loaded {new_files} new trajectories into the replay buffer, total size now {self.replay_buffer.num_files_loaded}")
+
+            for traj_group in trajectory_groups:
+                group_key = tuple(traj_group.trajectories[0].metadata[k] for k in self.replay_buffer.grouping_keys)
+                n = max(1, int(len(traj_group.trajectories) * self.buffer_ratio))
+                replay_buffer = self.replay_buffer.sample_group(group_key=group_key, n=n)
+                for traj in replay_buffer: # mark as replay
+                    traj.metadata["replay"] = True
+                traj_group.trajectories.extend(replay_buffer) # add replay to the group
+
+        return trajectory_groups
 
 
 class Easy2HardTrainerFrozen(Trainer):
@@ -387,7 +527,7 @@ class Easy2HardTrainerFrozen(Trainer):
                 "answer_reward": ans_reward,
                 "format_reward": fmt_reward,
                 "behavior_reward": bhv_reward,
-                "is_correct": int(verify(answer, agent_answer)),
+                "is_correct": ans_reward > 0,
                 "gave_answer": int(num_answers > 0),
             }
         )
@@ -471,7 +611,7 @@ class Easy2HardTrainer_Multi(Trainer):
                 "answer_reward": ans_reward,
                 "format_reward": fmt_reward,
                 "behavior_reward": bhv_reward,
-                "is_correct": int(verify(answer, agent_answer)),
+                "is_correct": ans_reward > 0,
                 "gave_answer": int(num_answers > 0),
             }
         )

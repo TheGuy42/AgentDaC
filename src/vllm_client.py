@@ -53,6 +53,24 @@ class VllmClient:
 
         self.openai_client = patch_openai(self.openai_client)
 
+    async def close(self):
+        """
+        Close the HTTP client to free up file descriptors.
+        """
+        try:
+            if hasattr(self.http_client, 'aclose'):
+                await self.http_client.aclose()
+            elif hasattr(self.openai_client, 'close'):
+                await self.openai_client.close()
+        except Exception as e:
+            logger.warning(f"[{self.base_url}] Error closing HTTP client: {e}")
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.close()
+
     @staticmethod
     def from_connection(
         port: int,
@@ -217,3 +235,16 @@ class VllmRouter:
         """
         tasks = [client.unload_all_loras() for client in self.clients]
         await asyncio.gather(*tasks)
+
+    async def close(self) -> None:
+        """
+        Close all HTTP clients in the router to free up file descriptors.
+        """
+        tasks = [client.close() for client in self.clients]
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.close()

@@ -664,8 +664,6 @@ class RewardBasedDoubleQuantileReplayBuffer(GeneralReplayBuffer):
             buffer_size (Optional[int]): If specified, only load the last buffer_size epochs.
         """
         super().__init__(directory, grouping_keys, buffer_size)
-        if not (0 < upper_quantile < 0.5):
-            raise ValueError("quantile_fraction must be between 0 and 0.5")
         self.upper_quantile = upper_quantile
         self.lower_quantile = lower_quantile
 
