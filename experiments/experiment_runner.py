@@ -21,7 +21,7 @@ from src.utils.io import load_base_model, load_object
 from src.utils.loaders import load_art_model
 from src.vllm_client import VllmClient, ArtClient, VllmRouter
 from src.configs.models.art import available_configs, ArtConfig
-from src.configs import PathConfig, TrainingConfig, PromptConfig, DecompConfig, RolloutConfig
+from src.configs import PathConfig, TrainingConfig, PromptConfig, DecompConfig, RolloutConfig, ReplayConfig, SampleBufferConfig
 from src.trainer import Trainer, RolloutStage
 
 
@@ -162,6 +162,8 @@ class ExperimentRunner(ABC):
             "prompt_config": load_base_model(PromptConfig, dir / "prompt_config.json", do_raise=True),
             "decomp_config": load_base_model(DecompConfig, dir / "decomp_config.json", do_raise=True),
             "rollout_config": load_base_model(RolloutConfig, dir / "rollout_config.json", do_raise=True),
+            "replay_config": load_base_model(ReplayConfig, dir / "replay_config.json", do_raise=False),
+            "sample_buffer_config": load_base_model(SampleBufferConfig, dir / "sample_buffer_config.json", do_raise=False),
             "extra_config": load_object(dir / "extra_config.json", do_raise=False),
         }
 

@@ -1,6 +1,7 @@
 from abc import abstractmethod
 import random
 from enum import Enum
+from copy import deepcopy
 
 from wandb.sdk.wandb_run import Run as WandbRun
 import asyncio
@@ -13,6 +14,7 @@ from src.agents import BaseAgent
 from src.utils.logging import create_logger
 from src.vllm_client import VllmRouter
 from src.utils.replay import RewardBasedDoubleQuantileReplayBuffer
+from src.utils.sample_buffer import SampleBuffer
 
 from src.configs import (
     PromptConfig,
@@ -21,6 +23,7 @@ from src.configs import (
     DecompConfig,
     TrainingConfig,
     ReplayConfig,
+    SampleBufferConfig,
 )
 
 
@@ -44,7 +47,8 @@ class Trainer:
         path_config: PathConfig,
         prompt_config: PromptConfig,
         decomp_config: DecompConfig,
-        replay_config: ReplayConfig,
+        replay_config: ReplayConfig = ReplayConfig(),
+        sample_buffer_config: SampleBufferConfig = SampleBufferConfig(),
         rollout_config: RolloutConfig | None = None,
         
         extra_config: dict | None = None,
@@ -57,6 +61,7 @@ class Trainer:
         self.decomp_config = decomp_config
         self.rollout_config = rollout_config or RolloutConfig()
         self.replay_config = replay_config
+        self.sample_buffer_config = sample_buffer_config
         self.extra_config = extra_config or {}
         self.extra_config.update(kwargs)
 
@@ -69,6 +74,12 @@ class Trainer:
                 grouping_keys=self.replay_config.grouping_keys,
                 buffer_size=self.replay_config.buffer_size,
                 **self.replay_config.kwargs,
+            )
+        
+        self.sample_buffer = None
+        if self.sample_buffer_config.use_buffer:
+            self.sample_buffer = SampleBuffer(
+                max_size=self.sample_buffer_config.max_size,
             )
 
     @property
@@ -160,7 +171,8 @@ class Trainer:
                 "decomp_config": self.decomp_config.model_dump(),
                 "training_config": self.train_config().model_dump(),
                 "rollout_config": self.rollout_config.model_dump(),
-                "replay_config": self.replay_config.model_dump() if self.replay_config is not None else None,
+                "replay_config": self.replay_config.model_dump(),
+                "sample_buffer_config": self.sample_buffer_config.model_dump(),
                 "extra_config": self.extra_config,
             }
         )
@@ -177,6 +189,13 @@ class Trainer:
         await self.sync_lora()  # Sync all vLLM clients with model weights
 
         for train_batch in train_iter:
+            # Add previous samples from buffer to the current batch
+            max_prev_samples = int(config.num_groups * self.sample_buffer_config.added_ratio)
+            prev_samples = []
+            if self.sample_buffer and max_prev_samples > 0:
+                prev_samples = self.sample_buffer.sample(k=max_prev_samples)
+                logger.info(f"Max previous samples to add from buffer: {max_prev_samples}. Loaded {len(prev_samples)} samples.")
+
             if train_batch.step % config.val_log_steps == 0:
                 # Perform validation and training rollout
                 val_groups, train_groups = await asyncio.gather(
@@ -187,7 +206,7 @@ class Trainer:
                         max_exceptions=config.max_exceptions,
                     ),
                     self.rollout(
-                        dataset=train_batch.items,
+                        dataset=train_batch.items + prev_samples,
                         group_size=config.group_size,
                         stage=RolloutStage.TRAIN,
                         max_exceptions=config.max_exceptions,
@@ -198,11 +217,18 @@ class Trainer:
             else:
                 # Perform training rollout
                 train_groups = await self.rollout(
-                    dataset=train_batch.items,
+                    dataset=train_batch.items + prev_samples,
                     group_size=config.group_size,
                     stage=RolloutStage.TRAIN,
                     max_exceptions=config.max_exceptions,
                 )
+
+            # update the sample buffer
+            # sample small portion of the train groups to keep in the buffer
+            if self.sample_buffer and max_prev_samples > 0:
+                logger.info(f"Sampling {max_prev_samples} groups to keep in the sample buffer")
+                sampled_groups = deepcopy(train_batch.items)[:max_prev_samples]
+                self.sample_buffer.add(sampled_groups)
 
             # Train step
             await self.model.train(
@@ -297,13 +323,12 @@ class Trainer:
 
             for traj_group in trajectory_groups:
                 for traj in traj_group.trajectories: # mark original as not replay
-                    traj.metadata["replay"] = False
-                # group_key = tuple(traj_group.trajectories[0].metadata[k] for k in self.replay_buffer.grouping_keys)
+                    traj.metrics["replay"] = False
                 group_key = self.replay_buffer._get_grouping_key(traj_group.trajectories[0])
                 n = max(1, int(len(traj_group.trajectories) * self.replay_config.buffer_ratio))
                 replay_buffer = self.replay_buffer.sample_group(group_key=group_key, n=n)
-                for traj in replay_buffer: # mark as replay
-                    traj.metadata["replay"] = True
+                for traj in replay_buffer: # mark added trajectories as replay
+                    traj.metrics["replay"] = True
                 traj_group.trajectories.extend(replay_buffer) # add replay to the group
 
         return trajectory_groups
