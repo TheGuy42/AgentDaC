@@ -7,6 +7,8 @@ from pydantic import BaseModel, Field
 import numpy as np
 from pathlib import Path
 import asyncio
+from queue import Queue
+from copy import deepcopy
 
 import art
 from art.utils import iterate_dataset
@@ -58,6 +60,7 @@ class Trainer:
         prompt_config: PromptConfig,
         stop_criteria: StopCriteria,
         default_kwargs: dict | None = None,
+        sample_buffer_ratio: float = 0.0, # set to 0 to disable buffer
     ):
         if default_kwargs is None:
             default_kwargs = {}
@@ -68,6 +71,8 @@ class Trainer:
         self.prompt_config = prompt_config
         self.stop_criteria = stop_criteria
         self.default_kwargs = default_kwargs
+        self.sample_buffer_ratio:float = sample_buffer_ratio
+        self.sample_queue:Queue = Queue(maxsize=250)
 
     @property
     def wandb_run(self) -> WandbRun | None:
@@ -170,6 +175,14 @@ class Trainer:
         await self.sync_lora()  # Sync all vLLM clients with model weights
 
         for train_batch in train_iter:
+            max_prev_samples = int(config.num_groups * self.sample_buffer_ratio)
+            prev_samples = []
+            if max_prev_samples > 0:
+                for _ in range(max_prev_samples):
+                    if not self.sample_queue.empty():
+                        prev_samples.append(self.sample_queue.get(block=False))
+                logger.info(f"Max previous samples to add from buffer: {max_prev_samples}. Loaded {len(prev_samples)} samples.")
+
             if train_batch.step % config.eval_log_steps == 0:
                 # Perform evaluation and training rollout
                 eval_groups, train_groups = await asyncio.gather(
@@ -181,7 +194,7 @@ class Trainer:
                         **config.rollout_kwargs,
                     ),
                     self.rollout(
-                        dataset=train_batch.items,
+                        dataset=train_batch.items + prev_samples,
                         group_size=config.group_size,
                         max_exceptions=config.max_exceptions,
                         pbar_desc="rollout-train",
@@ -193,12 +206,24 @@ class Trainer:
             else:
                 # Perform training rollout
                 train_groups = await self.rollout(
-                    dataset=train_batch.items,
+                    dataset=train_batch.items + prev_samples,
                     group_size=config.group_size,
                     max_exceptions=config.max_exceptions,
                     pbar_desc="rollout-train",
                     **config.rollout_kwargs,
                 )
+
+            # update the sample buffer
+            # sample small portion of the train groups to keep in the buffer
+            if max_prev_samples > 0:
+                logger.info(f"Sampling {max_prev_samples} groups to keep in the sample buffer")
+                sampled_groups = deepcopy(train_batch.items)[:max_prev_samples]
+                for group in sampled_groups:
+                    if not self.sample_queue.full():
+                        self.sample_queue.put(group, block=False)
+                    else: # if full, pop one and add new one
+                        self.sample_queue.get(block=False)
+                        self.sample_queue.put(group, block=False)
 
             # Log training trajectories
             if train_batch.step % config.train_log_steps == 0:

@@ -18,6 +18,7 @@ import art
 from art.utils import output_dirs
 import random
 import os
+from queue import Queue
 
 
 class Easy2HardTrainer(Trainer):
@@ -350,6 +351,7 @@ class Easy2HardTrainerReplay(Trainer):
         stop_criteria: StopCriteria,
         default_kwargs: dict | None = None,
         buffer_ratio: float = 0.33,
+        # sample_buffer_ratio: float = 0.25,
     ):
         super().__init__(model, vllm_router, path_config, prompt_config, stop_criteria, default_kwargs)
         train_logs_path = output_dirs.get_trajectories_split_dir(self.path_config.model_output_dir, "train")
@@ -361,6 +363,8 @@ class Easy2HardTrainerReplay(Trainer):
             # buffer_size=70,  # Only keep the last N epoch files
         )
         self.buffer_ratio:float = buffer_ratio
+        # self.sample_buffer_ratio:float = sample_buffer_ratio
+        # self.sample_queue:Queue = Queue()
 
     def create_agent(self) -> SingleAgentNode:
         client = self.vllm_router.next()

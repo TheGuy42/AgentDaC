@@ -69,6 +69,9 @@ def answer_reward(sample: dict[str, str], message: ChatMessage) -> float:
     except Exception as e:
         logger.warning(f"Error during answer reward computation: {e}")
         return 0.0
+    except BaseException as e:
+        logger.warning(f"Unexpected error during answer reward computation: {e}")
+        return 0.0
 
 
 # def answer_reward(sample: dict[str, str], last_message: ChatMessage) -> float:

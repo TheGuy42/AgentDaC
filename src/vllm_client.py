@@ -175,6 +175,9 @@ class ArtClient(VllmClient):
     async def unload_lora(self, lora_name: str):
         return  # No-op for ArtClient, as it uses ART's LORA management
 
+    async def unload_all_loras(self):
+        return  # No-op for ArtClient, as it uses ART's LORA management
+
 
 class VllmRouter:
     """
