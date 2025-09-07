@@ -5,6 +5,7 @@ from copy import deepcopy
 
 from wandb.sdk.wandb_run import Run as WandbRun
 import asyncio
+import os
 
 import art
 from art.utils import iterate_dataset
@@ -69,8 +70,10 @@ class Trainer:
 
         self.replay_buffer = None
         if self.replay_config.use_replay:
+            traj_path = self.path_config.get_trajectories_path(split="train")
+            os.makedirs(traj_path, exist_ok=True)
             self.replay_buffer = RewardBasedDoubleQuantileReplayBuffer(
-                directory=self.path_config.get_trajectories_path(split="train"),
+                directory=traj_path,
                 grouping_keys=self.replay_config.grouping_keys,
                 buffer_size=self.replay_config.buffer_size,
                 **self.replay_config.kwargs,

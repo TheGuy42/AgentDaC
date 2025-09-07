@@ -98,6 +98,7 @@ class MathTrainer(Trainer):
                 "subject": sample["subject"],
                 "level": sample["level"],
                 "unique_id": sample["unique_id"],
+                "index": sample["index"],
             }
         )
 

@@ -95,12 +95,12 @@ add_config(
     "unsloth/Qwen3-14B",
     init_args=InitArgs(
         load_in_4bit=False,
-        gpu_memory_utilization=0.9,
+        gpu_memory_utilization=0.93,
         max_lora_rank=16,
     ),
     engine_args=EngineArgs(
-        max_model_len=1024 * 8,
-        gpu_memory_utilization=0.9,
+        max_model_len=1024 * 5,
+        gpu_memory_utilization=0.93,
         max_lora_rank=16,
     ),
     peft_args=PeftArgs(
@@ -108,7 +108,7 @@ add_config(
     ),
     openai_config=OpenAIServerConfig(
         server_args=ServerArgs(
-            port=8001,
+            port=8002,
         ),
     ),
 )
