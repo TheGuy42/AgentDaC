@@ -1,0 +1,11 @@
+{
+    "use_replay": true,
+    "grouping_keys": [
+        "index"
+    ],
+    "buffer_size": null,
+    "buffer_ratio": 0.33,
+    "kwargs": {
+        "upper_quantile": 0.9
+    }
+}
