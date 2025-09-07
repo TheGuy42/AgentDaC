@@ -185,9 +185,13 @@ class Trainer:
             initial_step=await self.model.get_step(),
             use_tqdm=True,
         )
-
+        
         await self.sync_lora()  # Sync all vLLM clients with model weights
 
+        if self.sample_buffer:
+            logger.info(f"Pre-filling sample buffer with {self.sample_buffer_config.max_size // 2} samples")
+            self.sample_buffer.add(random.sample(train_dataset, self.sample_buffer_config.max_size // 2))
+            
         for train_batch in train_iter:
             # Add previous samples from buffer to the current batch
             max_prev_samples = int(config.num_groups * self.sample_buffer_config.added_ratio)

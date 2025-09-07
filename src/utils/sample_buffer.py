@@ -1,12 +1,22 @@
-from queue import Queue
+from queue import Queue, PriorityQueue
+import random
 
 
 class SampleBuffer:
+    """
+    A buffer that stores samples and allows sampling from them.
+    When the buffer is full, the oldest samples are removed.
+    1. Add items to the buffer with add(items: list)
+    2. Sample items from the buffer with sample(k: int) -> list
+    3. Check if the buffer is empty with is_empty() -> bool
+    4. Check if the buffer is full with full() -> bool
+    5. The buffer uses a priority queue to store items with random order.
+    """
     def __init__(
         self,
         max_size: int = 1000,
     ):
-        self.buffer = Queue(maxsize=max_size)
+        self.buffer = PriorityQueue(maxsize=max_size)
 
     def add(self, items: list) -> None:
         """
@@ -21,11 +31,13 @@ class SampleBuffer:
         Add a single item to the buffer.
         If the buffer is full, the oldest item will be removed.
         """
+        priority = random.randint(0, 1000000)
+        q_item = (priority, item)
         if self.buffer.full():
             self.buffer.get(block=False)
-            self.buffer.put(item, block=False)
+            self.buffer.put(q_item, block=False)
         else:
-            self.buffer.put(item, block=False)
+            self.buffer.put(q_item, block=False)
 
     def sample(self, k: int=1) -> list:
         """
@@ -41,7 +53,7 @@ class SampleBuffer:
 
     def _sample(self):
         if not self.buffer.empty():
-            return self.buffer.get(block=False)
+            return self.buffer.get(block=False)[-1] # return only the item, not the priority
         return None
 
     def is_empty(self):

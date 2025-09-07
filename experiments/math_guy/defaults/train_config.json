@@ -8,7 +8,7 @@
     "delete_checkpoints": false,
     "checkpoint_metric": "reward",
     "art_config": {
-        "learning_rate": 0.000002,
+        "learning_rate": 2e-6,
         "beta": 0.001
     },
     "dev_art_config": {
