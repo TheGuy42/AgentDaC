@@ -12,6 +12,7 @@ from art.local import LocalBackend
 from src.agents import BaseAgent
 from src.utils.logging import create_logger
 from src.vllm_client import VllmRouter
+from src.utils.replay import RewardBasedDoubleQuantileReplayBuffer
 
 from src.configs import (
     PromptConfig,
@@ -19,6 +20,7 @@ from src.configs import (
     RolloutConfig,
     DecompConfig,
     TrainingConfig,
+    ReplayConfig,
 )
 
 
@@ -42,7 +44,9 @@ class Trainer:
         path_config: PathConfig,
         prompt_config: PromptConfig,
         decomp_config: DecompConfig,
+        replay_config: ReplayConfig,
         rollout_config: RolloutConfig | None = None,
+        
         extra_config: dict | None = None,
         **kwargs,
     ):
@@ -52,10 +56,20 @@ class Trainer:
         self.prompt_config = prompt_config
         self.decomp_config = decomp_config
         self.rollout_config = rollout_config or RolloutConfig()
+        self.replay_config = replay_config
         self.extra_config = extra_config or {}
         self.extra_config.update(kwargs)
 
         self._train_config: TrainingConfig | None = None
+
+        self.replay_buffer = None
+        if self.replay_config.use_replay:
+            self.replay_buffer = RewardBasedDoubleQuantileReplayBuffer(
+                directory=self.path_config.get_trajectories_path(split="train"),
+                grouping_keys=self.replay_config.grouping_keys,
+                buffer_size=self.replay_config.buffer_size,
+                **self.replay_config.kwargs,
+            )
 
     @property
     def wandb_run(self) -> WandbRun | None:
@@ -146,6 +160,7 @@ class Trainer:
                 "decomp_config": self.decomp_config.model_dump(),
                 "training_config": self.train_config().model_dump(),
                 "rollout_config": self.rollout_config.model_dump(),
+                "replay_config": self.replay_config.model_dump() if self.replay_config is not None else None,
                 "extra_config": self.extra_config,
             }
         )
@@ -275,6 +290,21 @@ class Trainer:
             pbar_total_completion_tokens=False,
             after_each=group_forward,
         )
+
+        if self.replay_buffer is not None and stage == RolloutStage.TRAIN:
+            new_files = self.replay_buffer.update_trajectories()
+            logger.info(f"Loaded {new_files} new trajectories into the replay buffer, total size now {self.replay_buffer.num_files_loaded}")
+
+            for traj_group in trajectory_groups:
+                for traj in traj_group.trajectories: # mark original as not replay
+                    traj.metadata["replay"] = False
+                # group_key = tuple(traj_group.trajectories[0].metadata[k] for k in self.replay_buffer.grouping_keys)
+                group_key = self.replay_buffer._get_grouping_key(traj_group.trajectories[0])
+                n = max(1, int(len(traj_group.trajectories) * self.replay_config.buffer_ratio))
+                replay_buffer = self.replay_buffer.sample_group(group_key=group_key, n=n)
+                for traj in replay_buffer: # mark as replay
+                    traj.metadata["replay"] = True
+                traj_group.trajectories.extend(replay_buffer) # add replay to the group
 
         return trajectory_groups
 

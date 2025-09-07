@@ -56,3 +56,12 @@ class PathConfig(BaseModel, frozen=False):
         Get the checkpoint directory for a specific step.
         """
         return output_dirs.get_step_checkpoint_dir(model_output_dir=self.model_output_dir, step=step)
+
+    def get_trajectories_path(self, split: str) -> str:
+        """
+        Get the path to save trajectories for a specific split.
+        """
+        return output_dirs.get_trajectories_split_dir(
+            model_output_dir=self.model_output_dir,
+            split=split,
+        )

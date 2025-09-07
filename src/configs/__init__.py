@@ -5,6 +5,7 @@ from src.configs.rollout_config import RolloutConfig
 from src.configs.decomp_config import DecompConfig
 from src.configs.train_config import TrainingConfig, RulerConfig
 from src.configs.vllm_config import VllmConfig
+from src.configs.replay_config import ReplayConfig
 
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "TrainingConfig",
     "RulerConfig",
     "VllmConfig",
+    "ReplayConfig",
 ]
