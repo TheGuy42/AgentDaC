@@ -18,6 +18,7 @@ dependencies = [
     "math-verify>=0.8.0",
     "langchain-core>=0.3.74",
     "json-repair>=0.50.0",
+    "wrapt-timeout-decorator>=1.5.1",
 ]
 
 [tool.uv.workspace]

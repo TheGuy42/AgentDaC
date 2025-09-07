@@ -131,9 +131,6 @@ class Trainer:
         if val_dataset is None:
             val_dataset = train_dataset.copy()
 
-        random.Random(0).shuffle(val_dataset)
-        random.Random(1).shuffle(train_dataset)
-
         if config.val_size is not None:
             val_dataset = val_dataset[: config.val_size]
 

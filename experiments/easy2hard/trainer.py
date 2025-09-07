@@ -39,6 +39,7 @@ class Easy2HardTrainer(Trainer):
             openai_client=client.openai_client,
             prompt_config=self.prompt_config,
             decomp_config=decomp_config,
+            additional_histories=self.extra_config.get("additional_histories", False),
         )
 
     async def forward_step(

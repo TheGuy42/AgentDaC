@@ -3,7 +3,7 @@ from typing import Any
 from dataclasses import dataclass
 
 from openai.types.chat import ChatCompletion
-from art import Trajectory
+from art.trajectories import Trajectory, History
 
 from src.agents.base import BaseAgent
 from src.agents.regex_agent.actions import TurnAction
@@ -98,6 +98,7 @@ class RegexAgent(BaseAgent):
             prompt_config=self.prompt_config,
             decomp_config=self.decomp_config,
             current_depth=self.current_depth + 1,
+            additional_histories=False,  # NOTE: no support for recursive histories yet
         )
 
     async def chat(
@@ -159,6 +160,10 @@ class RegexAgent(BaseAgent):
                 task_answer = await sub_agent.answer(task, verbose, **kwargs)
                 task_response = UserMessage(role="user", name="sub-agent", content=task_answer)
                 self.trajectory.messages_and_choices.append(task_response)
+
+                if self.additional_histories:
+                    history = History(messages_and_choices=sub_agent.trajectory.messages_and_choices)
+                    self.trajectory.additional_histories.append(history)
 
                 if verbose:
                     print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))

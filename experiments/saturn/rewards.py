@@ -1,5 +1,5 @@
 import math_verify as mv
-from math_verify.errors import TimeoutException
+from wrapt_timeout_decorator import timeout
 from sympy.core import Number
 
 import src.agents.marker_agent.markers as markers
@@ -50,6 +50,21 @@ def calc_sat_value(clause: str, solution: str) -> bool:
     return True
 
 
+@timeout(5, use_signals=False)
+def parse_answer(text: str) -> str:
+    llm_parsed = mv.parse(text, parsing_timeout=0)
+
+    if len(llm_parsed) == 0:
+        raise ValueError("No parsable answer found.")
+
+    ans_obj = llm_parsed[0]
+    if not isinstance(ans_obj, Number):
+        raise ValueError("Parsed answer is not a number.")
+
+    value = ans_obj.floor()
+    return str(int(value))
+
+
 def answer_reward(sample: dict[str, str], message: Message) -> tuple[float, bool]:
     """
     Answer correctness reward function.
@@ -68,28 +83,10 @@ def answer_reward(sample: dict[str, str], message: Message) -> tuple[float, bool
         assert isinstance(content, str), f"Expected content to be a string, got {type(content)}"
 
         llm_answer = markers.extract_answer(content)
-        llm_parsed = mv.parse(llm_answer, raise_on_error=False, parsing_timeout=1)
-
-        if len(llm_parsed) == 0:
-            return (0.0, False)
-
-        ans_obj = llm_parsed[0]
-        if not isinstance(ans_obj, Number):
-            return (0.0, False)
-
-        value = ans_obj.floor()
-        solution = str(int(value))
-
-        is_sat = calc_sat_value(
-            clause=sample["clause"],
-            solution=solution,
-        )
-
+        solution = parse_answer(llm_answer)
+        is_sat = calc_sat_value(clause=sample["clause"], solution=solution)
         return (1.0 if is_sat else 0.0), True
 
-    except TimeoutException as e:
-        logger.info(f"Timeout during answer reward computation: {e}")
-        return (0.0, False)
     except Exception as e:
         logger.warning(f"Error during answer reward computation: {e}")
         return (0.0, False)

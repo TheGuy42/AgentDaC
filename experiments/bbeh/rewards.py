@@ -1,6 +1,6 @@
 import re
 import math_verify as mv
-from math_verify.errors import TimeoutException
+from wrapt_timeout_decorator import timeout
 
 from src.utils.logging import create_logger
 from src.agents.marker_agent import markers
@@ -45,6 +45,13 @@ def answer_reward_boolean_expressions(sample: dict[str, str], message: Message) 
         return (0.0, False)
 
 
+@timeout(10, use_signals=False)
+def mv_verify(gold_answer: str, pred_answer: str) -> bool:
+    parsed_gold = mv.parse(gold_answer)
+    parsed_pred = mv.parse(pred_answer)
+    return mv.verify(parsed_gold, parsed_pred)
+
+
 def answer_reward_multistep_arithmetic(sample: dict[str, str], message: Message) -> tuple[float, bool]:
     verify_task(sample, SupportedTasks.MULTISTEP_ARITHMETIC)
     try:
@@ -52,17 +59,11 @@ def answer_reward_multistep_arithmetic(sample: dict[str, str], message: Message)
         assert message["role"] == "assistant", f"Expected role 'assistant', got '{message['role']}'"
         assert isinstance(content, str), f"Expected content to be a string, got {type(content)}"
 
-        gold_answer = sample["answer"]
+        gold_answer = f"${sample['answer']}$"
         llm_answer = markers.extract_answer(content)
-
-        gold_parsed = mv.parse(f"${gold_answer}$", raise_on_error=True)
-        llm_parsed = mv.parse(llm_answer, raise_on_error=True)
-        is_correct = mv.verify(gold_parsed, llm_parsed, raise_on_error=True)
+        is_correct = mv_verify(gold_answer, llm_answer)
         return (1.0 if is_correct else 0.0, True)
 
-    except TimeoutException as e:
-        logger.info(f"Timeout during answer reward computation: {e}")
-        return (0.0, False)
     except Exception as e:
         logger.warning(f"Error during answer reward computation: {e}")
         return (0.0, False)

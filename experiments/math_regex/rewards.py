@@ -1,5 +1,5 @@
 import math_verify as mv
-from math_verify.errors import TimeoutException
+from wrapt_timeout_decorator import timeout
 
 from src.openai_types import Message
 from src.agents import RegexAgent
@@ -7,6 +7,13 @@ from src.utils.logging import create_logger
 
 
 logger = create_logger(__name__)
+
+
+@timeout(10, use_signals=False)
+def verify(gold_answer: str, pred_answer: str) -> bool:
+    parsed_gold = mv.parse(gold_answer)
+    parsed_pred = mv.parse(pred_answer)
+    return mv.verify(parsed_gold, parsed_pred)
 
 
 def answer_reward(sample: dict[str, str], message: Message) -> tuple[float, bool]:
@@ -22,17 +29,11 @@ def answer_reward(sample: dict[str, str], message: Message) -> tuple[float, bool
             and parsed is True if the answer was successfully parsed, False otherwise.
     """
     try:
-        gold_answer = sample["answer"]
+        gold_answer = f"${sample['answer']}$"
         llm_answer = RegexAgent.parse_answer(message)
-
-        gold_parsed = mv.parse(f"${gold_answer}$", raise_on_error=True)
-        llm_parsed = mv.parse(llm_answer, raise_on_error=True)
-        is_correct = mv.verify(gold_parsed, llm_parsed, raise_on_error=True)
+        is_correct = verify(gold_answer, llm_answer)
         return (1.0 if is_correct else 0.0, True)
 
-    except TimeoutException as e:
-        logger.info(f"Timeout during answer reward computation: {e}")
-        return (0.0, False)
     except Exception as e:
         logger.warning(f"Error during answer reward computation: {e}")
         return (0.0, False)

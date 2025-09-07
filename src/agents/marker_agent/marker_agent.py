@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion
-from art import Trajectory
+from art.trajectories import Trajectory, History
 
 from src.agents.base import BaseAgent
 from src.utils.visualize import trajectory_string, message_string
@@ -11,7 +10,6 @@ import src.agents.marker_agent.markers as markers
 from src.agents.marker_agent.markers import Markers
 from src.utils.logging import create_logger
 from src.openai_types import Message, UserMessage
-from src.configs import PromptConfig, DecompConfig
 from src.configs.prompts import get_prompt
 
 
@@ -19,22 +17,6 @@ logger = create_logger(__name__)
 
 
 class MarkerAgent(BaseAgent):
-    def __init__(
-        self,
-        openai_client: AsyncOpenAI,
-        model_name: str,
-        prompt_config: PromptConfig,
-        decomp_config: DecompConfig,
-        current_depth: int = 0,
-    ):
-        super().__init__(
-            openai_client=openai_client,
-            model_name=model_name,
-            prompt_config=prompt_config,
-            decomp_config=decomp_config,
-            current_depth=current_depth,
-        )
-
     def _create_subagent(self) -> MarkerAgent:
         return MarkerAgent(
             openai_client=self.openai_client,
@@ -42,6 +24,7 @@ class MarkerAgent(BaseAgent):
             prompt_config=self.prompt_config,
             decomp_config=self.decomp_config,
             current_depth=self.current_depth + 1,
+            additional_histories=False,  # NOTE: no support for recursive histories yet
         )
 
     async def call(self, messages: list[Message], **kwargs) -> ChatCompletion:
@@ -132,6 +115,10 @@ class MarkerAgent(BaseAgent):
                     # create a sub-agent and get answer the task
                     sub_agent = self._create_subagent()
                     answer = await sub_agent.answer(task, verbose, **kwargs)
+
+                    if self.additional_histories:
+                        history = History(messages_and_choices=sub_agent.trajectory.messages_and_choices)
+                        self.trajectory.additional_histories.append(history)
 
                     # update metrics from sub-agent
                     self.metrics["total_tasks"] += sub_agent.metrics["total_tasks"]

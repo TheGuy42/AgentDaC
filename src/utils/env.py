@@ -33,9 +33,10 @@ def prepare_environment(dotenv_path: str | None = None):
         "NCCL_CUMEM_ENABLE": "0",  # To avoid vLLM bug with NCCL
         "VLLM_USE_V1": "0",  # NOTE: Currently ART uses vLLM v0, see art.unsloth.state
         "VLLM_WORKER_MULTIPROC_METHOD": "spawn",  # To avoid vLLM issues with multiprocessing
-        "ART_SERVER_TIMEOUT": str(60 * 5),  # increase timeout for ART
-        "WEAVE_DISABLED": "1",
-        "WEAVE_DISABLE_TRACING": "1",
+        "ART_SERVER_TIMEOUT": str(60 * 5),  # Increase timeout for ART vLLM server creation
+        "WEAVE_DISABLED": "1",  # No thanks
+        "WEAVE_DISABLE_TRACING": "1",  # No thanks
+        "TOKENIZERS_PARALLELISM": "false",  # Avoid tokenizer parallelism warning
     }
 
     os.environ.update(flag_dict)

@@ -23,15 +23,18 @@ class BaseAgent(ABC):
         prompt_config: PromptConfig,
         decomp_config: DecompConfig,
         current_depth: int = 0,
+        additional_histories: bool = False,
     ):
         self.openai_client = openai_client
         self.model = model_name
         self.prompt_config = prompt_config
         self.decomp_config = decomp_config.clone()
         self.current_depth = current_depth
+        self.additional_histories = additional_histories
 
         self.trajectory = Trajectory(
             messages_and_choices=[],
+            additional_histories=[],
             reward=0,
             metrics={
                 "direct_calls": 0,

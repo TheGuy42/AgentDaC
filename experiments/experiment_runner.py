@@ -237,6 +237,22 @@ class ExperimentRunner(ABC):
         logger.info(f"Train dataset size: {len(train_dataset)}")
         logger.info(f"Validation dataset size: {len(val_dataset)}")
 
+        train_dataset = train_dataset.shuffle(0).to_list()
+        val_dataset = val_dataset.shuffle(1).to_list()
+        test_dataset = test_dataset.shuffle(2).to_list()
+
+        if train_config.train_size is not None:
+            train_dataset = train_dataset[: train_config.train_size]
+            logger.info(f"Truncated train dataset to size: {len(train_dataset)}")
+
+        if train_config.val_size is not None:
+            val_dataset = val_dataset[: train_config.val_size]
+            logger.info(f"Truncated val dataset to size: {len(val_dataset)}")
+
+        if train_config.val_size is not None:
+            test_dataset = test_dataset[: train_config.val_size] # TODO: create separate config entry test_size
+            logger.info(f"Truncated test dataset to size: {len(test_dataset)}")
+
         # Load model
         model = await load_art_model(
             path_config=path_config,
@@ -278,14 +294,23 @@ class ExperimentRunner(ABC):
                 logger.info("Starting training...")
                 await trainer.train(
                     config=train_config,
-                    train_dataset=train_dataset.to_list(),
-                    val_dataset=val_dataset.to_list(),
+                    train_dataset=train_dataset,
+                    val_dataset=val_dataset,
                 )
 
             # Run evaluation
+            logger.info("Starting val-set evaluation...")
+            groups = await trainer.rollout(
+                dataset=val_dataset,
+                group_size=1,
+                stage=RolloutStage.VAL,
+                max_exceptions=train_config.max_exceptions,
+            )
+            await trainer.model.log(groups, split=RolloutStage.VAL.value)
+
             logger.info("Starting test-set evaluation...")
             groups = await trainer.rollout(
-                dataset=test_dataset.to_list(),
+                dataset=test_dataset,
                 group_size=1,
                 stage=RolloutStage.TEST,
                 max_exceptions=train_config.max_exceptions,
