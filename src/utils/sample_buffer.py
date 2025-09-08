@@ -15,9 +15,12 @@ class SampleBuffer:
     def __init__(
         self,
         max_size: int = 1000,
+        seed: int|None = None,
     ):
         self.buffer = PriorityQueue(maxsize=max_size)
         self.counter = 0
+        self.seed = seed if seed is not None else random.randint(0, 1000000)
+        self.rng = random.Random(seed)
 
     def _next_counter(self):
         self.counter = (self.counter + 1) % 1000000
@@ -36,7 +39,7 @@ class SampleBuffer:
         Add a single item to the buffer.
         If the buffer is full, the oldest item will be removed.
         """
-        priority = random.randint(0, 1000000)
+        priority = self.rng.randint(0, 1000000)
         counter = self._next_counter()
         q_item = (priority, counter, item)
         if self.buffer.full():
