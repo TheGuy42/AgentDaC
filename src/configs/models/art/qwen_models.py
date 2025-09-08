@@ -117,7 +117,7 @@ add_config(
     ),
     openai_config=OpenAIServerConfig(
         server_args=ServerArgs(
-            port=8004,
+            port=8005,
         ),
     ),
 )
