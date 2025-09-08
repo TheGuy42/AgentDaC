@@ -42,14 +42,48 @@ def format_reward(trajectory: art.Trajectory) -> float:
     Reward factor which penalizes for improper message formatting and conversation structure.
     It does not provide positive rewards or incentives for good formatting or structure.
     """
-    total_reward = 0.0
-    count = 0
+    fmt_count = 0
+    fmt_reward = 0.0
     for item in trajectory.messages_and_choices:
         if isinstance(item, Choice):
             content = item.message.content or ""
-            total_reward += _single_message_format_reward(content)
-            count += 1
-    # return total_reward / count if count > 0 else 0.0 # TODO: test, bounds the format reward
+            fmt_reward += _single_message_format_reward(content)
+            fmt_count += 1
+
+    # TODO: experimental
+    # for hist in trajectory.additional_histories:
+    #     for item in hist.messages_and_choices:
+    #         if isinstance(item, Choice):
+    #             content = item.message.content or ""
+    #             total_reward += _single_message_format_reward(content)
+    #             count += 1
+
+    fmt_reward = fmt_reward / fmt_count if fmt_count > 0 else 0.0  # TODO: test, bounds the format reward
+
+    ans_count = 0
+    ans_reward = 0.0
+    last_message = trajectory.messages_and_choices[-1]
+    if isinstance(last_message, Choice):
+        ans_count += 1
+        content = last_message.message.content or ""
+        num_answers = len(extract_between(content, Markers.ANS_START, Markers.ANS_END))
+        if num_answers == 0:
+            ans_reward -= 1.0
+
+    # TODO: experimental
+    # for hist in trajectory.additional_histories:
+    #     last_message = hist.messages_and_choices[-1]
+    #     if isinstance(last_message, Choice):
+    #         ans_count += 1
+    #         content = last_message.message.content or ""
+    #         num_answers = len(extract_between(content, Markers.ANS_START, Markers.ANS_END))
+    #         if num_answers == 0:
+    #             ans_reward -= 1.0
+
+    # ans_reward = ans_reward / ans_count if ans_count > 0 else 0.0  # bounds the answer reward
+
+    total_reward = fmt_reward + ans_reward
+
     return total_reward
 
 
@@ -67,24 +101,11 @@ def _hill_func(x: float, steepness: float, midpoint: float) -> float:
     return val / (1 + val)
 
 
-def behavior_reward(
-    trajectory: art.Trajectory,
-    no_answer_factor: float = 1.0,
-    task_penalty_factor: float = 0.0,
-) -> float:
-    # conversation must end with an answer
-    last_message = trajectory.messages()[-1]
-    last_content = last_message.get("content")
-    assert last_message["role"] == "assistant", f"Expected role 'assistant', got '{last_message['role']}'"
-    assert isinstance(last_content, str), f"Expected content to be a string, got {type(last_content)}"
-
+def behavior_reward(trajectory: art.Trajectory) -> float:
+    return 0
     total_reward = 0.0
-
-    num_answers = len(extract_between(last_content, Markers.ANS_START, Markers.ANS_END))
-    if num_answers == 0:
-        total_reward -= no_answer_factor * 1.0
 
     # penalize for number of task created
     num_tasks = trajectory.metrics["direct_tasks"]
-    total_reward -= task_penalty_factor * _hill_func(num_tasks, steepness=4, midpoint=3.5)
+    total_reward -= _hill_func(num_tasks, steepness=4, midpoint=3.5)
     return total_reward
