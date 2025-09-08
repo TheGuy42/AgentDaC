@@ -83,6 +83,7 @@ class Trainer:
         if self.sample_buffer_config.use_buffer:
             self.sample_buffer = SampleBuffer(
                 max_size=self.sample_buffer_config.max_size,
+                seed=self.sample_buffer_config.seed,
             )
 
     @property

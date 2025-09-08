@@ -12,6 +12,7 @@ class SampleBufferConfig(BaseModel):
     use_buffer: bool = False
     max_size: int = 1000 # 0 for unlimited
     added_ratio: float = 0.33
+    seed: Optional[int] = None
     
     def save(self, dir_name: str, file_name: str = "sample_buffer_config.json") -> None:
         """
