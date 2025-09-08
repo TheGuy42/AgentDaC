@@ -68,24 +68,24 @@ def main(args: argparse.Namespace, extra_args: list[str]) -> None:
 
     dummy_parser.set_defaults(
         endpoint_type="vllm",
-        host=server_args.get("host", "0.0.0.0"),
+        host=server_args.get("host", "localhost"),
         port=server_args.get("port", port),
         result_dir=result_dir,
         metric_percentiles="25,50,75,99",
         seed=0,
     )
 
-    DEFAULT_INPUT_LEN = 256
-    DEFAULT_MODEL_LEN = 2048
-    DEFAULT_CONCURRENCY = 128
+    DEFAULT_INPUT_LEN = 1024
+    DEFAULT_MODEL_LEN = 350
+    DEFAULT_CONCURRENCY = 512
 
     max_model_len = engine_args.get("max_model_len", DEFAULT_MODEL_LEN)
-    if max_model_len is None:
-        max_model_len = DEFAULT_MODEL_LEN
+    # if max_model_len is None:
+    max_model_len = DEFAULT_MODEL_LEN
 
     max_concurrency = engine_args.get("max_num_seqs", DEFAULT_CONCURRENCY)
-    if max_concurrency is None:
-        max_concurrency = DEFAULT_CONCURRENCY
+    # if max_concurrency is None:
+    max_concurrency = DEFAULT_CONCURRENCY
 
     random_output_len = (max_model_len - 2 * DEFAULT_INPUT_LEN) // 4
 
@@ -93,8 +93,8 @@ def main(args: argparse.Namespace, extra_args: list[str]) -> None:
         num_prompts=max_concurrency * 5,
         max_concurrency=max_concurrency,
         dataset_name="random",
-        random_input_len=DEFAULT_INPUT_LEN,
-        random_output_len=random_output_len,
+        random_input_len=DEFAULT_INPUT_LEN//2,
+        random_output_len=max_model_len//2,
         random_range_ratio=0.85,
     )
 

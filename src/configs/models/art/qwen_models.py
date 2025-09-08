@@ -95,20 +95,29 @@ add_config(
     "unsloth/Qwen3-14B",
     init_args=InitArgs(
         load_in_4bit=False,
+        max_seq_length=1024 * 5,
         gpu_memory_utilization=0.93,
         max_lora_rank=16,
     ),
     engine_args=EngineArgs(
+        # max_num_seqs=312,
         max_model_len=1024 * 5,
         gpu_memory_utilization=0.93,
-        max_lora_rank=16,
+        max_lora_rank=64,
+        enable_chunked_prefill=True,
+        # max_num_batched_tokens=1024 * 5,
     ),
+    # engine_args=EngineArgs(
+    #     max_model_len=1024 * 5,
+    #     gpu_memory_utilization=0.93,
+    #     max_lora_rank=16,
+    # ),
     peft_args=PeftArgs(
         r=16,
     ),
     openai_config=OpenAIServerConfig(
         server_args=ServerArgs(
-            port=8002,
+            port=8004,
         ),
     ),
 )

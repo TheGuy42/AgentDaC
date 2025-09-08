@@ -46,9 +46,12 @@ add_config(
 add_config(
     "unsloth/Qwen3-14B",
     engine_args=EngineArgs(
-        max_model_len=1024 * 16,
-        gpu_memory_utilization=0.9,
+        # max_num_seqs=64,
+        max_model_len=1024 * 5,
+        gpu_memory_utilization=0.93,
         max_lora_rank=64,
+        enable_chunked_prefill=True,
+        # max_num_batched_tokens=1024 * 5 * 8,
     ),
 )
 
