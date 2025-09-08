@@ -17,6 +17,11 @@ class SampleBuffer:
         max_size: int = 1000,
     ):
         self.buffer = PriorityQueue(maxsize=max_size)
+        self.counter = 0
+
+    def _next_counter(self):
+        self.counter = (self.counter + 1) % 100000000
+        return self.counter
 
     def add(self, items: list) -> None:
         """
@@ -31,7 +36,8 @@ class SampleBuffer:
         Add a single item to the buffer.
         If the buffer is full, the oldest item will be removed.
         """
-        priority = random.randint(0, 1000000)
+        # priority = random.randint(0, 1000000)
+        priority = self._next_counter()
         q_item = (priority, item)
         if self.buffer.full():
             self.buffer.get(block=False)
