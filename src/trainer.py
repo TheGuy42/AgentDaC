@@ -234,7 +234,7 @@ class Trainer:
             # sample small portion of the train groups to keep in the buffer
             if self.sample_buffer and max_prev_samples > 0:
                 logger.info(f"Sampling {max_prev_samples} groups to keep in the sample buffer")
-                sampled_groups = deepcopy(train_batch.items)[:max_prev_samples]
+                sampled_groups = deepcopy(train_batch.items[:max_prev_samples])
                 self.sample_buffer.add(sampled_groups)
 
             # Train step
