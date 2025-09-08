@@ -141,7 +141,7 @@ class MarkerAgent(BaseAgent):
             # NOTE: experimental
             # unified_answer = f"{unified_answer}\n\n{self.remaining_budget_string()}"
 
-            joined_message = UserMessage(role="user", content=unified_answer)
+            joined_message = UserMessage(role="user", name="sub-agent", content=unified_answer)
             self.trajectory.messages_and_choices.append(joined_message)
 
             if verbose:

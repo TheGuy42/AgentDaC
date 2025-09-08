@@ -33,7 +33,7 @@ class BbeehTrainer(Trainer):
             max_tasks=max_tasks,
             max_rounds=max_rounds,
         )
-        
+
         return MarkerAgent(
             model_name=self.model.get_inference_name(),
             openai_client=client.openai_client,
@@ -71,7 +71,7 @@ class BbeehTrainer(Trainer):
         trajectory.reward += ans_reward
         fmt_reward = format_reward(trajectory)
         trajectory.reward += fmt_reward
-        bhv_reward = behavior_reward(trajectory)
+        bhv_reward = 0.0 * behavior_reward(trajectory)
         trajectory.reward += bhv_reward
 
         agent_answer = MarkerAgent.parse_answer(ans_message)
@@ -99,5 +99,3 @@ class BbeehTrainer(Trainer):
         )
 
         return trajectory
-
-

@@ -14,38 +14,44 @@ class Markers:
     THINK_END = "</think>"
 
 
-def extract_between(text: str, start_marker: str, end_marker: str) -> list[str]:
+def extract_between(text: str, start_marker: str, end_marker: str, strict: bool = True) -> list[str]:
     """
     Extracts all instances of text between two specific markers in a string.
+
+    - If `strict` is True: Matches text strictly between the first occurrence of `start_marker` and the next occurrence of `end_marker`.
+    - If `strict` is False: Matches text starting from each `start_marker` up to the next `end_marker`, next `start_marker`, or end of the string.
 
     Args:
         text: The input string to parse.
         start_marker: The beginning marker.
         end_marker: The ending marker.
+        strict: Whether to use strict matching mode.
 
     Returns:
         A list of strings, where each string is an instance of text found between the markers.
     """
-    # Create a regex pattern to find text non-greedily between the markers
-    # re.escape is used to escape any special characters in the markers
-    # (.*?) matches any character (except newline) zero or more times, non-greedily
-    pattern = re.escape(start_marker) + r"(.*?)" + re.escape(end_marker)
+    s = re.escape(start_marker)
+    e = re.escape(end_marker)
 
-    # Find all non-overlapping matches of the pattern in the string
-    matches = re.findall(pattern, text, re.DOTALL)
-
-    return matches
-
-
-def extract_answer(text: str) -> str:
-    answer_list = extract_between(text, Markers.ANS_START, Markers.ANS_END)
-    if len(answer_list) > 0:
-        answer = answer_list[-1]  # Take the last answer if multiple are found
+    if strict:
+        # Between start and end, match absolutely any characters (including newlines).
+        pattern = rf"{s}([\s\S]*?){e}"
     else:
-        answer = text
+        # Start at each start_marker, then capture until the next end/start or end of text.
+        # Lookahead ensures we *stop before* whichever comes first, without consuming it.
+        pattern = rf"{s}([\s\S]*?)(?={e}|{s}|$)"
+
+    return re.findall(pattern, text)
+
+
+# TODO: try with strict=False
+def extract_answer(text: str, strict=True) -> str:
+    answer_list = extract_between(text, Markers.ANS_START, Markers.ANS_END, strict=strict)
+    answer = answer_list[-1] if len(answer_list) > 0 else text
     return answer.strip()
 
 
-def extract_tasks(text: str) -> list[str]:
-    task_list = extract_between(text, Markers.TASK_START, Markers.TASK_END)
+# TODO: try with strict=false
+def extract_tasks(text: str, strict=True) -> list[str]:
+    task_list = extract_between(text, Markers.TASK_START, Markers.TASK_END, strict=strict)
     return [task.strip() for task in task_list]

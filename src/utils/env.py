@@ -36,7 +36,7 @@ def prepare_environment(dotenv_path: str | None = None):
         "ART_SERVER_TIMEOUT": str(60 * 5),  # Increase timeout for ART vLLM server creation
         "WEAVE_DISABLED": "1",  # No thanks
         "WEAVE_DISABLE_TRACING": "1",  # No thanks
-        "TOKENIZERS_PARALLELISM": "false",  # Avoid tokenizer parallelism warning
+        "TOKENIZERS_PARALLELISM": "true",  # Avoid tokenizer parallelism warning
     }
 
     os.environ.update(flag_dict)

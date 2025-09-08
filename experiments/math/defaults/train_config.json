@@ -5,14 +5,14 @@
     "train_size": null,
     "val_log_steps": 5,
     "val_size": 500,
-    "delete_checkpoints": false,
+    "delete_checkpoints": true,
     "checkpoint_metric": "reward",
     "art_config": {
         "learning_rate": 0.000002,
         "beta": 0.001
     },
     "dev_art_config": {
-        "epsilon": 25
+        "epsilon": 1
     },
     "ruler_config": null,
     "verbose": false,

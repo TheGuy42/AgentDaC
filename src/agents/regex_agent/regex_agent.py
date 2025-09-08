@@ -64,6 +64,9 @@ class RegexAgent(BaseAgent):
         4) If tasks exhausted (total_tasks >= max_tasks): cannot ISSUE_TASK.
         5) ANSWER is always allowed.
         """
+        # # TODO: EXPERIMENTAL
+        # if self.current_depth >= self.decomp_config.max_depth:
+        #     self.decomp_config.max_rounds = 1  # Force only one round at leaf nodes
 
         dc = self.decomp_config
         is_leaf = self.current_depth >= dc.max_depth
