@@ -10,6 +10,7 @@ logger = create_logger(__name__)
 
 def answer_reward_boolean_expressions(sample: dict[str, str], model_answer: str) -> tuple[float, bool]:
     verify_task(sample, SupportedTasks.BOOLEAN_EXPRESSIONS)
+    
     try:
         # match (X) pattern
         gold_answer = sample["target"]
@@ -45,6 +46,7 @@ def mv_verify(gold_answer: str, pred_answer: str) -> bool:
 
 def answer_reward_multistep_arithmetic(sample: dict[str, str], model_answer: str) -> tuple[float, bool]:
     verify_task(sample, SupportedTasks.MULTISTEP_ARITHMETIC)
+    
     try:
         gold_answer = f"${sample['answer']}$"
         is_correct = mv_verify(gold_answer, model_answer)

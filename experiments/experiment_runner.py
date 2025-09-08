@@ -1,5 +1,11 @@
 import sys
 import os
+
+# NOTE: Some ART library black-magic
+os.environ["IMPORT_UNSLOTH"] = "1"
+os.environ["IMPORT_PEFT"] = "1"
+import art
+
 import torch
 import pathlib
 import asyncio
@@ -12,7 +18,6 @@ import random
 import json
 import pydantic
 from datasets import Dataset
-import art
 
 from src.utils.rng import set_seed
 from src.utils.env import prepare_environment
@@ -250,7 +255,7 @@ class ExperimentRunner(ABC):
             logger.info(f"Truncated val dataset to size: {len(val_dataset)}")
 
         if train_config.val_size is not None:
-            test_dataset = test_dataset[: train_config.val_size] # TODO: create separate config entry test_size
+            test_dataset = test_dataset[: train_config.val_size]  # TODO: create separate config entry test_size
             logger.info(f"Truncated test dataset to size: {len(test_dataset)}")
 
         # Load model
