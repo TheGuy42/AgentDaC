@@ -4,7 +4,7 @@ from src.openai_types import UserMessage
 from src.configs import DecompConfig
 
 from experiments.math.format import format_prompt
-from experiments.math_regex.rewards import answer_reward
+from experiments.math.rewards import answer_reward
 
 import art
 import random
@@ -59,13 +59,11 @@ class MathRegexTrainer(Trainer):
         stage: RolloutStage,
     ) -> art.Trajectory:
         ans_message = trajectory.messages()[-1]
-        ans_content = ans_message.get("content")
-        assert ans_message["role"] == "assistant", f"Expected role 'assistant', got '{ans_message['role']}'"
-        assert isinstance(ans_content, str), f"Expected content to be a string, got {type(ans_content)}"
+        agent_answer = RegexAgent.parse_answer(ans_message)
 
         # Compute rewards
         trajectory.reward = 0.0
-        ans_reward, parse_success = answer_reward(sample, ans_message)
+        ans_reward, parse_success = answer_reward(sample, agent_answer)
         trajectory.reward += ans_reward
 
         # Update metrics
@@ -81,7 +79,7 @@ class MathRegexTrainer(Trainer):
         trajectory.metadata.update(
             {
                 "answer": sample["answer"],
-                "agent_answer": RegexAgent.parse_answer(ans_message),
+                "agent_answer": agent_answer,
                 "subject": sample["subject"],
                 "level": sample["level"],
                 "unique_id": sample["unique_id"],

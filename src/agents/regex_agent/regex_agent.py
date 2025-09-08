@@ -65,8 +65,8 @@ class RegexAgent(BaseAgent):
         5) ANSWER is always allowed.
         """
         # # TODO: EXPERIMENTAL
-        # if self.current_depth >= self.decomp_config.max_depth:
-        #     self.decomp_config.max_rounds = 1  # Force only one round at leaf nodes
+        if self.current_depth >= self.decomp_config.max_depth:
+            self.decomp_config.max_rounds = 1  # Force only one round at leaf nodes
 
         dc = self.decomp_config
         is_leaf = self.current_depth >= dc.max_depth

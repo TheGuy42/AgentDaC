@@ -47,7 +47,7 @@ class BigCodeBenchTrainer(Trainer):
         agent_answer = MarkerAgent.parse_answer(ans_message)
         num_answers = len(extract_between(ans_content, Markers.ANS_START, Markers.ANS_END))
 
-        result = execute_code(sample, ans_message)
+        result = execute_code(sample, agent_answer)
 
         if not isinstance(self.model, art.TrainableModel):
             raise ValueError("Model is not a TrainableModel instance.")

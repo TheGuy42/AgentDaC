@@ -1,9 +1,6 @@
 import math_verify as mv
 from wrapt_timeout_decorator import timeout
 from sympy.core import Number
-
-import src.agents.marker_agent.markers as markers
-from src.openai_types import Message
 from src.utils.logging import create_logger
 
 
@@ -51,7 +48,7 @@ def calc_sat_value(clause: str, solution: str) -> bool:
 
 
 @timeout(5, use_signals=False)
-def parse_answer(text: str) -> str:
+def parse_assignment(text: str) -> str:
     llm_parsed = mv.parse(text, parsing_timeout=0)
 
     if len(llm_parsed) == 0:
@@ -65,26 +62,21 @@ def parse_answer(text: str) -> str:
     return str(int(value))
 
 
-def answer_reward(sample: dict[str, str], message: Message) -> tuple[float, bool]:
+def answer_reward(sample: dict[str, str], model_answer: str) -> tuple[float, bool]:
     """
     Answer correctness reward function.
 
     Args:
         sample (dict): A dictionary containing all relevant ground truth information.
-        message (Message): The message object containing the model's response.
+        model_answer (str): The model's answer as a string.
 
     Returns:
         (tuple[float, bool]): A tuple (reward, parsed) where reward is 1.0 if the answer is correct, 0.0 otherwise,
             and parsed is True if the answer was successfully parsed, False otherwise.
     """
     try:
-        content = message.get("content")
-        assert message["role"] == "assistant", f"Expected role 'assistant', got '{message['role']}'"
-        assert isinstance(content, str), f"Expected content to be a string, got {type(content)}"
-
-        llm_answer = markers.extract_answer(content)
-        solution = parse_answer(llm_answer)
-        is_sat = calc_sat_value(clause=sample["clause"], solution=solution)
+        assignment = parse_assignment(model_answer)
+        is_sat = calc_sat_value(clause=sample["clause"], solution=assignment)
         return (1.0 if is_sat else 0.0), True
 
     except Exception as e:

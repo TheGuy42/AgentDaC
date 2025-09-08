@@ -1,5 +1,4 @@
 from abc import abstractmethod
-import random
 from enum import Enum
 
 from wandb.sdk.wandb_run import Run as WandbRun
@@ -284,7 +283,7 @@ class Trainer:
         stage: RolloutStage,
     ) -> BaseAgent:
         """
-        Create an instance of an BaseAgent for the given stage.
+        Create an instance of an `BaseAgent` for the given stage.
         Args:
             stage (RolloutStage): The current stage of the rollout.
         Returns:
