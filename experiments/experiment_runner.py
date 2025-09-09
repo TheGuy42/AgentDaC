@@ -1,5 +1,11 @@
 import sys
 import os
+
+# NOTE: Some ART library black-magic
+os.environ["IMPORT_UNSLOTH"] = "1"
+os.environ["IMPORT_PEFT"] = "1"
+import art
+
 import torch
 import pathlib
 import asyncio

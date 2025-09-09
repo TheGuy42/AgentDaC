@@ -37,7 +37,7 @@ async def load_art_model(
         _internal_config=art_config.internal_config,
     )
 
-    backend = LocalBackend(path=path_config.art_path)
+    backend = LocalBackend(path=path_config.art_path, in_process=True)
     await model.register(backend, _openai_client_config=art_config.openai_config)
     return model
 
