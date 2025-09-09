@@ -8,7 +8,6 @@ from typing import Type, Any
 
 from src.agents.base import BaseAgent
 from src.agents.conversation_agent import ConversationAgent
-from src.agents.unified_agents import UnifiedJsonAgent, UnifiedRegexAgent, UnifiedMarkerAgent
 from src.agents.strategies import ParseStrategy, JsonParseStrategy, RegexParseStrategy, MarkerParseStrategy
 
 
@@ -24,13 +23,6 @@ class AgentType(str, Enum):
 
 class AgentFactory:
     """Factory for creating agents with different parsing strategies."""
-    
-    # Mapping of agent types to their implementations
-    _AGENT_REGISTRY: dict[AgentType, Type[BaseAgent]] = {
-        AgentType.JSON: UnifiedJsonAgent,
-        AgentType.REGEX: UnifiedRegexAgent,
-        AgentType.MARKER: UnifiedMarkerAgent,
-    }
     
     # Mapping of agent types to their parsing strategies
     _STRATEGY_REGISTRY: dict[AgentType, Type[ParseStrategy]] = {
@@ -50,7 +42,7 @@ class AgentFactory:
         current_depth: int = 0,
         additional_histories: bool = False,
         **kwargs
-    ) -> BaseAgent:
+    ) -> ConversationAgent:
         """
         Create an agent of the specified type.
         
@@ -65,7 +57,7 @@ class AgentFactory:
             **kwargs: Additional arguments passed to agent constructor
             
         Returns:
-            Configured agent instance
+            Configured ConversationAgent instance with appropriate parsing strategy
             
         Raises:
             ValueError: If agent_type is not supported
@@ -77,17 +69,19 @@ class AgentFactory:
                 supported = [t.value for t in AgentType]
                 raise ValueError(f"Unsupported agent type '{agent_type}'. Supported: {supported}")
         
-        if agent_type not in cls._AGENT_REGISTRY:
+        if agent_type not in cls._STRATEGY_REGISTRY:
             supported = [t.value for t in AgentType]
             raise ValueError(f"Unsupported agent type '{agent_type}'. Supported: {supported}")
         
-        agent_class = cls._AGENT_REGISTRY[agent_type]
+        strategy_class = cls._STRATEGY_REGISTRY[agent_type]
+        parse_strategy = strategy_class()
         
-        return agent_class(
+        return ConversationAgent(
             openai_client=openai_client,
             model_name=model_name,
             prompt_config=prompt_config,
             decomp_config=decomp_config,
+            parse_strategy=parse_strategy,
             current_depth=current_depth,
             additional_histories=additional_histories,
             **kwargs
@@ -103,9 +97,8 @@ class AgentFactory:
         decomp_config,
         current_depth: int = 0,
         additional_histories: bool = False,
-        agent_class: Type[BaseAgent] | None = None,
         **kwargs
-    ) -> BaseAgent:
+    ) -> ConversationAgent:
         """
         Create an agent with a custom parsing strategy.
         
@@ -117,16 +110,12 @@ class AgentFactory:
             decomp_config: Decomposition configuration
             current_depth: Current recursion depth
             additional_histories: Whether to store additional histories
-            agent_class: Custom agent class (defaults to ConversationAgent)
             **kwargs: Additional arguments passed to agent constructor
             
         Returns:
-            Configured agent instance with custom strategy
-        """
-        if agent_class is None:
-            agent_class = ConversationAgent
-            
-        return agent_class(
+            Configured ConversationAgent instance with custom strategy
+        """            
+        return ConversationAgent(
             openai_client=openai_client,
             model_name=model_name,
             prompt_config=prompt_config,
@@ -134,7 +123,6 @@ class AgentFactory:
             parse_strategy=parse_strategy,
             current_depth=current_depth,
             additional_histories=additional_histories,
-            agent_class=agent_class,
             **kwargs
         )
     
@@ -144,24 +132,25 @@ class AgentFactory:
         return [agent_type.value for agent_type in AgentType]
     
     @classmethod
-    def register_agent_type(
+    def register_strategy(
         cls, 
         agent_type: AgentType | str, 
-        agent_class: Type[BaseAgent],
-        strategy_class: Type[ParseStrategy] | None = None
+        strategy_class: Type[ParseStrategy]
     ) -> None:
         """
-        Register a new agent type with the factory.
+        Register a new parsing strategy for an agent type.
         
         Args:
-            agent_type: Type identifier for the new agent
-            agent_class: Agent class implementation
-            strategy_class: Optional strategy class for the agent type
+            agent_type: Type identifier for the strategy
+            strategy_class: Strategy class implementation
         """
         if isinstance(agent_type, str):
-            # Create a new enum value dynamically
-            agent_type = AgentType(agent_type.lower())
+            # Create a new enum value dynamically if needed
+            try:
+                agent_type = AgentType(agent_type.lower())
+            except ValueError:
+                # For custom types, we'll just use the string directly
+                # This is a limitation but keeps it simple
+                raise ValueError(f"Agent type '{agent_type}' must be one of {list(AgentType)}")
         
-        cls._AGENT_REGISTRY[agent_type] = agent_class
-        if strategy_class is not None:
-            cls._STRATEGY_REGISTRY[agent_type] = strategy_class
+        cls._STRATEGY_REGISTRY[agent_type] = strategy_class

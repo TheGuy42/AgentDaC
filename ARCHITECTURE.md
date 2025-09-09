@@ -4,7 +4,7 @@ This document describes the new unified agent architecture that eliminates code 
 
 ## Overview
 
-The original codebase had three separate agent implementations (JsonAgent, RegexAgent, MarkerAgent) with nearly identical logic (~200 lines each), resulting in ~600 lines of duplicate code. The new architecture eliminates this duplication while maintaining backward compatibility.
+The original codebase had three separate agent implementations (JsonAgent, RegexAgent, MarkerAgent) with nearly identical logic (~200 lines each), resulting in ~600 lines of duplicate code. The new architecture eliminates this duplication through a clean, unified design.
 
 ## Key Improvements
 
@@ -79,7 +79,7 @@ except ParseError as e:
 
 ### Core Classes
 
-- **`BaseAgent`**: Abstract base class (unchanged for compatibility)
+- **`BaseAgent`**: Abstract base class
 - **`ConversationAgent`**: Unified conversation logic  
 - **`ParseStrategy`**: Abstract parsing strategy interface
 - **`AgentFactory`**: Factory for creating agents
@@ -90,12 +90,6 @@ except ParseError as e:
 - **`JsonParseStrategy`**: JSON schema-based parsing
 - **`RegexParseStrategy`**: Regex pattern-based parsing  
 - **`MarkerParseStrategy`**: XML-like marker parsing
-
-### Unified Agents
-
-- **`UnifiedJsonAgent`**: JSON agent using new architecture
-- **`UnifiedRegexAgent`**: Regex agent using new architecture
-- **`UnifiedMarkerAgent`**: Marker agent using new architecture
 
 ## Usage Examples
 
@@ -160,15 +154,6 @@ agent = AgentFactory.create_agent("my_custom_type", ...)
 
 ## Backward Compatibility
 
-The original agent classes are still available and fully functional:
-
-```python
-from src.agents import JsonAgent, RegexAgent, MarkerAgent
-
-# Original APIs still work
-json_agent = JsonAgent(openai_client, model_name, prompt_config, decomp_config)
-```
-
 ## Benefits
 
 ### Code Reduction
@@ -191,43 +176,69 @@ json_agent = JsonAgent(openai_client, model_name, prompt_config, decomp_config)
 - **Conversation logic** tested once, works for all agents
 - **Mocking simplified** with dependency injection
 
-## Migration Guide
+## Usage Guide
 
-### For New Code
-Use the new `AgentFactory` and unified agents:
+The new architecture provides a clean, unified API:
 
-```python
-# Old way
-agent = JsonAgent(client, model, prompt_config, decomp_config)
-
-# New way  
-agent = AgentFactory.create_agent(AgentType.JSON, client, model, prompt_config, decomp_config)
-```
-
-### For Existing Code
-No changes required - original classes still work:
+### Using AgentFactory (Recommended)
 
 ```python
-# This continues to work unchanged
-agent = JsonAgent(client, model, prompt_config, decomp_config)
+from src.agents import AgentFactory, AgentType
+
+# Create any agent type
+agent = AgentFactory.create_agent(
+    agent_type=AgentType.JSON,  # or "json", "regex", "marker"
+    openai_client=client,
+    model_name=model,
+    prompt_config=prompt_config,
+    decomp_config=decomp_config
+)
+
 result = await agent.chat(message)
 ```
 
-### Gradual Migration
-You can migrate gradually by switching imports:
+### Using ConversationAgent Directly
 
 ```python
-# Change this:
-from src.agents import JsonAgent
+from src.agents import ConversationAgent
+from src.agents.strategies import JsonParseStrategy
 
-# To this:
-from src.agents import UnifiedJsonAgent as JsonAgent
+agent = ConversationAgent(
+    openai_client=client,
+    model_name=model,
+    prompt_config=prompt_config,
+    decomp_config=decomp_config,
+    parse_strategy=JsonParseStrategy()
+)
 ```
 
-## Performance Impact
+### Custom Parsing Strategies
 
-- **No performance regression** - same underlying logic
-- **Reduced memory usage** - shared code paths
-- **Better error handling** - custom exceptions provide more context
+```python
+from src.agents import AgentFactory
+from src.agents.strategies import ParseStrategy, AgentTurn, TurnAction
 
-The new architecture maintains full API compatibility while providing significant improvements in code quality, extensibility, and maintainability.
+class CustomStrategy(ParseStrategy):
+    def parse_response(self, content, allowed_actions):
+        # Custom parsing logic
+        return AgentTurn(action=TurnAction.ANSWER, text=content, raw=content)
+
+# Use custom strategy
+agent = AgentFactory.create_custom_agent(
+    parse_strategy=CustomStrategy(),
+    openai_client=client,
+    model_name=model,
+    prompt_config=prompt_config,
+    decomp_config=decomp_config
+)
+```
+
+## Architecture Benefits
+
+- **Clean Design** - Single responsibility principle properly applied
+- **Reduced Complexity** - Shared code paths eliminate duplication  
+- **Better Error Handling** - Custom exceptions provide more context
+- **High Extensibility** - New agent types require minimal code
+- **Easy Testing** - Strategy testing can be done in isolation
+
+The new architecture provides significant improvements in code quality, extensibility, and maintainability through its unified, strategy-based design.

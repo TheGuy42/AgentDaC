@@ -1,4 +1,5 @@
-from src.agents import BaseAgent, JsonAgent
+from src.agents import BaseAgent, ConversationAgent, AgentFactory, AgentType
+from src.agents.strategies import JsonParseStrategy
 from src.trainer import Trainer, RolloutStage
 from src.openai_types import UserMessage
 from src.configs import DecompConfig
@@ -32,7 +33,8 @@ class MathJsonTrainer(Trainer):
             max_rounds=max_rounds,
         )
 
-        return JsonAgent(
+        return AgentFactory.create_agent(
+            agent_type=AgentType.JSON,
             model_name=self.model.get_inference_name(),
             openai_client=client.openai_client,
             prompt_config=self.prompt_config,
@@ -58,7 +60,7 @@ class MathJsonTrainer(Trainer):
         stage: RolloutStage,
     ) -> art.Trajectory:
         ans_message = trajectory.messages()[-1]
-        agent_answer = JsonAgent.parse_answer(ans_message)
+        agent_answer = JsonParseStrategy().parse_final_answer(ans_message.get("content", ""))
 
         # Compute rewards
         trajectory.reward = 0.0

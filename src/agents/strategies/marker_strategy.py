@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Any
 
 from src.agents.strategies.base import ParseStrategy, AgentTurn, TurnAction
-from src.agents.marker_agent.markers import Markers, extract_answer, extract_tasks
+from src.agents.strategies.markers import Markers, extract_answer, extract_tasks
 from src.configs import DecompConfig
 from src.utils.logging import create_logger
 
@@ -64,7 +64,7 @@ class MarkerParseStrategy(ParseStrategy):
     def parse_tasks(self, message) -> list:
         """
         Helper method specific to marker strategy for parsing tasks.
-        This maintains compatibility with existing MarkerAgent behavior.
+        Extracts tasks from marker-formatted content.
         """
         if message["role"] != "assistant":
             raise ValueError("Message role must be 'assistant' to extract tasks.")

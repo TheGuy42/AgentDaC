@@ -21,10 +21,8 @@ def showcase_agent_improvements():
     print("   • JsonParseStrategy: ~100 lines of JSON-specific parsing")
     print("   • RegexParseStrategy: ~95 lines of regex-specific parsing")
     print("   • MarkerParseStrategy: ~80 lines of marker-specific parsing")
-    print("   • UnifiedJsonAgent: ~30 lines (uses strategy)")
-    print("   • UnifiedRegexAgent: ~30 lines (uses strategy)")  
-    print("   • UnifiedMarkerAgent: ~30 lines (uses strategy)")
-    print("   • Total: ~765 lines BUT eliminates ~600 lines of duplication")
+    print("   • AgentFactory: ~60 lines for clean agent creation")
+    print("   • Total: ~735 lines BUT eliminates ~600 lines of duplication")
     print("   • Net result: More functionality with less duplicate code!")
     print("   • Adding new agent type: ~20 lines using existing strategy pattern")
 
@@ -133,29 +131,6 @@ def showcase_api_examples():
     loaded = PromptConfig.load("/path", "custom_prompts.json")
     """)
 
-def showcase_backward_compatibility():
-    """Demonstrate backward compatibility."""
-    print("\n🔄 BACKWARD COMPATIBILITY")
-    print("=" * 50)
-    
-    print("\n✅ Existing Code Continues to Work:")
-    print("""
-    # This existing code still works exactly as before:
-    from src.agents import JsonAgent, RegexAgent, MarkerAgent
-    
-    json_agent = JsonAgent(client, model, prompt_config, decomp_config)
-    result = await json_agent.chat(message)  # Same API
-    """)
-    
-    print("\n🔄 Migration Path:")
-    print("""
-    # Gradual migration - just change the import:
-    from src.agents import UnifiedJsonAgent as JsonAgent
-    
-    # Now you get all the benefits but same API
-    agent = JsonAgent(client, model, prompt_config, decomp_config)
-    """)
-
 def main():
     """Run the complete architecture showcase."""
     print("🚀 AGENTDAC UNIFIED ARCHITECTURE SHOWCASE")
@@ -166,7 +141,6 @@ def main():
     showcase_config_improvements()
     showcase_extensibility()
     showcase_api_examples()
-    showcase_backward_compatibility()
     
     print("\n🎯 SUMMARY OF ACHIEVEMENTS")
     print("=" * 50)
