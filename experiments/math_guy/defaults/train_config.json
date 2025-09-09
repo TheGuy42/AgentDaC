@@ -13,7 +13,8 @@
     },
     "dev_art_config": {
         "epsilon": 1,
-        "allow_training_without_logprobs": true
+        "allow_training_without_logprobs": true,
+        "precalculate_logprobs": true
     },
     "ruler_config": null,
     "verbose": false,
