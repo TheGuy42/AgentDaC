@@ -58,7 +58,7 @@ def format_reward(trajectory: art.Trajectory) -> float:
     #             total_reward += _single_message_format_reward(content)
     #             count += 1
 
-    fmt_reward = fmt_reward / fmt_count if fmt_count > 0 else 0.0  # TODO: test, bounds the format reward
+    # fmt_reward = fmt_reward / fmt_count if fmt_count > 0 else 0.0  # TODO: test, bounds the format reward
 
     ans_count = 0
     ans_reward = 0.0
