@@ -1,14 +1,13 @@
 from __future__ import annotations
-from pydantic import BaseModel, Field
-from pathlib import Path
-from src.utils.io import save_base_model
+from pydantic import Field
+from src.configs.base_config import BaseConfig
 from src.utils.logging import create_logger
 
 
 logger = create_logger(__name__)
 
 
-class RolloutConfig(BaseModel):
+class RolloutConfig(BaseConfig):
     kwargs: dict = Field(default_factory=dict)
     train_kwargs: dict = Field(default_factory=dict)
     val_kwargs: dict = Field(default_factory=dict)
@@ -27,9 +26,3 @@ class RolloutConfig(BaseModel):
         else:
             logger.warning(f"Unknown stage '{stage}'. Using base kwargs only.")
         return kwargs
-
-    def save(self, dir_name: str, file_name: str = "rollout_config.json") -> None:
-        """
-        Save the rollout configuration to a JSON file.
-        """
-        save_base_model(self, Path(dir_name) / file_name)

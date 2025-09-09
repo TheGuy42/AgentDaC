@@ -1,12 +1,10 @@
-from pydantic import BaseModel
-from pathlib import Path
 from datetime import datetime
 
 from art.utils import output_dirs
-from src.utils.io import save_base_model
+from src.configs.base_config import BaseConfig
 
 
-class PathConfig(BaseModel, frozen=False):
+class PathConfig(BaseConfig, frozen=False):
     base_model: str
     project_name: str
     run_name: str = ""
@@ -19,12 +17,6 @@ class PathConfig(BaseModel, frozen=False):
 
         if self.run_name == "":
             self.run_name = self._generate_run_name(self.base_model)
-
-    def save(self, dir_name: str, file_name: str = "path_config.json") -> None:
-        """
-        Save the path configuration to a JSON file.
-        """
-        save_base_model(self, Path(dir_name) / file_name)
 
     @property
     def model_output_dir(self) -> str:

@@ -1,13 +1,12 @@
 from __future__ import annotations
-from pydantic import BaseModel, Field, model_validator
-from pathlib import Path
+from pydantic import Field, model_validator
 import os
 
 from art.dev import OpenAIServerConfig, get_openai_server_config
-from src.utils.io import save_base_model
+from src.configs.base_config import BaseConfig
 
 
-class VllmConfig(BaseModel, frozen=False, extra="allow"):
+class VllmConfig(BaseConfig, frozen=False, extra="allow"):
     """
     Configuration for a served vLLM model.
     """
@@ -40,9 +39,3 @@ class VllmConfig(BaseModel, frozen=False, extra="allow"):
         self.openai_config["engine_args"]["seed"] = seed or 0  # type: ignore
         self.openai_config["engine_args"]["num_scheduler_steps"] = 1 # type: ignore
         return self
-
-    def save(self, dir_name: str, file_name: str = "vllm_config.json") -> None:
-        """
-        Save the vLLM configuration to a JSON file.
-        """
-        save_base_model(self, Path(dir_name) / file_name)

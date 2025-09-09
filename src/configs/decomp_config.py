@@ -1,10 +1,9 @@
 from __future__ import annotations
-from pydantic import BaseModel, Field
-from pathlib import Path
-from src.utils.io import save_base_model
+from pydantic import Field
+from src.configs.base_config import BaseConfig
 
 
-class DecompConfig(BaseModel):
+class DecompConfig(BaseConfig):
     max_depth: int = 1
     max_tasks: int = 4
     max_rounds: int = 5
@@ -28,9 +27,3 @@ class DecompConfig(BaseModel):
         """Update round and task counters"""
         self.total_rounds += 1
         self.total_tasks += num_tasks
-
-    def save(self, dir_name: str, file_name: str = "decomp_config.json") -> None:
-        """
-        Save the decomposition configuration to a JSON file.
-        """
-        save_base_model(self, Path(dir_name) / file_name)

@@ -1,3 +1,4 @@
+from src.configs.base_config import BaseConfig
 from src.configs.art_config import ArtConfig
 from src.configs.path_config import PathConfig
 from src.configs.prompt_config import PromptConfig
@@ -8,6 +9,7 @@ from src.configs.vllm_config import VllmConfig
 
 
 __all__ = [
+    "BaseConfig",
     "ArtConfig",
     "PathConfig",
     "PromptConfig",
