@@ -58,8 +58,6 @@ def format_reward(trajectory: art.Trajectory) -> float:
     #             total_reward += _single_message_format_reward(content)
     #             count += 1
 
-    fmt_reward = fmt_reward / fmt_count if fmt_count > 0 else 0.0  # TODO: test, bounds the format reward
-
     ans_count = 0
     ans_reward = 0.0
     last_message = trajectory.messages_and_choices[-1]
@@ -80,10 +78,10 @@ def format_reward(trajectory: art.Trajectory) -> float:
     #         if num_answers == 0:
     #             ans_reward -= 1.0
 
-    # ans_reward = ans_reward / ans_count if ans_count > 0 else 0.0  # bounds the answer reward
-
+    # normalize
+    fmt_reward = fmt_reward / fmt_count if fmt_count > 0 else 0.0
+    ans_reward = ans_reward / ans_count if ans_count > 0 else 0.0
     total_reward = fmt_reward + ans_reward
-
     return total_reward
 
 

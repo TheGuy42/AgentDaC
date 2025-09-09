@@ -1,15 +1,13 @@
-from pydantic import BaseModel, Field
-from pathlib import Path
-
+from pydantic import Field
 import art
 from src.utils.logging import create_logger
-from src.utils.io import save_base_model
+from src.configs.base_config import BaseConfig
 
 
 logger = create_logger(__name__)
 
 
-class RulerConfig(BaseModel):
+class RulerConfig(BaseConfig):
     judge_model: str | None = None
     extra_litellm_params: dict | None = None
     rubric: str | None = None
@@ -17,7 +15,7 @@ class RulerConfig(BaseModel):
     debug: bool = False
 
 
-class TrainingConfig(BaseModel, extra="allow"):
+class TrainingConfig(BaseConfig, extra="allow"):
     epochs: int = 1
     num_groups: int = 12
     group_size: int = 8
@@ -34,9 +32,3 @@ class TrainingConfig(BaseModel, extra="allow"):
 
     verbose: bool = False
     max_exceptions: int | float = 0
-
-    def save(self, dir_name: str, file_name: str = "train_config.json") -> None:
-        """
-        Save the training configuration to a JSON file.
-        """
-        save_base_model(self, Path(dir_name) / file_name)

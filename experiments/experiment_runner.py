@@ -19,10 +19,9 @@ import json
 import pydantic
 from datasets import Dataset
 
-from src.utils.rng import set_seed
-from src.utils.env import prepare_environment
+from src.utils.env import prepare_environment, set_seed
 from src.utils.logging import create_logger, setup_logging
-from src.utils.io import load_base_model, load_object
+from src.utils.io import load_object
 from src.utils.loaders import load_art_model
 from src.vllm_client import VllmClient, ArtClient, VllmRouter
 from src.configs.models.art import available_configs, ArtConfig
@@ -162,11 +161,11 @@ class ExperimentRunner(ABC):
             dir = pathlib.Path(dir)
 
         return {
-            "art_config": load_base_model(ArtConfig, dir / "art_config.json", do_raise=False),
-            "train_config": load_base_model(TrainingConfig, dir / "train_config.json", do_raise=True),
-            "prompt_config": load_base_model(PromptConfig, dir / "prompt_config.json", do_raise=True),
-            "decomp_config": load_base_model(DecompConfig, dir / "decomp_config.json", do_raise=True),
-            "rollout_config": load_base_model(RolloutConfig, dir / "rollout_config.json", do_raise=True),
+            "art_config": ArtConfig.load_from_path(dir / "art_config.json", do_raise=False),
+            "train_config": TrainingConfig.load_from_path(dir / "train_config.json", do_raise=True),
+            "prompt_config": PromptConfig.load_from_path(dir / "prompt_config.json", do_raise=True),
+            "decomp_config": DecompConfig.load_from_path(dir / "decomp_config.json", do_raise=True),
+            "rollout_config": RolloutConfig.load_from_path(dir / "rollout_config.json", do_raise=True),
             "extra_config": load_object(dir / "extra_config.json", do_raise=False),
         }
 

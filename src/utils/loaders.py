@@ -1,3 +1,5 @@
+import socket
+from contextlib import closing
 import art
 from art.local import LocalBackend
 import src.configs.models.art as art_configs
@@ -9,9 +11,17 @@ from src.utils.logging import create_logger
 logger = create_logger(__name__)
 
 
+def find_free_port() -> int:
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+        s.bind(("", 0))
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        return s.getsockname()[1]
+
+
 async def load_art_model(
     path_config: PathConfig,
     art_config: ArtConfig | None = None,
+    port: int | None = None,
     seed: int | None = None,
 ) -> art.TrainableModel:
     if art_config is None:
@@ -25,9 +35,13 @@ async def load_art_model(
         art_config = art_configs.CONFIGS[path_config.base_model]
 
     if path_config.base_model != art_config.base_model:
-        raise ValueError(f"Model name mismatch: {path_config.base_model} != {art_config.base_model}.")        
+        raise ValueError(f"Model name mismatch: {path_config.base_model} != {art_config.base_model}.")
 
-    art_config = art_config.initialize(output_dir=path_config.model_output_dir, seed=seed)
+    if port is None:
+        port = find_free_port()
+        logger.info(f"Found free port for ART server: {port}")
+
+    art_config = art_config.initialize(output_dir=path_config.model_output_dir, port=port, seed=seed)
     logger.info(f"ART Model Config: {art_config.model_dump_json(indent=2)}")
 
     model = art.TrainableModel(
@@ -44,7 +58,7 @@ async def load_art_model(
 
 def load_vllm_model(
     model_name: str,
-    port: int = 8200,
+    port: int | None = None,
     seed: int | None = None,
     vllm_config: VllmConfig | None = None,
 ) -> list[str]:
@@ -59,6 +73,10 @@ def load_vllm_model(
 
     if vllm_config.base_model != model_name:
         raise ValueError(f"Model name mismatch: {vllm_config.base_model} != {model_name}.")
+
+    if port is None:
+        port = find_free_port()
+        logger.info(f"Found free port for vLLM server: {port}")
 
     vllm_config = vllm_config.initialize(port=port, seed=seed)
     logger.info(f"vLLM Model Config: {vllm_config.model_dump_json(indent=2)}")

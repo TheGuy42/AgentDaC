@@ -1,15 +1,13 @@
 from __future__ import annotations
 import os
-from pydantic import BaseModel, Field, model_validator
-from pathlib import Path
+from pydantic import Field, model_validator
 
 from art.dev.get_model_config import get_model_config
 from art.dev import InternalModelConfig, EngineArgs, OpenAIServerConfig, ServerArgs
+from src.configs.base_config import BaseConfig
 
-from src.utils.io import save_base_model
 
-
-class ArtConfig(BaseModel, frozen=False, extra="allow"):
+class ArtConfig(BaseConfig, frozen=False, extra="allow"):
     """
     Configuration for an ART model.
     """
@@ -28,7 +26,7 @@ class ArtConfig(BaseModel, frozen=False, extra="allow"):
             self.id = self.base_model
         return self
 
-    def initialize(self, output_dir: str, seed: int | None = None) -> ArtConfig:
+    def initialize(self, output_dir: str, port: int | None = None, seed: int | None = None) -> ArtConfig:
         self.internal_config = get_model_config(
             base_model=self.base_model,
             output_dir=output_dir,
@@ -41,20 +39,20 @@ class ArtConfig(BaseModel, frozen=False, extra="allow"):
         self.openai_config.setdefault("engine_args", EngineArgs())
 
         self.internal_config["engine_args"].setdefault("seed", 0)  # type: ignore
-        self.internal_config["engine_args"]["num_scheduler_steps"] = 1 # type: ignore
+        self.internal_config["engine_args"]["num_scheduler_steps"] = 1  # type: ignore
+
+        if port is not None:
+            self.openai_config["server_args"]["port"] = port  # type: ignore
 
         if seed is not None:
-            self.internal_config["init_args"]["random_state"] = seed # type: ignore
-            self.internal_config["engine_args"]["seed"] = seed # type: ignore
-            self.internal_config["peft_args"]["random_state"] = seed # type: ignore
-            self.internal_config["trainer_args"]["seed"] = seed # type: ignore
-            self.internal_config["trainer_args"]["data_seed"] = seed # type: ignore
-            self.openai_config["engine_args"]["seed"] = seed  # type: ignore  
-            
+            self.internal_config["init_args"]["random_state"] = seed  # type: ignore
+            self.internal_config["engine_args"]["seed"] = seed  # type: ignore
+            self.internal_config["peft_args"]["random_state"] = seed  # type: ignore
+            self.internal_config["trainer_args"]["seed"] = seed  # type: ignore
+            self.internal_config["trainer_args"]["data_seed"] = seed  # type: ignore
+            self.openai_config["engine_args"]["seed"] = seed  # type: ignore
+
         if api_key := os.getenv("OPENAI_API_KEY"):
             self.openai_config["server_args"]["api_key"] = api_key  # type: ignore
 
         return self
-
-    def save(self, dir_name: str, file_name: str = "art_config.json") -> None:
-        save_base_model(self, Path(dir_name) / file_name)

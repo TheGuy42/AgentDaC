@@ -30,11 +30,6 @@ add_config(
         max_num_batched_tokens=4096 * 4 * 2,
         max_seq_len_to_capture=4096 * 2,
     ),
-    openai_config=OpenAIServerConfig(
-        server_args=ServerArgs(
-            port=8001,
-        ),
-    ),
 )
 
 # NOTE: potentially working tensor parallel config
@@ -106,11 +101,6 @@ add_config(
     peft_args=PeftArgs(
         r=16,
     ),
-    openai_config=OpenAIServerConfig(
-        server_args=ServerArgs(
-            port=8007,
-        ),
-    ),
 )
 
 add_config(
@@ -127,10 +117,5 @@ add_config(
     ),
     peft_args=PeftArgs(
         r=16,
-    ),
-    openai_config=OpenAIServerConfig(
-        server_args=ServerArgs(
-            port=8001,
-        ),
     ),
 )

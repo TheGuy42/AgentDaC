@@ -1,10 +1,28 @@
 import os
 import dotenv
 import huggingface_hub as hf
+import torch
+import numpy
+import random
 from src.utils.logging import create_logger
 
 
 logger = create_logger(__name__)
+
+
+def set_seed(seed: int) -> None:
+    """
+    Set the seed for reproducibility.
+
+    Args:
+        seed (int): Seed to set.
+    """
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+    numpy.random.seed(seed)
+    random.seed(seed)
 
 
 def prepare_environment(dotenv_path: str | None = None):

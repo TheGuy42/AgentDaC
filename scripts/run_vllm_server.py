@@ -36,8 +36,8 @@ def parse_args() -> tuple[argparse.Namespace, list[str]]:
     parser.add_argument(
         "--port",
         type=int,
-        default=8200,
-        help="The port on which the vLLM server will run (e.g., '8200').",
+        default=None,
+        help="The port on which the vLLM server will run. If not specified, a free port will be found automatically.",
     )
 
     parser.add_argument(
@@ -62,7 +62,7 @@ def parse_args() -> tuple[argparse.Namespace, list[str]]:
         default=69420,
         help="Random seed for reproducibility.",
     )
-    
+
     parser.add_argument(
         "--silent",
         action="store_true",
