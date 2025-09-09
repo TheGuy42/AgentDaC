@@ -2,7 +2,6 @@ from __future__ import annotations
 import openai
 import httpx
 import asyncio
-import os
 import pathlib
 
 import art
@@ -16,49 +15,19 @@ logger = create_logger(__name__)
 class VllmClient:
     def __init__(
         self,
-        base_url: str | httpx.URL,
+        openai_client: openai.AsyncOpenAI,
         base_model: str,
         model_name: str | None = None,
-        api_key: str | None = None,
-        timeout: float | httpx.Timeout | None = httpx.Timeout(timeout=1200, connect=5.0),
     ):
-        if api_key is None:
-            api_key = os.getenv("OPENAI_API_KEY")
-            if api_key is None:
-                api_key = "default"
-                logger.info(f"No OpenAI API key provided, using '{api_key}' key.")
-
         if model_name is None:
             model_name = base_model
 
-        self.base_url = base_url
+        self.openai_client = openai_client
+        self.http_client = openai_client._client
+
+        self.base_url = openai_client.base_url
         self.base_model = base_model
         self.model_name = model_name
-        self.api_key = api_key
-        self.timeout = timeout
-
-        self.http_client = openai.DefaultAsyncHttpxClient(
-            base_url=base_url,
-            headers={"Authorization": f"Bearer {api_key}"},
-            timeout=timeout,
-            limits=httpx.Limits(max_connections=100_000, max_keepalive_connections=100_000),
-        )
-
-        self.openai_client = openai.AsyncOpenAI(
-            base_url=base_url,
-            api_key=api_key,
-            http_client=self.http_client,
-            max_retries=3,
-        )
-
-        self.openai_client = patch_openai(self.openai_client)
-
-    async def close(self):
-        try:
-            await self.openai_client.close()
-            await self.http_client.aclose()
-        except Exception as e:
-            logger.error(f"[{self.base_url}] Error closing HTTP client: {e}")
 
     @staticmethod
     def from_connection(
@@ -67,17 +36,27 @@ class VllmClient:
         model_name: str | None = None,
         host: str = "0.0.0.0",
         api_key: str | None = None,
-        timeout: float | httpx.Timeout | None = httpx.Timeout(timeout=1200, connect=5.0),
         **kwargs,
     ) -> VllmClient:
+        kwargs.setdefault("max_retries", 3)
+        kwargs.setdefault("timeout", httpx.Timeout(timeout=1200, connect=5.0))
+
+        openai_client = openai.AsyncOpenAI(base_url=f"http://{host}:{port}/v1", api_key=api_key, **kwargs)
+        openai_client = patch_openai(openai_client)
+
         return VllmClient(
-            base_url=f"http://{host}:{port}/v1",
+            openai_client=openai_client,
             base_model=base_model,
             model_name=model_name,
-            api_key=api_key,
-            timeout=timeout,
             **kwargs,
         )
+
+    async def close(self):
+        try:
+            await self.openai_client.close()
+            await self.http_client.aclose()
+        except Exception as e:
+            logger.error(f"[{self.base_url}] Error closing HTTP client: {e}")
 
     def get_inference_name(self) -> str:
         return self.model_name
@@ -148,32 +127,31 @@ class ArtClient(VllmClient):
         """
         Create a VllmClient instance from an ART Model.
         """
-        client = art_model.openai_client()
-
         if isinstance(art_model, art.TrainableModel):
             return ArtClient(
-                base_url=client.base_url,
+                openai_client=art_model.openai_client(),
                 base_model=art_model.base_model,
                 model_name=art_model.get_inference_name(),
-                api_key=client.api_key,
-                timeout=client.timeout,
                 **kwargs,
             )
         else:
             return ArtClient(
-                base_url=client.base_url,
+                openai_client=art_model.openai_client(),
                 base_model=art_model.get_inference_name(),
                 model_name=None,
-                api_key=client.api_key,
-                timeout=client.timeout,
                 **kwargs,
             )
 
     async def load_lora(self, lora_name: str, lora_path: str):
+        logger.debug(f"[{self.base_url}] Load LORA called on ArtClient, which is a no-op.")
         return  # No-op for ArtClient, as it uses ART's LORA management
 
     async def unload_lora(self, lora_name: str):
+        logger.debug(f"[{self.base_url}] Unload LORA called on ArtClient, which is a no-op.")
         return  # No-op for ArtClient, as it uses ART's LORA management
+
+    async def close(self):
+        return  # No-op for ArtClient, as ART manages the client lifecycle
 
 
 class VllmRouter:

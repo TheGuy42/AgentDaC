@@ -185,9 +185,11 @@ class ExperimentRunner(ABC):
             inference_clients.append(
                 VllmClient.from_connection(
                     port=port,
-                    api_key=art_client.api_key,
                     base_model=art_client.base_model,
                     model_name=art_client.model_name,
+                    api_key=art_client.openai_client.api_key,
+                    timeout=art_client.openai_client.timeout,
+                    max_retries=art_client.openai_client.max_retries,
                 )
             )
         return VllmRouter(inference_clients)
