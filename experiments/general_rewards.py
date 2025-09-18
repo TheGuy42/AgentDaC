@@ -50,13 +50,12 @@ def format_reward(trajectory: art.Trajectory) -> float:
             fmt_reward += _single_message_format_reward(content)
             fmt_count += 1
 
-    # TODO: experimental
-    # for hist in trajectory.additional_histories:
-    #     for item in hist.messages_and_choices:
-    #         if isinstance(item, Choice):
-    #             content = item.message.content or ""
-    #             total_reward += _single_message_format_reward(content)
-    #             count += 1
+    for hist in trajectory.additional_histories:
+        for item in hist.messages_and_choices:
+            if isinstance(item, Choice):
+                content = item.message.content or ""
+                fmt_reward += _single_message_format_reward(content)
+                fmt_count += 1
 
     ans_count = 0
     ans_reward = 0.0
@@ -68,15 +67,14 @@ def format_reward(trajectory: art.Trajectory) -> float:
         if num_answers == 0:
             ans_reward -= 1.0
 
-    # TODO: experimental
-    # for hist in trajectory.additional_histories:
-    #     last_message = hist.messages_and_choices[-1]
-    #     if isinstance(last_message, Choice):
-    #         ans_count += 1
-    #         content = last_message.message.content or ""
-    #         num_answers = len(extract_between(content, Markers.ANS_START, Markers.ANS_END))
-    #         if num_answers == 0:
-    #             ans_reward -= 1.0
+    for hist in trajectory.additional_histories:
+        last_message = hist.messages_and_choices[-1]
+        if isinstance(last_message, Choice):
+            ans_count += 1
+            content = last_message.message.content or ""
+            num_answers = len(extract_between(content, Markers.ANS_START, Markers.ANS_END))
+            if num_answers == 0:
+                ans_reward -= 1.0
 
     # normalize
     fmt_reward = fmt_reward / fmt_count if fmt_count > 0 else 0.0

@@ -1,6 +1,6 @@
 {
-    "system_root": "sys_prompt_gilad_inter_regex",
-    "system_inter": "sys_prompt_gilad_inter_regex",
-    "system_leaf": "sys_prompt_gilad_leaf_regex",
+    "system_root": "sys_prompt_gilad_inter_regex_v2",
+    "system_inter": "sys_prompt_gilad_inter_regex_v2",
+    "system_leaf": "sys_prompt_gilad_leaf_regex_v2",
     "tasks_depleted": ""
 }

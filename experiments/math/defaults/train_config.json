@@ -12,7 +12,8 @@
         "beta": 0.001
     },
     "dev_art_config": {
-        "epsilon": 1
+        "epsilon": 1,
+	    "scale_rewards": false
     },
     "ruler_config": null,
     "verbose": false,

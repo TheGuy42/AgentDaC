@@ -2,9 +2,6 @@ from src.configs.models.vllm import add_config
 from art.dev import ServerArgs, EngineArgs, OpenAIServerConfig
 
 
-# TODO: test following settings:
-# There are also 8-bit quantized versions of models, test them.
-
 add_config(
     "unsloth/Qwen2-7B",
     engine_args=EngineArgs(
