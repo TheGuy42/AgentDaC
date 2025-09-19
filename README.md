@@ -38,7 +38,7 @@ WANDB_API_KEY=...
 Pattern:
 
 ```bash
-python experiments/<exp_name>/run.py --model <MODEL_ID> [--gpus 0] [--project <NAME>] [--run <RESUME>] [--eval]
+python experiments/<exp_name>/run.py [--gpus 0] [--project <NAME>] [--run <RESUME>] [--eval]
 ```
 
 ### (Optional) Additional vLLM inference servers
@@ -47,22 +47,22 @@ Run one server per GPU with a unique port.
 
 ```bash
 # GPU 1 on port 8200
-python scripts/run_vllm_server.py --model <MODEL_ID> --port 8200 --gpus 1
+python scripts/run_vllm_server.py --config <MODEL_CONFIG> --port 8200 --gpus 1
 
 # GPU 2 on port 8201 (second server)
-python scripts/run_vllm_server.py --model <MODEL_ID> --port 8201 --gpus 2
+python scripts/run_vllm_server.py --config <MODEL_CONFIG> --port 8201 --gpus 2
 ```
 
-Note: Use the same `<MODEL_ID>` you’ll train/eval with (see available models via `--help`).
+Note: Use the same model in `<MODEL_CONFIG>` you’ll train/eval with.
 
 ### Examples:
 
 ```bash
 # Train MATH experiment on GPU 0 using two additional vLLM servers on GPUs 1 and 2
-python experiments/math/run.py --model <MODEL_ID> --gpus 0 --vllm_ports 8200 8201
+python experiments/math/run.py --config config_files/models/vllm/qwen3-14b.json --gpus 0 --vllm_ports 8200 8201
 
 # Evaluation-only (no training) of a clean model
-python experiments/math/run.py --model <MODEL_ID> --gpus 0 --eval
+python experiments/math/run.py --config config_files/models/vllm/qwen3-14b.json --gpus 0 --eval
 ```
 
 Tips:
