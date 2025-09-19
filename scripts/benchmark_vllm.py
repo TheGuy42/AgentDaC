@@ -55,7 +55,7 @@ def main(args: argparse.Namespace, extra_args: list[str]) -> None:
     port: int = args.port
     result_dir: str = args.result_dir
 
-    config = VllmConfig.load_from_path(args.config)
+    config = VllmConfig.load_from_path(args.config, do_raise=True)
     config = config.initialize(port)
     engine_args: EngineArgs = config.openai_config["engine_args"]  # type: ignore
     server_args: ServerArgs = config.openai_config["server_args"]  # type: ignore

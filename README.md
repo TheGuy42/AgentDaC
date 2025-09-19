@@ -38,7 +38,7 @@ WANDB_API_KEY=...
 Pattern:
 
 ```bash
-python experiments/<exp_name>/run.py [--gpus 0] [--project <NAME>] [--run <RESUME>] [--eval]
+python experiments/<exp_name>/run.py [--gpus 0] [--project <NAME>] [--run <RESUME>] [--config_dir <EXP_CONFIG_DIR>][--eval]
 ```
 
 ### (Optional) Additional vLLM inference servers
@@ -59,10 +59,10 @@ Note: Use the same model in `<MODEL_CONFIG>` you’ll train/eval with.
 
 ```bash
 # Train MATH experiment on GPU 0 using two additional vLLM servers on GPUs 1 and 2
-python experiments/math/run.py --config config_files/models/vllm/qwen3-14b.json --gpus 0 --vllm_ports 8200 8201
+python experiments/math/run.py --gpus 0 --vllm_ports 8200 8201
 
 # Evaluation-only (no training) of a clean model
-python experiments/math/run.py --config config_files/models/vllm/qwen3-14b.json --gpus 0 --eval
+python experiments/math/run.py --gpus 0 --eval
 ```
 
 Tips:
