@@ -14,8 +14,7 @@ if str(module_dir) not in sys.path:
 from src.utils.loaders import load_vllm_model
 from src.utils.env import prepare_environment
 from src.utils.logging import create_logger, setup_logging
-from src.configs.models.vllm import available_configs, VllmConfig
-
+from src.configs import VllmConfig
 
 logger = create_logger(__name__)
 
@@ -25,12 +24,14 @@ def parse_args() -> tuple[argparse.Namespace, list[str]]:
         description="Run the vLLM server on a specific GPU.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-
+    
     parser.add_argument(
-        "--model",
+        "--config",
         type=str,
         required=True,
-        help=f"The name or path of the model to serve. Available models are: {available_configs()}",
+        default=None,
+        help="Path to a JSON file containing vLLM configuration parameters. "
+        "The serialized object should be of type `VllmConfig`.",
     )
 
     parser.add_argument(
@@ -46,14 +47,6 @@ def parse_args() -> tuple[argparse.Namespace, list[str]]:
         nargs="+",
         default=[0],
         help=f"The ID of the GPU(s) to use (e.g., 0 or 0 1).  Available GPUs: {list(range(torch.cuda.device_count()))}",
-    )
-
-    parser.add_argument(
-        "--vllm_config",
-        type=str,
-        default=None,
-        help="Path to a JSON file containing additional vLLM configuration parameters. "
-        "The serialized object should be of type `VllmConfig`.",
     )
 
     parser.add_argument(
@@ -88,17 +81,12 @@ def parse_args() -> tuple[argparse.Namespace, list[str]]:
 
 def main(args: argparse.Namespace, extra_args: list[str]) -> None:
     logger.info(f"Current working directory: {os.getcwd()}")
-
-    vllm_config = None
-    if args.vllm_config is not None:
-        with open(args.vllm_config, "r") as f:
-            vllm_config = VllmConfig.model_validate_json(f.read())
+    vllm_config = VllmConfig.load_from_path(args.config, do_raise=True)
 
     vllm_args = load_vllm_model(
-        model_name=args.model,
+        vllm_config=vllm_config,
         port=args.port,
         seed=args.seed,
-        vllm_config=vllm_config,
     )
 
     env = os.environ.copy()

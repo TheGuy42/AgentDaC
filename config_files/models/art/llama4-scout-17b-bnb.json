@@ -1,0 +1,12 @@
+{
+    "id": "unsloth/Llama-4-Scout-17B-16E-Instruct-unsloth-dynamic-bnb-4bit",
+    "base_model": "unsloth/Llama-4-Scout-17B-16E-Instruct-unsloth-dynamic-bnb-4bit",
+    "internal_config": {
+        "init_args": {
+            "max_seq_length": 10000,
+            "load_in_4bit": true,
+            "gpu_memory_utilization": 0.85
+        }
+    },
+    "openai_config": null
+}

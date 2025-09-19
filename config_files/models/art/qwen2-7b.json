@@ -1,0 +1,11 @@
+{
+    "id": "unsloth/Qwen2-7B",
+    "base_model": "unsloth/Qwen2-7B",
+    "internal_config": {
+        "init_args": {
+            "load_in_4bit": false,
+            "gpu_memory_utilization": 0.7
+        }
+    },
+    "openai_config": null
+}

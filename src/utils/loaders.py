@@ -2,8 +2,6 @@ import socket
 from contextlib import closing
 import art
 from art.local import LocalBackend
-import src.configs.models.art as art_configs
-import src.configs.models.vllm as vllm_configs
 from src.configs import PathConfig, VllmConfig, ArtConfig
 from src.utils.logging import create_logger
 
@@ -20,20 +18,10 @@ def find_free_port() -> int:
 
 async def load_art_model(
     path_config: PathConfig,
-    art_config: ArtConfig | None = None,
+    art_config: ArtConfig,
     port: int | None = None,
     seed: int | None = None,
 ) -> art.TrainableModel:
-    if art_config is None:
-        if path_config.base_model not in art_configs.CONFIGS:
-            raise ValueError(
-                f"No configuration found for model: {path_config.base_model}. "
-                f"Available configs: {art_configs.available_configs()}"
-            )
-
-        logger.info(f"Loading default config for {path_config.base_model}...")
-        art_config = art_configs.CONFIGS[path_config.base_model]
-
     if path_config.base_model != art_config.base_model:
         raise ValueError(f"Model name mismatch: {path_config.base_model} != {art_config.base_model}.")
 
@@ -57,23 +45,10 @@ async def load_art_model(
 
 
 def load_vllm_model(
-    model_name: str,
+    vllm_config: VllmConfig,
     port: int | None = None,
     seed: int | None = None,
-    vllm_config: VllmConfig | None = None,
 ) -> list[str]:
-    if vllm_config is None:
-        if model_name not in vllm_configs.CONFIGS:
-            raise ValueError(
-                f"No configuration found for model: {model_name}. Available configs: {vllm_configs.available_configs()}"
-            )
-
-        logger.info(f"Loading default config for {model_name}...")
-        vllm_config = vllm_configs.CONFIGS[model_name]
-
-    if vllm_config.base_model != model_name:
-        raise ValueError(f"Model name mismatch: {vllm_config.base_model} != {model_name}.")
-
     if port is None:
         port = find_free_port()
         logger.info(f"Found free port for vLLM server: {port}")

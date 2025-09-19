@@ -10,7 +10,6 @@ import src.agents.marker_agent.markers as markers
 from src.agents.marker_agent.markers import Markers
 from src.utils.logging import create_logger
 from src.openai_types import Message, UserMessage
-from src.configs.prompts import get_prompt
 
 
 logger = create_logger(__name__)
@@ -100,9 +99,7 @@ class MarkerAgent(BaseAgent):
                 break
 
             if self._should_stop():
-                mock_answer = get_prompt(self.prompt_config.tasks_depleted)
-
-                # If no mock answer provided then immediately stop
+                mock_answer = self.prompt_config.tasks_depleted
                 if mock_answer is None:
                     break
 

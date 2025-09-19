@@ -1,0 +1,20 @@
+{
+    "id": "unsloth/Qwen3-32B",
+    "base_model": "unsloth/Qwen3-32B",
+    "internal_config": {
+        "init_args": {
+            "load_in_4bit": false,
+            "gpu_memory_utilization": 0.9,
+            "max_lora_rank": 16
+        },
+        "engine_args": {
+            "max_model_len": 8192,
+            "gpu_memory_utilization": 0.9,
+            "max_lora_rank": 16
+        },
+        "peft_args": {
+            "r": 16
+        }
+    },
+    "openai_config": null
+}

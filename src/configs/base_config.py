@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TypeVar
+from typing import TypeVar, overload, Literal
 from abc import ABC
 from pathlib import Path
 from pydantic import BaseModel
@@ -48,6 +48,26 @@ class BaseConfig(BaseModel, ABC):
         """
         save_base_model(self, path, overwrite=overwrite)
 
+    @overload
+    @classmethod
+    def load(
+        cls: type[T],
+        dir_name: str | Path,
+        file_name: str | None,
+        do_raise: Literal[True],
+        **kwargs,
+    ) -> T : ...
+    
+    @overload
+    @classmethod
+    def load(
+        cls: type[T],
+        dir_name: str | Path,
+        file_name: str | None,
+        do_raise: Literal[False],
+        **kwargs,
+    ) -> T | None: ...
+
     @classmethod
     def load(
         cls: type[T],
@@ -79,6 +99,24 @@ class BaseConfig(BaseModel, ABC):
             dir_name = Path(dir_name)
 
         return cls.load_from_path(dir_name / file_name, do_raise=do_raise, **kwargs)
+
+    @overload
+    @classmethod
+    def load_from_path(
+        cls: type[T],
+        path: str | Path,
+        do_raise: Literal[True],
+        **kwargs,
+    ) -> T : ...
+    
+    @overload
+    @classmethod
+    def load_from_path(
+        cls: type[T],
+        path: str | Path,
+        do_raise: Literal[False],
+        **kwargs,
+    ) -> T | None: ...
 
     @classmethod
     def load_from_path(

@@ -1,0 +1,2 @@
+WARNING: Sub-task budget depleted - no more tasks available. You can't create sub-tasks anymore. 
+Instead, you must think by yourself and then provide the final answer in an <answer> </answer> block.

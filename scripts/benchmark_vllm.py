@@ -14,7 +14,7 @@ if str(module_dir) not in sys.path:
 
 from src.utils.logging import create_logger, setup_logging
 from src.utils.env import prepare_environment
-from src.configs.models.vllm import available_configs, CONFIGS
+from src.configs import VllmConfig
 
 
 logger = create_logger(__name__)
@@ -27,10 +27,12 @@ def parse_args() -> tuple[argparse.Namespace, list[str]]:
     )
 
     parser.add_argument(
-        "--model",
+        "--config",
         type=str,
         required=True,
-        help="The name of the model to benchmark",
+        default=None,
+        help="Path to a JSON file containing vLLM configuration parameters. "
+        "The serialized object should be of type `VllmConfig`.",
     )
 
     parser.add_argument(
@@ -50,15 +52,10 @@ def parse_args() -> tuple[argparse.Namespace, list[str]]:
 
 
 def main(args: argparse.Namespace, extra_args: list[str]) -> None:
-    model_name: str = args.model
     port: int = args.port
     result_dir: str = args.result_dir
 
-    if model_name not in available_configs():
-        logger.error(f"Model '{model_name}' is not available. Available models are: {available_configs()}")
-        sys.exit(1)
-
-    config = CONFIGS[model_name]
+    config = VllmConfig.load_from_path(args.config)
     config = config.initialize(port)
     engine_args: EngineArgs = config.openai_config["engine_args"]  # type: ignore
     server_args: ServerArgs = config.openai_config["server_args"]  # type: ignore
@@ -98,7 +95,7 @@ def main(args: argparse.Namespace, extra_args: list[str]) -> None:
         random_range_ratio=0.85,
     )
 
-    bench_args = dummy_parser.parse_args(args=["--model", model_name] + extra_args)
+    bench_args = dummy_parser.parse_args(args=["--model", config.base_model] + extra_args)
 
     if openai_key := server_args.get("api_key", "default"):
         os.environ["OPENAI_API_KEY"] = openai_key

@@ -9,7 +9,6 @@ from src.utils.visualize import trajectory_string
 from src.utils.logging import create_logger
 from src.openai_types import Message, SystemMessage
 from src.configs import PromptConfig, DecompConfig
-from src.configs.prompts import get_prompt
 
 
 logger = create_logger(__name__)
@@ -27,7 +26,7 @@ class BaseAgent(ABC):
     ):
         self.openai_client = openai_client
         self.model = model_name
-        self.prompt_config = prompt_config
+        self.prompt_config = prompt_config.initialize()
         self.decomp_config = decomp_config.clone()
         self.current_depth = current_depth
         self.additional_histories = additional_histories
@@ -60,15 +59,12 @@ class BaseAgent(ABC):
         return trajectory_string(self.trajectory)
 
     def _get_system_message(self) -> SystemMessage | None:
-        pc = self.prompt_config
-        dc = self.decomp_config
-
         if self.current_depth == 0:
-            content = get_prompt(pc.system_root)
-        elif self.current_depth < dc.max_depth:
-            content = get_prompt(pc.system_inter)
+            content = self.prompt_config.system_root
+        elif self.current_depth < self.decomp_config.max_depth:
+            content = self.prompt_config.system_inter
         else:
-            content = get_prompt(pc.system_leaf)
+            content = self.prompt_config.system_leaf
 
         if content is not None:
             return SystemMessage(role="system", content=content)

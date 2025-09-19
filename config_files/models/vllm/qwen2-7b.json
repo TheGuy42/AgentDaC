@@ -1,0 +1,12 @@
+{
+    "id": "unsloth/Qwen2-7B",
+    "base_model": "unsloth/Qwen2-7B",
+    "openai_config": {
+        "engine_args": {
+            "max_model_len": 8192,
+            "gpu_memory_utilization": 0.8,
+            "max_num_batched_tokens": 32768,
+            "max_seq_len_to_capture": 8192
+        }
+    }
+}

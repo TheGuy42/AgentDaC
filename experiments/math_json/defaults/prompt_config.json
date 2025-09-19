@@ -1,6 +1,7 @@
 {
-    "system_root": "sys_prompt_gilad_inter_json_v2",
-    "system_inter": "sys_prompt_gilad_inter_json_v2",
-    "system_leaf": "sys_prompt_gilad_leaf_json_v2",
-    "tasks_depleted": ""
+    "mode": "path",
+    "system_root": "config_files/prompts/json/v2_root.txt",
+    "system_inter": "config_files/prompts/json/v2_root.txt",
+    "system_leaf": "config_files/prompts/json/v2_leaf.txt",
+    "tasks_depleted": null
 }

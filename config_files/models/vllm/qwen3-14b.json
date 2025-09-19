@@ -1,0 +1,11 @@
+{
+    "id": "unsloth/Qwen3-14B",
+    "base_model": "unsloth/Qwen3-14B",
+    "openai_config": {
+        "engine_args": {
+            "max_model_len": 16384,
+            "gpu_memory_utilization": 0.9,
+            "max_lora_rank": 64
+        }
+    }
+}

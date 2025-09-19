@@ -1,0 +1,9 @@
+{
+    "id": "unsloth/Qwen3-32B",
+    "base_model": "unsloth/Qwen3-32B",
+    "openai_config": {
+        "engine_args": {
+            "gpu_memory_utilization": 0.9
+        }
+    }
+}

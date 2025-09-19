@@ -1,0 +1,11 @@
+{
+    "id": "unsloth/Qwen2.5-32B-Instruct",
+    "base_model": "unsloth/Qwen2.5-32B-Instruct",
+    "openai_config": {
+        "engine_args": {
+            "max_model_len": 10000,
+            "gpu_memory_utilization": 0.85,
+            "max_num_seqs": 128
+        }
+    }
+}

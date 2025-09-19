@@ -1,6 +1,7 @@
 {
-    "system_root": "dac_sys_prompt_gilad_root",
-    "system_inter": "dac_sys_prompt_gilad_inter",
-    "system_leaf": "dac_sys_prompt_gilad_leaf",
-    "tasks_depleted": "tasks_depleted"
+    "mode": "path",
+    "system_root": "config_files/prompts/gilad/v3_root.txt",
+    "system_inter": "config_files/prompts/gilad/v3_root.txt",
+    "system_leaf": "config_files/prompts/gilad/v3_leaf.txt",
+    "tasks_depleted": "config_files/prompts/depleted/v2_depleted.txt"
 }

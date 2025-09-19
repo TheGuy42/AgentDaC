@@ -1,0 +1,12 @@
+{
+    "id": "unsloth/Llama-4-Scout-17B-16E-Instruct",
+    "base_model": "unsloth/Llama-4-Scout-17B-16E-Instruct",
+    "internal_config": {
+        "init_args": {
+            "max_seq_length": 10000,
+            "load_in_4bit": false,
+            "gpu_memory_utilization": 0.85
+        }
+    },
+    "openai_config": null
+}

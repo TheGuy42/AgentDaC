@@ -24,8 +24,7 @@ from src.utils.logging import create_logger, setup_logging
 from src.utils.io import load_object
 from src.utils.loaders import load_art_model
 from src.vllm_client import VllmClient, ArtClient, VllmRouter
-from src.configs.models.art import available_configs, ArtConfig
-from src.configs import PathConfig, TrainingConfig, PromptConfig, DecompConfig, RolloutConfig
+from src.configs import PathConfig, TrainingConfig, PromptConfig, DecompConfig, RolloutConfig, ArtConfig
 from src.trainer import Trainer, RolloutStage
 
 
@@ -72,13 +71,6 @@ class ExperimentRunner(ABC):
     def _parse_args(self) -> argparse.Namespace:
         """Parse command line arguments."""
         parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
-        parser.add_argument(
-            "--model",
-            type=str,
-            required=True,
-            help=f"The name or path of the model to serve. Available models are: {available_configs()}",
-        )
 
         parser.add_argument(
             "--project",
@@ -161,7 +153,7 @@ class ExperimentRunner(ABC):
             dir = pathlib.Path(dir)
 
         return {
-            "art_config": ArtConfig.load_from_path(dir / "art_config.json", do_raise=False),
+            "art_config": ArtConfig.load_from_path(dir / "art_config.json", do_raise=True),
             "train_config": TrainingConfig.load_from_path(dir / "train_config.json", do_raise=True),
             "prompt_config": PromptConfig.load_from_path(dir / "prompt_config.json", do_raise=True),
             "decomp_config": DecompConfig.load_from_path(dir / "decomp_config.json", do_raise=True),
@@ -170,8 +162,10 @@ class ExperimentRunner(ABC):
         }
 
     def _patch_configs(self, configs: dict[str, Any]) -> dict[str, Any]:
-        rollout_config = configs.get("rollout_config")
-        if ("Qwen3" in self.args().model) and rollout_config:
+        rollout_config: RolloutConfig = configs["rollout_config"]
+        art_config: ArtConfig = configs["art_config"]
+
+        if "Qwen3" in art_config.base_model:
             # disable "thinking" for Qwen3 models
             logger.info("Disabling 'thinking' for Qwen3 model.")
             rollout_config.kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": False}}
@@ -219,18 +213,12 @@ class ExperimentRunner(ABC):
         # Set the GPU environment variable
         os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, args.gpus))
 
-        path_config = PathConfig(
-            base_model=args.model,
-            project_name=args.project,
-            run_name=args.run,
-        )
-
         # Load configurations
         configs = self._load_configs(args.config_dir)
-        configs["path_config"] = path_config
+        base_model = configs["art_config"].base_model
+        configs["path_config"] = PathConfig(base_model=base_model, project_name=args.project, run_name=args.run)
         configs = self._patch_configs(configs)
 
-        art_config: ArtConfig | None = configs["art_config"]
         train_config: TrainingConfig = configs["train_config"]
 
         # Print all configurations
@@ -261,8 +249,8 @@ class ExperimentRunner(ABC):
 
         # Load model
         model = await load_art_model(
-            path_config=path_config,
-            art_config=art_config,
+            path_config=configs["path_config"],
+            art_config=configs["art_config"],
             seed=args.seed,
         )
 

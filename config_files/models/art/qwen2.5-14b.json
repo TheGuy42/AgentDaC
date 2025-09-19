@@ -1,0 +1,16 @@
+{
+    "id": "unsloth/Qwen2.5-14B-Instruct",
+    "base_model": "unsloth/Qwen2.5-14B-Instruct",
+    "internal_config": {
+        "init_args": {
+            "max_seq_length": 8192,
+            "load_in_4bit": false,
+            "gpu_memory_utilization": 0.8
+        },
+        "engine_args": {
+            "max_num_batched_tokens": 32768,
+            "max_seq_len_to_capture": 8192
+        }
+    },
+    "openai_config": null
+}

@@ -1,0 +1,11 @@
+{
+    "id": "unsloth/Qwen2.5-14B-Instruct-bnb-4bit",
+    "base_model": "unsloth/Qwen2.5-14B-Instruct-bnb-4bit",
+    "internal_config": {
+        "init_args": {
+            "load_in_4bit": true,
+            "gpu_memory_utilization": 0.5
+        }
+    },
+    "openai_config": null
+}

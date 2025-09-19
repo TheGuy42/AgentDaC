@@ -28,7 +28,7 @@ class RolloutStage(str, Enum):
     TRAIN = "train"
     VAL = "val"
     TEST = "test"
-    
+
     def __str__(self) -> str:
         return self.value
 
@@ -149,6 +149,8 @@ class Trainer:
             }
         )
 
+        self.prompt_config.initialize()
+
         # Training set iterator
         train_iter = iterate_dataset(
             dataset=train_dataset,
@@ -224,6 +226,7 @@ class Trainer:
             (list[str | Exception]): List of predicted answers for each sample in the dataset.
         """
 
+        self.prompt_config.initialize()
         agents = [self.create_agent(stage) for _ in dataset]
         tasks = [self.forward_step(agent, sample, stage) for agent, sample in zip(agents, dataset)]
 
@@ -254,6 +257,22 @@ class Trainer:
         stage: RolloutStage = RolloutStage.TRAIN,
         max_exceptions: int | float = 0,
     ) -> list[art.TrajectoryGroup]:
+        """
+        Perform rollouts on a dataset using the model.
+        Returns a list of trajectory groups, each group corresponding to a sample in the dataset.
+
+        Args:
+            dataset (list[dict]): List of samples to rollout.
+            group_size (int): Number of trajectories to generate per sample.
+            stage (RolloutStage): The current stage of the rollout.
+            max_exceptions (int | float): Maximum number of exceptions to tolerate during rollout.
+                If set to a float between 0 and 1, it represents the fraction of total samples.
+
+        Returns:
+            (list[art.TrajectoryGroup]): List of trajectory groups for each sample in the dataset.
+        """
+        self.prompt_config.initialize()
+
         async def sample_forward(sample: dict) -> art.Trajectory:
             agent = self.create_agent(stage)
             trajectory = await self.forward_step(agent, sample, stage)

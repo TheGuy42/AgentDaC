@@ -1,6 +1,7 @@
 {
-    "system_root": "sys_prompt_gilad_inter_regex_v2",
-    "system_inter": "sys_prompt_gilad_inter_regex_v2",
-    "system_leaf": "sys_prompt_gilad_leaf_regex_v2",
-    "tasks_depleted": ""
+    "mode": "path",
+    "system_root": "config_files/prompts/regex/v2_root.txt",
+    "system_inter": "config_files/prompts/regex/v2_root.txt",
+    "system_leaf": "config_files/prompts/regex/v2_leaf.txt",
+    "tasks_depleted": null
 }
