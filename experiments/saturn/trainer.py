@@ -39,7 +39,7 @@ class SaturnTrainer(Trainer):
         )
 
         return MarkerAgent(
-            model_name=self.model.get_inference_name(),
+            model_name=client.get_inference_name(),
             openai_client=client.openai_client,
             prompt_config=self.prompt_config,
             decomp_config=decomp_config,

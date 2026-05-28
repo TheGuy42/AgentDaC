@@ -24,7 +24,7 @@ class VllmConfig(BaseConfig, frozen=False, extra="allow"):
         return self
 
     def initialize(self, port: int, seed: int | None = None) -> VllmConfig:
-        self.openai_config = get_openai_server_config(
+        self.openai_config = get_openai_server_config(  # TODO: this function changed a lot, so need to verify.
             model_name=self.base_model,
             base_model=self.base_model,
             log_file="",
@@ -36,5 +36,4 @@ class VllmConfig(BaseConfig, frozen=False, extra="allow"):
             self.openai_config["server_args"]["api_key"] = api_key  # type: ignore
         self.openai_config["engine_args"]["enable_lora"] = True  # type: ignore
         self.openai_config["engine_args"]["seed"] = seed or 0  # type: ignore
-        self.openai_config["engine_args"]["num_scheduler_steps"] = 1  # type: ignore
         return self

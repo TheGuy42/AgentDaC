@@ -27,7 +27,7 @@ class ArtConfig(BaseConfig, frozen=False, extra="allow"):
         return self
 
     def initialize(self, output_dir: str, port: int | None = None, seed: int | None = None) -> ArtConfig:
-        self.internal_config = get_model_config(
+        self.internal_config = get_model_config(  # TODO: this function changed a lot, so need to verify.
             base_model=self.base_model,
             output_dir=output_dir,
             config=self.internal_config,
@@ -39,7 +39,6 @@ class ArtConfig(BaseConfig, frozen=False, extra="allow"):
         self.openai_config.setdefault("engine_args", EngineArgs())
 
         self.internal_config["engine_args"].setdefault("seed", 0)  # type: ignore
-        self.internal_config["engine_args"]["num_scheduler_steps"] = 1  # type: ignore
 
         if port is not None:
             self.openai_config["server_args"]["port"] = port  # type: ignore

@@ -1,6 +1,9 @@
 import art
-from art.utils import trajectory_logging as art_logging
+from art.utils import trajectory_migration as art_logging
 import polars as pl
+
+
+# TODO: legacy JSONL support, we should switch to update code to support the new parquet format
 
 
 def average_metrics(trajectories: list[art.Trajectory]) -> dict[str, float]:
@@ -35,7 +38,7 @@ def to_dataframe(trajectories: list[art.Trajectory]) -> pl.DataFrame:
     """
     if len(trajectories) == 0:
         return pl.DataFrame()
-    
+
     data = []
     for tr in trajectories:
         row = art_logging.trajectory_to_dict(tr)
@@ -46,7 +49,7 @@ def to_dataframe(trajectories: list[art.Trajectory]) -> pl.DataFrame:
 def read_trajectory_groups(file_path: str) -> list[art.TrajectoryGroup]:
     if not file_path.endswith(".jsonl"):
         raise ValueError("File must be a JSONL file.")
-    
+
     with open(file_path, "r") as f:
         trajectory_groups = art_logging.deserialize_trajectory_groups(f.read())
     return trajectory_groups

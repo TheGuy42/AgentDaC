@@ -59,12 +59,16 @@ class Trainer:
     @property
     def wandb_run(self) -> WandbRun | None:
         try:
-            backend: LocalBackend = self.model.backend()  # type: ignore
-            return backend._get_wandb_run(self.model)
+            return self.model._get_wandb_run()
         except Exception as e:
             logger.warning(f"Failed to get wandb run: {e}")
             return None
 
+    @property
+    def backend(self) -> LocalBackend:
+        return self.model.backend()  # type: ignore
+
+    @property
     def train_config(self) -> TrainingConfig:
         if self._train_config is None:
             raise ValueError("Training config is not set.")
@@ -98,13 +102,15 @@ class Trainer:
             return
         run.config.update(d, allow_val_change=True)
 
-    async def sync_lora(self, step: int | None = None):
+    async def sync_lora(self, step: int | None = None, checkpoint_dir: str | None = None):
         """
         Syncs the LoRA weights with the current model step.
 
         Args:
             step (int | None): The step to sync the LoRA weights with.
                 If None, the current model step will be used.
+            checkpoint_dir (str | None): The directory to load the LoRA weights from. Overrides the default checkpoint directory for the given step.
+                If None, the checkpoint directory for the current step will be used.
         """
         if step is None:
             if not isinstance(self.model, art.TrainableModel):
@@ -112,7 +118,7 @@ class Trainer:
             step = await self.model.get_step()
 
         await self.vllm_router.unload_all_loras()
-        curr_checkpoint_dir = self.path_config.get_step_checkpoint_dir(step)
+        curr_checkpoint_dir = checkpoint_dir or self.path_config.get_step_checkpoint_dir(step)
         await self.vllm_router.load_lora(self.model.get_inference_name(), curr_checkpoint_dir)
 
     async def train(
@@ -143,7 +149,7 @@ class Trainer:
                 "path_config": self.path_config.model_dump(),
                 "prompt_config": self.prompt_config.model_dump(),
                 "decomp_config": self.decomp_config.model_dump(),
-                "training_config": self.train_config().model_dump(),
+                "training_config": self.train_config.model_dump(),
                 "rollout_config": self.rollout_config.model_dump(),
                 "extra_config": self.extra_config,
             }
@@ -191,14 +197,25 @@ class Trainer:
                 )
 
             # Train step
-            await self.model.train(
-                train_groups,
-                config=config.art_config,
-                _config=config.dev_art_config,
+            result = await self.backend.train(
+                model=self.model,
+                trajectory_groups=train_groups,
+                **config.train_params.model_dump(),
+                save_checkpoint=True,
                 verbose=config.verbose,
             )
 
-            await self.sync_lora()  # Sync all vLLM clients with updated model
+            # Sync LoRA weights after each training step
+            # and Log training trajectories and metrics
+            await asyncio.gather(
+                self.sync_lora(),
+                self.model.log(
+                    train_groups,
+                    split=RolloutStage.TRAIN.value,
+                    metrics=result.metrics,
+                    step=result.step,
+                ),
+            )
 
             # Update checkpoints
             if config.delete_checkpoints:
@@ -371,8 +388,8 @@ class Trainer:
         if stage != RolloutStage.TRAIN:
             return group
 
-        ruler_config = self.train_config().ruler_config
-        if ruler_config is not None and ruler_config.judge_model is not None:
+        ruler_params = self.train_config.ruler_params
+        if ruler_params is not None and ruler_params.judge_model is not None:
             logger.warning(
                 "Skipping RULER scoring. To enable RULER scoring, please override the `score_group` "
                 "method in your Trainer subclass and implement the desired behavior there."

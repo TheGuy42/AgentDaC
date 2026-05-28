@@ -49,7 +49,6 @@ def prepare_environment(dotenv_path: str | None = None):
         # "TORCHINDUCTOR_MAX_AUTOTUNE": "1",  # Set to 1 to avoid multithreading issues with vLLM
         # "OMP_NUM_THREADS": "1",  # Set OMP_NUM_THREADS to 1 to avoid multithreading issues with vLLM
         "NCCL_CUMEM_ENABLE": "0",  # To avoid vLLM bug with NCCL
-        "VLLM_USE_V1": "0",  # Currently ART uses vLLM v0, see art.unsloth.state
         "VLLM_WORKER_MULTIPROC_METHOD": "spawn",  # To avoid vLLM issues with multiprocessing
         "ART_SERVER_TIMEOUT": str(60 * 5),  # Increase timeout for ART vLLM server creation
         "WEAVE_DISABLED": "1",  # No thanks

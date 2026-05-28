@@ -134,9 +134,7 @@ class ExperimentRunner(ABC):
 
         # verify valid GPU IDs
         if not all(0 <= gpu < torch.cuda.device_count() for gpu in args.gpus):
-            raise ValueError(
-                f"Invalid GPU IDs provided: {args.gpus}. Available GPUs: {list(range(torch.cuda.device_count()))}"
-            )
+            raise ValueError(f"Invalid GPU IDs provided: {args.gpus}. Available GPUs: {list(range(torch.cuda.device_count()))}")
 
         # print the parsed arguments
         print()
@@ -173,8 +171,23 @@ class ExperimentRunner(ABC):
 
     def _create_inference_clients(self, model: art.Model, vllm_ports: list[int]) -> VllmRouter:
         """Create and configure inference clients."""
-        art_client = ArtClient.from_art_model(model)
-        inference_clients = [art_client]
+
+        if isinstance(model, art.TrainableModel):
+            # A client which is automatically managed by ART, 
+            # including LORA loading/unloading and current inference_name
+            art_client = ArtClient(model) 
+
+        else:
+            # A static client which points to the base model inference endpoint, 
+            # without dynamic inference_name updating. 
+            # This is used for eval-only runs where the model is not trainable and won't have LORA updates.            
+            art_client = VllmClient(
+                openai_client=model.openai_client(),
+                base_model=model.inference_model_name or model.name,
+                model_name=None,
+            )
+
+        inference_clients: list[VllmClient] = [art_client]
         for port in vllm_ports:
             inference_clients.append(
                 VllmClient.from_connection(
@@ -263,6 +276,10 @@ class ExperimentRunner(ABC):
                 inference_base_url=model.inference_base_url,
                 inference_model_name=model.base_model,
             )
+
+            # BUG: when registering the backend, then get_inference_name()
+            # is returned from the backend instead from the base model,
+            # returning an incorrect model name
             await eval_model.register(model.backend())
             model = eval_model
 

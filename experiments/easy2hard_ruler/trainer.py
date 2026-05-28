@@ -70,14 +70,14 @@ class Easy2HardRulerTrainer(Easy2HardTrainer):
         if stage != RolloutStage.TRAIN:
             return group
 
-        ruler_config = self.train_config().ruler_config
-        if ruler_config is None:
+        ruler_params = self.train_config.ruler_params
+        if ruler_params is None:
             raise ValueError("Ruler config is not set in the training configuration.")
 
-        if ruler_config.judge_model is None:
+        if ruler_params.judge_model is None:
             raise ValueError("Ruler judge model is not set in the ruler configuration.")
 
-        scored_group = await ruler_score_group(group, **ruler_config.model_dump(exclude_none=True, exclude_unset=True))
+        scored_group = await ruler_score_group(group, **ruler_params.model_dump(exclude_none=True, exclude_unset=True))
         if scored_group is None:
             return None
 

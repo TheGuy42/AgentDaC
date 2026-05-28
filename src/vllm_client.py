@@ -5,7 +5,6 @@ import asyncio
 import pathlib
 
 import art
-from art.openai import patch_openai
 from src.utils.logging import create_logger
 
 
@@ -19,6 +18,12 @@ class VllmClient:
         base_model: str,
         model_name: str | None = None,
     ):
+        """
+        Args:
+            openai_client (openai.AsyncOpenAI): The OpenAI client to use for API
+            base_model (str): The openai model name of the main weights
+            model_name (str, optional): The LORA adapter name to use for inference, overriding the base model.
+        """
         if model_name is None:
             model_name = base_model
 
@@ -42,7 +47,6 @@ class VllmClient:
         kwargs.setdefault("timeout", httpx.Timeout(timeout=1200, connect=5.0))
 
         openai_client = openai.AsyncOpenAI(base_url=f"http://{host}:{port}/v1", api_key=api_key, **kwargs)
-        openai_client = patch_openai(openai_client)
 
         return VllmClient(
             openai_client=openai_client,
@@ -122,33 +126,28 @@ class VllmClient:
 
 
 class ArtClient(VllmClient):
-    @staticmethod
-    def from_art_model(art_model: art.TrainableModel | art.Model, **kwargs) -> VllmClient:
-        """
-        Create a VllmClient instance from an ART Model.
-        """
-        if isinstance(art_model, art.TrainableModel):
-            return ArtClient(
-                openai_client=art_model.openai_client(),
-                base_model=art_model.base_model,
-                model_name=art_model.get_inference_name(),
-                **kwargs,
-            )
-        else:
-            return ArtClient(
-                openai_client=art_model.openai_client(),
-                base_model=art_model.get_inference_name(),
-                model_name=None,
-                **kwargs,
-            )
+    def __init__(
+        self,
+        art_model: art.TrainableModel,
+        **kwargs,
+    ):
+        self.art_model = art_model
+        super().__init__(
+            openai_client=art_model.openai_client(),
+            base_model=art_model.base_model,
+            model_name=art_model.get_inference_name(),
+            **kwargs,
+        )
 
     async def load_lora(self, lora_name: str, lora_path: str):
-        logger.debug(f"[{self.base_url}] Load LORA called on ArtClient, which is a no-op.")
-        return  # No-op for ArtClient, as it uses ART's LORA management
+        # Update the inference name to reflect the current ART model state
+        self.model_name = self.art_model.get_inference_name()
+        return
 
     async def unload_lora(self, lora_name: str):
-        logger.debug(f"[{self.base_url}] Unload LORA called on ArtClient, which is a no-op.")
-        return  # No-op for ArtClient, as it uses ART's LORA management
+        # Update the inference name to reflect the current ART model state
+        self.model_name = self.art_model.get_inference_name()
+        return
 
     async def close(self):
         return  # No-op for ArtClient, as ART manages the client lifecycle
