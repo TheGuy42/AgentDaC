@@ -3,7 +3,8 @@
         "decomp",
         "loras",
         "Multistep",
-        "OPENPIPE"
+        "OPENPIPE",
+        "perst"
     ],
     "python.analysis.typeCheckingMode": "standard"
 }

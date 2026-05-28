@@ -86,7 +86,7 @@ class MarkerAgent(BaseAgent):
             self.metrics["total_calls"] += 1
             self.metrics["direct_calls"] += 1
             if completion.usage is not None:
-                self.metrics["total_tokens"] = completion.usage.total_tokens
+                self.metrics["direct_tokens"] = completion.usage.total_tokens
 
             if verbose:
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))

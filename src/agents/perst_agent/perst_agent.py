@@ -3,11 +3,13 @@ from typing import Any
 from dataclasses import dataclass
 
 from openai.types.chat import ChatCompletion
+from openai import AsyncOpenAI
 from art.trajectories import Trajectory, History
 
 from src.agents.base import BaseAgent
-from src.agents.regex_agent.actions import TurnAction
+from src.agents.perst_agent.actions import TurnAction
 from src.openai_types import Message, UserMessage
+from src.configs import PromptConfig, DecompConfig
 from src.utils.visualize import trajectory_string, message_string
 from src.utils.logging import create_logger
 import re
@@ -54,14 +56,56 @@ class GuidedRegex:
         return AgentTurn(action=action, text=text_val, raw=content)
 
 
-class RegexAgent(BaseAgent):
+class PersistentAgent(BaseAgent):
+    def __init__(
+        self,
+        openai_client: AsyncOpenAI,
+        model_name: str,
+        prompt_config: PromptConfig,
+        decomp_config: DecompConfig,
+        current_depth: int = 0,
+        additional_histories: bool = False,
+    ):
+        super().__init__(
+            openai_client=openai_client,
+            model_name=model_name,
+            prompt_config=prompt_config,
+            decomp_config=decomp_config,
+            current_depth=current_depth,
+            additional_histories=additional_histories,
+        )
+
+        # Additional metrics that we track
+        self.metrics.update(
+            {
+                "direct_thinks": 0,
+                "total_thinks": 0,
+                "direct_agents": 0,
+                "total_agents": 0,
+                "responses_completed": 0,
+                "responses_incomplete": 0,
+            }
+        )
+
+        # We support a persistent sub-agent across chat rounds
+        self.sub_agent: PersistentAgent | None = None
+
+        # Metrics from only the latest chat()/answer() invocation
+        self.latest_metrics: dict[str, int] = {
+            "total_tasks": 0,
+            "total_calls": 0,
+            "total_thinks": 0,
+            "total_agents": 0,
+        }
+
     def _create_regex(self) -> GuidedRegex:
         """
         Rules for allowed actions:
-        1) If at a leaf (depth >= max_depth): cannot ISSUE_TASK.
+        0) If sub_agent is None: cannot ASK_SUBAGENT.
+        1) If at a leaf (depth >= max_depth): cannot CREATE_SUBAGENT or ASK_SUBAGENT.
         2) If rounds remain (total_rounds < max_rounds): may THINK.
         3) If no rounds remain: must ANSWER.
-        4) If tasks exhausted (total_tasks >= max_tasks): cannot ISSUE_TASK.
+        4) If tasks exhausted (total_tasks >= max_tasks): cannot CREATE_SUBAGENT or ASK_SUBAGENT.
         5) ANSWER is always allowed.
         """
         if self.current_depth >= self.decomp_config.max_depth:
@@ -76,7 +120,9 @@ class RegexAgent(BaseAgent):
         if has_rounds:
             allowed.append(TurnAction.THINK)
             if (not is_leaf) and tasks_available:
-                allowed.append(TurnAction.ISSUE_TASK)
+                allowed.append(TurnAction.CREATE_SUBAGENT)
+                if self.sub_agent is not None:
+                    allowed.append(TurnAction.ASK_SUBAGENT)
 
         return GuidedRegex(*allowed)
 
@@ -93,8 +139,8 @@ class RegexAgent(BaseAgent):
             **kwargs,
         )
 
-    def _create_subagent(self) -> BaseAgent:
-        return RegexAgent(
+    def _create_subagent(self) -> PersistentAgent:
+        return PersistentAgent(
             openai_client=self.openai_client,
             model_name=self.model,
             prompt_config=self.prompt_config,
@@ -112,18 +158,20 @@ class RegexAgent(BaseAgent):
         if prompt.get("role") != "user":
             logger.warning(f"Prompt role is expected to be 'user', but got {prompt.get('role')}.")
 
+        self.decomp_config.reset()
         self.trajectory.messages_and_choices.append(prompt)
 
         # Store the initial prompt in metadata for reference
         content = prompt.get("content")
-        if isinstance(content, str):
+        if "prompt" not in self.metadata and isinstance(content, str):
             self.metadata["prompt"] = content
 
         if verbose:
             print(trajectory_string(self.trajectory, indent=self.current_depth))
 
-        self.metrics.setdefault("direct_thinks", 0)
-        self.metrics.setdefault("total_thinks", 0)
+        # Reset metrics of the current run
+        for k in self.latest_metrics:
+            self.latest_metrics[k] = 0
 
         while True:
             # Model turn
@@ -135,6 +183,7 @@ class RegexAgent(BaseAgent):
             # Update metrics
             self.metrics["total_calls"] += 1
             self.metrics["direct_calls"] += 1
+            self.latest_metrics["total_calls"] += 1
             if completion.usage is not None:
                 self.metrics["direct_tokens"] = completion.usage.total_tokens
 
@@ -153,39 +202,54 @@ class RegexAgent(BaseAgent):
             elif turn.action == TurnAction.THINK:
                 self.metrics["direct_thinks"] += 1
                 self.metrics["total_thinks"] += 1
+                self.latest_metrics["total_thinks"] += 1
                 self.decomp_config.update_round(num_tasks=0)
 
-            # Issue a task and get the answer from a sub-agent
-            elif turn.action == TurnAction.ISSUE_TASK:
-                sub_agent = self._create_subagent()
+            # Create a new sub-agent if requested
+            elif turn.action == TurnAction.CREATE_SUBAGENT:
+                self.sub_agent = self._create_subagent()
+                self.metrics["direct_agents"] += 1
+                self.metrics["total_agents"] += 1
+                self.latest_metrics["total_agents"] += 1
+
+                if self.additional_histories:  # Each sub-agent defines its own history
+                    self.trajectory.additional_histories.append(History(messages_and_choices=[]))
+
+            if turn.action == TurnAction.CREATE_SUBAGENT or turn.action == TurnAction.ASK_SUBAGENT:
+                assert self.sub_agent is not None, "Sub-agent must be created before it can be asked."
+
                 task = UserMessage(role="user", content=turn.text)
-                task_answer = await sub_agent.answer(task, verbose, **kwargs)
+                task_answer = await self.sub_agent.answer(task, verbose, **kwargs)
                 task_response = UserMessage(role="user", name="sub-agent", content=task_answer)
                 self.trajectory.messages_and_choices.append(task_response)
 
-                if self.additional_histories:
-                    history = History(messages_and_choices=sub_agent.trajectory.messages_and_choices)
-                    self.trajectory.additional_histories.append(history)
+                if self.additional_histories:  # Update sub-agent history
+                    agent_history = self.trajectory.additional_histories[-1]
+                    agent_history.messages_and_choices = self.sub_agent.trajectory.messages_and_choices
 
                 if verbose:
                     print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
 
                 # Update metrics from sub-agent
                 self.metrics["direct_tasks"] += 1
-                self.metrics["total_tasks"] += 1 + sub_agent.metrics["total_tasks"]
-                self.metrics["total_calls"] += sub_agent.metrics["total_calls"]
-                self.metrics["total_thinks"] += sub_agent.metrics["total_thinks"]
-                self.metrics["max_depth"] = max(1 + sub_agent.metrics["max_depth"], self.metrics["max_depth"])
+                self.metrics["total_tasks"] += 1
+                self.metrics["max_depth"] = max(1 + self.sub_agent.metrics["max_depth"], self.metrics["max_depth"])
+                self.latest_metrics["total_tasks"] += 1
+
+                # For cumulative metrics, only add the delta from the
+                # last sub-agent invocation, to avoid double-counting
+                for metric in ["total_tasks", "total_calls", "total_thinks", "total_agents"]:
+                    self.metrics[metric] += self.sub_agent.latest_metrics[metric]
+                    self.latest_metrics[metric] += self.sub_agent.latest_metrics[metric]
 
                 self.decomp_config.update_round(num_tasks=1)
 
-            else:
-                raise ValueError(f"Unhandled action: {turn.action}")
-
         # Update final stats
-        self.metrics["response_completed"] = (choice.finish_reason != "length") and (turn.action == TurnAction.ANSWER)
-        self.trajectory.finish()
+        completed = int((choice.finish_reason != "length") and (turn.action == TurnAction.ANSWER))
+        self.metrics["responses_completed"] += completed
+        self.metrics["responses_incomplete"] += 1 - completed
 
+        self.trajectory.finish()
         return self.trajectory
 
     @staticmethod
