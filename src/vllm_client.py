@@ -52,7 +52,6 @@ class VllmClient:
             openai_client=openai_client,
             base_model=base_model,
             model_name=model_name,
-            **kwargs,
         )
 
     async def close(self):
@@ -126,17 +125,14 @@ class VllmClient:
 
 
 class ArtClient(VllmClient):
-    def __init__(
-        self,
-        art_model: art.TrainableModel,
-        **kwargs,
-    ):
+    def __init__(self, art_model: art.TrainableModel):
+        
         self.art_model = art_model
+        
         super().__init__(
             openai_client=art_model.openai_client(),
             base_model=art_model.base_model,
             model_name=art_model.get_inference_name(),
-            **kwargs,
         )
 
     async def load_lora(self, lora_name: str, lora_path: str):

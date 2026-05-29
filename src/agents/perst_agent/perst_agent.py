@@ -101,11 +101,11 @@ class PersistentAgent(BaseAgent):
     def _create_regex(self) -> GuidedRegex:
         """
         Rules for allowed actions:
-        0) If sub_agent is None: cannot ASK_SUBAGENT.
-        1) If at a leaf (depth >= max_depth): cannot CREATE_SUBAGENT or ASK_SUBAGENT.
+        0) If sub_agent is None: cannot ISSUE_TASK.
+        1) If at a leaf (depth >= max_depth): cannot ISSUE_FRESH_TASK or ISSUE_TASK.
         2) If rounds remain (total_rounds < max_rounds): may THINK.
         3) If no rounds remain: must ANSWER.
-        4) If tasks exhausted (total_tasks >= max_tasks): cannot CREATE_SUBAGENT or ASK_SUBAGENT.
+        4) If tasks exhausted (total_tasks >= max_tasks): cannot ISSUE_FRESH_TASK or ISSUE_TASK.
         5) ANSWER is always allowed.
         """
         if self.current_depth >= self.decomp_config.max_depth:
@@ -120,9 +120,9 @@ class PersistentAgent(BaseAgent):
         if has_rounds:
             allowed.append(TurnAction.THINK)
             if (not is_leaf) and tasks_available:
-                allowed.append(TurnAction.CREATE_SUBAGENT)
+                allowed.append(TurnAction.ISSUE_FRESH_TASK)
                 if self.sub_agent is not None:
-                    allowed.append(TurnAction.ASK_SUBAGENT)
+                    allowed.append(TurnAction.ISSUE_TASK)
 
         return GuidedRegex(*allowed)
 
@@ -205,8 +205,8 @@ class PersistentAgent(BaseAgent):
                 self.latest_metrics["total_thinks"] += 1
                 self.decomp_config.update_round(num_tasks=0)
 
-            # Create a new sub-agent if requested
-            elif turn.action == TurnAction.CREATE_SUBAGENT:
+            # Create a new sub-agent
+            elif turn.action == TurnAction.ISSUE_FRESH_TASK:
                 self.sub_agent = self._create_subagent()
                 self.metrics["direct_agents"] += 1
                 self.metrics["total_agents"] += 1
@@ -215,8 +215,9 @@ class PersistentAgent(BaseAgent):
                 if self.additional_histories:  # Each sub-agent defines its own history
                     self.trajectory.additional_histories.append(History(messages_and_choices=[]))
 
-            if turn.action == TurnAction.CREATE_SUBAGENT or turn.action == TurnAction.ASK_SUBAGENT:
-                assert self.sub_agent is not None, "Sub-agent must be created before it can be asked."
+            # Issue a sub-task to the current sub-agent
+            if turn.action == TurnAction.ISSUE_FRESH_TASK or turn.action == TurnAction.ISSUE_TASK:
+                assert self.sub_agent is not None, "Sub-agent must be created before it can be asked to perform a task."
 
                 task = UserMessage(role="user", content=turn.text)
                 task_answer = await self.sub_agent.answer(task, verbose, **kwargs)
