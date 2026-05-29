@@ -5,10 +5,10 @@ from openai.types.chat import (
     ChatCompletionToolMessageParam as ToolMessage,
     ChatCompletionFunctionMessageParam as FunctionMessage,
     ChatCompletionDeveloperMessageParam as DeveloperMessage,
+    ChatCompletionMessageParam as Message,
 )
 
 from openai.types.chat.chat_completion import Choice
-from art.types import Message
 
 
 __all__ = [

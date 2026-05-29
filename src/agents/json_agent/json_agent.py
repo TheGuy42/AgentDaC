@@ -8,7 +8,7 @@ from openai.types.chat import ChatCompletion
 from src.trajectories import Trajectory, History
 from src.agents.base import BaseAgent
 from src.agents.json_agent.actions import TurnAction
-from src.openai_types import Message, UserMessage
+from src.aliases import Message, UserMessage
 from src.utils.visualize import trajectory_string, message_string
 from src.utils.logging import create_logger
 

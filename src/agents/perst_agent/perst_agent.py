@@ -8,7 +8,7 @@ from openai import AsyncOpenAI
 from src.trajectories import Trajectory, History
 from src.agents.base import BaseAgent
 from src.agents.perst_agent.actions import TurnAction
-from src.openai_types import Message, UserMessage
+from src.aliases import Message, UserMessage
 from src.configs import PromptConfig, DecompConfig
 from src.utils.visualize import trajectory_string, message_string
 from src.utils.logging import create_logger

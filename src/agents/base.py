@@ -7,7 +7,7 @@ from src.trajectories import Trajectory
 
 from src.utils.visualize import trajectory_string
 from src.utils.logging import create_logger
-from src.openai_types import Message, SystemMessage
+from src.aliases import Message, SystemMessage
 from src.configs import PromptConfig, DecompConfig
 
 

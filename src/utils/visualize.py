@@ -1,5 +1,5 @@
 from src.trajectories import Trajectory
-from src.openai_types import Message
+from src.aliases import Message
 import re
 
 

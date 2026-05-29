@@ -9,7 +9,7 @@ from src.utils.visualize import trajectory_string, message_string
 import src.agents.marker_agent.markers as markers
 from src.agents.marker_agent.markers import Markers
 from src.utils.logging import create_logger
-from src.openai_types import Message, UserMessage
+from src.aliases import Message, UserMessage
 
 
 logger = create_logger(__name__)

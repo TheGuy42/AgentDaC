@@ -5,7 +5,7 @@ import dataclasses
 
 from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
 from art.trajectories import Trajectory as ArtTrajectory, History as ArtHistory
-from src.openai_types import Message, Choice
+from src.aliases import Message, Choice
 
 
 @dataclasses.dataclass

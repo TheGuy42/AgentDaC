@@ -1,6 +1,6 @@
 from src.agents import BaseAgent, RegexAgent
 from src.trainer import ArtTrainer, RolloutStage
-from src.openai_types import UserMessage
+from src.aliases import UserMessage
 from src.configs import DecompConfig
 
 from experiments.math.format import format_prompt

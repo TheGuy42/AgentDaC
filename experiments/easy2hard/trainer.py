@@ -1,6 +1,6 @@
 from src.agents import BaseAgent, MarkerAgent
 from src.trainer import ArtTrainer, RolloutStage
-from src.openai_types import UserMessage
+from src.aliases import UserMessage
 from src.agents.marker_agent.markers import Markers, extract_between
 from src.configs import DecompConfig
 import random
