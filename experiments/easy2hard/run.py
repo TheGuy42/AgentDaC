@@ -12,7 +12,7 @@ if str(module_dir) not in sys.path:
 
 from experiments.experiment_runner import ExperimentRunner
 from experiments.easy2hard.trainer import Easy2HardTrainer
-from src.trainer import Trainer
+from src.trainer import ArtTrainer
 
 
 class Runner(ExperimentRunner):
@@ -53,7 +53,7 @@ class Runner(ExperimentRunner):
         ds_val = ds_val.filter(lambda sample: max_dif >= sample["item_difficulty"] >= min_dif)
         return ds_train, ds_val, ds_val
 
-    def create_trainer(self, model: art.Model, **kwargs) -> Trainer:
+    def create_trainer(self, model: art.Model, **kwargs) -> ArtTrainer:
         return Easy2HardTrainer(model=model, **kwargs)
 
 

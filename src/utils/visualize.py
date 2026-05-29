@@ -1,4 +1,4 @@
-from art import Trajectory
+from src.trajectories import Trajectory
 from src.openai_types import Message
 import re
 

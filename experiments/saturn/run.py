@@ -12,7 +12,7 @@ if str(module_dir) not in sys.path:
 
 from experiments.experiment_runner import ExperimentRunner
 from experiments.saturn.trainer import SaturnTrainer
-from src.trainer import Trainer
+from src.trainer import ArtTrainer
 
 
 class Runner(ExperimentRunner):
@@ -29,7 +29,7 @@ class Runner(ExperimentRunner):
         test_data = split_dict["test"]
         return train_data, test_data, test_data
 
-    def create_trainer(self, model: art.Model, **kwargs) -> Trainer:
+    def create_trainer(self, model: art.Model, **kwargs) -> ArtTrainer:
         return SaturnTrainer(model=model, **kwargs)
 
 

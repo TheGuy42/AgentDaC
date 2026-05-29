@@ -12,7 +12,7 @@ if str(module_dir) not in sys.path:
 
 from experiments.experiment_runner import ExperimentRunner
 from experiments.bbeeh.trainer import BbeehTrainer
-from src.trainer import Trainer
+from src.trainer import ArtTrainer
 
 
 class Runner(ExperimentRunner):
@@ -33,7 +33,7 @@ class Runner(ExperimentRunner):
 
         return train_data, val_data, test_data
 
-    def create_trainer(self, model: art.Model, **kwargs) -> Trainer:
+    def create_trainer(self, model: art.Model, **kwargs) -> ArtTrainer:
         return BbeehTrainer(model=model, **kwargs)
 
 

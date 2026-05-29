@@ -1,5 +1,5 @@
 from src.agents import BaseAgent, MarkerAgent
-from src.trainer import Trainer, RolloutStage
+from src.trainer import ArtTrainer, RolloutStage
 from src.openai_types import UserMessage
 from src.agents.marker_agent.markers import Markers, extract_between
 from src.configs import DecompConfig
@@ -12,7 +12,7 @@ import art
 import random
 
 
-class MathTrainer(Trainer):
+class MathTrainer(ArtTrainer):
     def create_agent(self, stage: RolloutStage) -> BaseAgent:
         client = self.vllm_router.next()
 
@@ -52,7 +52,7 @@ class MathTrainer(Trainer):
         message = UserMessage(role="user", content=content)
         kwargs = self.rollout_config.get_kwargs(stage)
         trajectory = await agent.chat(message, **kwargs)
-        return trajectory
+        return trajectory.to_art()
 
     async def score_trajectory(
         self,

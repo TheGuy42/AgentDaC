@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import asyncio
 from openai.types.chat import ChatCompletion
-from art.trajectories import Trajectory, History
 
+from src.trajectories import Trajectory, History
 from src.agents.base import BaseAgent
 from src.utils.visualize import trajectory_string, message_string
 import src.agents.marker_agent.markers as markers

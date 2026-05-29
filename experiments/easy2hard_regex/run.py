@@ -9,7 +9,7 @@ if str(module_dir) not in sys.path:
 
 from experiments.easy2hard_regex.trainer import Easy2HardRegexTrainer
 from experiments.easy2hard.run import Runner as Easy2HardRunner
-from src.trainer import Trainer
+from src.trainer import ArtTrainer
 
 
 class Runner(Easy2HardRunner):
@@ -19,7 +19,7 @@ class Runner(Easy2HardRunner):
     def default_config_dir(self) -> str:
         return "experiments/easy2hard_regex/defaults"
 
-    def create_trainer(self, model: art.Model, **kwargs) -> Trainer:
+    def create_trainer(self, model: art.Model, **kwargs) -> ArtTrainer:
         return Easy2HardRegexTrainer(model=model, **kwargs)
 
 

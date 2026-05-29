@@ -25,7 +25,7 @@ from src.utils.io import load_object
 from src.utils.loaders import load_art_model
 from src.vllm_client import VllmClient, ArtClient, VllmRouter
 from src.configs import PathConfig, TrainingConfig, PromptConfig, DecompConfig, RolloutConfig, ArtConfig
-from src.trainer import Trainer, RolloutStage
+from src.trainer import ArtTrainer, RolloutStage
 
 
 logger = create_logger(__name__)
@@ -60,7 +60,7 @@ class ExperimentRunner(ABC):
         self,
         model: art.Model,
         **kwargs,
-    ) -> Trainer:
+    ) -> ArtTrainer:
         """Return the trainer class to use."""
         pass
 

@@ -1,10 +1,9 @@
 from __future__ import annotations
 from typing import Any
 from dataclasses import dataclass
-
 from openai.types.chat import ChatCompletion
-from art.trajectories import Trajectory, History
 
+from src.trajectories import Trajectory, History
 from src.agents.base import BaseAgent
 from src.agents.regex_agent.actions import TurnAction
 from src.openai_types import Message, UserMessage

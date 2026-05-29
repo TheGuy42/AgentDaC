@@ -11,7 +11,7 @@ if str(module_dir) not in sys.path:
 
 from experiments.easy2hard.run import Runner as RunnerEasy2hard
 from experiments.easy2hard_ruler.trainer import Easy2HardRulerTrainer
-from src.trainer import Trainer
+from src.trainer import ArtTrainer
 
 
 class Runner(RunnerEasy2hard):
@@ -21,7 +21,7 @@ class Runner(RunnerEasy2hard):
     def default_config_dir(self) -> str:
         return "experiments/easy2hard_ruler/defaults"
 
-    def create_trainer(self, model: art.Model, **kwargs) -> Trainer:
+    def create_trainer(self, model: art.Model, **kwargs) -> ArtTrainer:
         return Easy2HardRulerTrainer(model=model, **kwargs)
 
 

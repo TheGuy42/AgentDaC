@@ -4,8 +4,8 @@ from dataclasses import dataclass
 
 import json_repair
 from openai.types.chat import ChatCompletion
-from art.trajectories import Trajectory, History
 
+from src.trajectories import Trajectory, History
 from src.agents.base import BaseAgent
 from src.agents.json_agent.actions import TurnAction
 from src.openai_types import Message, UserMessage

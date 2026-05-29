@@ -11,7 +11,7 @@ if str(module_dir) not in sys.path:
 
 from experiments.math_json.trainer import MathJsonTrainer
 from experiments.math.run import Runner as MathRunner
-from src.trainer import Trainer
+from src.trainer import ArtTrainer
 
 
 class Runner(MathRunner):
@@ -21,7 +21,7 @@ class Runner(MathRunner):
     def default_config_dir(self) -> str:
         return "experiments/math_json/defaults"
 
-    def create_trainer(self, model: art.Model, **kwargs) -> Trainer: 
+    def create_trainer(self, model: art.Model, **kwargs) -> ArtTrainer: 
         return MathJsonTrainer(model=model, **kwargs)
 
 

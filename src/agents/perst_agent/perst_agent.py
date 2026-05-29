@@ -4,8 +4,8 @@ from dataclasses import dataclass
 
 from openai.types.chat import ChatCompletion
 from openai import AsyncOpenAI
-from art.trajectories import Trajectory, History
 
+from src.trajectories import Trajectory, History
 from src.agents.base import BaseAgent
 from src.agents.perst_agent.actions import TurnAction
 from src.openai_types import Message, UserMessage

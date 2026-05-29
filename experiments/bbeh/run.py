@@ -14,7 +14,7 @@ if str(module_dir) not in sys.path:
 from experiments.experiment_runner import ExperimentRunner
 from experiments.bbeh.trainer import BbehTrainer
 from experiments.bbeh.tasks import SupportedTasks
-from src.trainer import Trainer
+from src.trainer import ArtTrainer
 
 
 class Runner(ExperimentRunner):
@@ -49,7 +49,7 @@ class Runner(ExperimentRunner):
         ds_eval = split_dict["test"]
         return ds_train, ds_eval, ds_eval
 
-    def create_trainer(self, model: art.Model, **kwargs) -> Trainer:
+    def create_trainer(self, model: art.Model, **kwargs) -> ArtTrainer:
         return BbehTrainer(model=model, **kwargs)
 
 

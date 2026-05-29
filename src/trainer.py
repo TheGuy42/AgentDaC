@@ -33,7 +33,7 @@ class RolloutStage(str, Enum):
         return self.value
 
 
-class Trainer:
+class ArtTrainer:
     def __init__(
         self,
         model: art.Model,

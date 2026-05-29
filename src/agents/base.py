@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion
-from art import Trajectory
+from src.trajectories import Trajectory
 
 from src.utils.visualize import trajectory_string
 from src.utils.logging import create_logger
