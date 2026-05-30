@@ -2,12 +2,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from openai import AsyncOpenAI
-from openai.types.chat import ChatCompletion
 from src.trajectories import Trajectory
-
 from src.utils.visualize import trajectory_string
 from src.utils.logging import create_logger
-from src.aliases import Message, SystemMessage
+from src.aliases import Message, SystemMessage, Response
 from src.configs import PromptConfig, DecompConfig
 
 
@@ -32,7 +30,7 @@ class BaseAgent(ABC):
         self.additional_histories = additional_histories
 
         self.trajectory = Trajectory(
-            messages_and_choices=[],
+            messages_and_responses=[],
             additional_histories=[],
             reward=0,
             metrics={
@@ -45,7 +43,7 @@ class BaseAgent(ABC):
         )
 
         if sys_msg := self._get_system_message():
-            self.trajectory.messages_and_choices.append(sys_msg)
+            self.trajectory.messages_and_responses.append(sys_msg)
 
     @property
     def metrics(self) -> dict[str, float | int | bool]:
@@ -71,7 +69,7 @@ class BaseAgent(ABC):
 
         return None
 
-    async def call(self, messages: list[Message], **kwargs) -> ChatCompletion:
+    async def call(self, messages: list[Message], **kwargs) -> Response:
         """
         Call the OpenAI API to get a chat completion.
         Should not be used directly; use `chat` instead.

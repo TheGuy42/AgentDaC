@@ -2,13 +2,12 @@ from __future__ import annotations
 from typing import Any
 from dataclasses import dataclass
 
-from openai.types.chat import ChatCompletion
 from openai import AsyncOpenAI
 
 from src.trajectories import Trajectory, History
 from src.agents.base import BaseAgent
 from src.agents.perst_agent.actions import TurnAction
-from src.aliases import Message, UserMessage
+from src.aliases import Message, UserMessage, Response
 from src.configs import PromptConfig, DecompConfig
 from src.utils.visualize import trajectory_string, message_string
 from src.utils.logging import create_logger
@@ -126,7 +125,7 @@ class PersistentAgent(BaseAgent):
 
         return GuidedRegex(*allowed)
 
-    async def call(self, messages: list[Message], **kwargs) -> ChatCompletion:
+    async def call(self, messages: list[Message], **kwargs) -> Response:
         regex: GuidedRegex = kwargs.pop("regex")
         extra_body: dict = kwargs.setdefault("extra_body", {})
         extra_body.setdefault("include_stop_str_in_output", True)
@@ -159,7 +158,7 @@ class PersistentAgent(BaseAgent):
             logger.warning(f"Prompt role is expected to be 'user', but got {prompt.get('role')}.")
 
         self.decomp_config.reset()
-        self.trajectory.messages_and_choices.append(prompt)
+        self.trajectory.messages_and_responses.append(prompt)
 
         # Store the initial prompt in metadata for reference
         content = prompt.get("content")
@@ -177,8 +176,7 @@ class PersistentAgent(BaseAgent):
             # Model turn
             regex = self._create_regex()
             completion = await self.call(self.trajectory.messages(), regex=regex, **kwargs)
-            choice = completion.choices[0]
-            self.trajectory.messages_and_choices.append(choice)
+            self.trajectory.messages_and_responses.append(completion)
 
             # Update metrics
             self.metrics["total_calls"] += 1
@@ -213,7 +211,7 @@ class PersistentAgent(BaseAgent):
                 self.latest_metrics["total_agents"] += 1
 
                 if self.additional_histories:  # Each sub-agent defines its own history
-                    self.trajectory.additional_histories.append(History(messages_and_choices=[]))
+                    self.trajectory.additional_histories.append(History(messages_and_responses=[]))
 
             # Issue a sub-task to the current sub-agent
             if turn.action == TurnAction.ISSUE_FRESH_TASK or turn.action == TurnAction.ISSUE_TASK:
@@ -222,11 +220,11 @@ class PersistentAgent(BaseAgent):
                 task = UserMessage(role="user", content=turn.text)
                 task_answer = await self.sub_agent.answer(task, verbose, **kwargs)
                 task_response = UserMessage(role="user", name="sub-agent", content=task_answer)
-                self.trajectory.messages_and_choices.append(task_response)
+                self.trajectory.messages_and_responses.append(task_response)
 
                 if self.additional_histories:  # Update sub-agent history
                     agent_history = self.trajectory.additional_histories[-1]
-                    agent_history.messages_and_choices = self.sub_agent.trajectory.messages_and_choices
+                    agent_history.messages_and_responses = self.sub_agent.trajectory.messages_and_responses
 
                 if verbose:
                     print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
@@ -246,7 +244,7 @@ class PersistentAgent(BaseAgent):
                 self.decomp_config.update_round(num_tasks=1)
 
         # Update final stats
-        completed = int((choice.finish_reason != "length") and (turn.action == TurnAction.ANSWER))
+        completed = int((completion.choices[0].finish_reason != "length") and (turn.action == TurnAction.ANSWER))
         self.metrics["responses_completed"] += completed
         self.metrics["responses_incomplete"] += 1 - completed
 

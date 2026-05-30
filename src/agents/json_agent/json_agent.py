@@ -1,14 +1,12 @@
 from __future__ import annotations
 from typing import Any
 from dataclasses import dataclass
-
 import json_repair
-from openai.types.chat import ChatCompletion
 
 from src.trajectories import Trajectory, History
 from src.agents.base import BaseAgent
 from src.agents.json_agent.actions import TurnAction
-from src.aliases import Message, UserMessage
+from src.aliases import Message, UserMessage, Response
 from src.utils.visualize import trajectory_string, message_string
 from src.utils.logging import create_logger
 
@@ -96,7 +94,7 @@ class JsonAgent(BaseAgent):
 
         return GuidedJson(*allowed)
 
-    async def call(self, messages: list[Message], **kwargs) -> ChatCompletion:
+    async def call(self, messages: list[Message], **kwargs) -> Response:
         schema: GuidedJson = kwargs.pop("schema")
         schema_descriptor = schema.build()
 
@@ -130,7 +128,7 @@ class JsonAgent(BaseAgent):
         if prompt.get("role") != "user":
             logger.warning(f"Prompt role is expected to be 'user', but got {prompt.get('role')}.")
 
-        self.trajectory.messages_and_choices.append(prompt)
+        self.trajectory.messages_and_responses.append(prompt)
 
         # Store the initial prompt in metadata for reference
         content = prompt.get("content")
@@ -147,8 +145,7 @@ class JsonAgent(BaseAgent):
             # Model turn
             schema = self._create_schema()
             completion = await self.call(self.trajectory.messages(), schema=schema, **kwargs)
-            choice = completion.choices[0]
-            self.trajectory.messages_and_choices.append(choice)
+            self.trajectory.messages_and_responses.append(completion)
 
             # Update metrics
             self.metrics["total_calls"] += 1
@@ -184,10 +181,10 @@ class JsonAgent(BaseAgent):
                 task = UserMessage(role="user", content=turn.text)
                 task_answer = await sub_agent.answer(task, verbose, **kwargs)
                 task_response = UserMessage(role="user", name="sub-agent", content=task_answer)
-                self.trajectory.messages_and_choices.append(task_response)
+                self.trajectory.messages_and_responses.append(task_response)
 
                 if self.additional_histories:
-                    history = History(messages_and_choices=sub_agent.trajectory.messages_and_choices)
+                    history = History(messages_and_responses=sub_agent.trajectory.messages_and_responses)
                     self.trajectory.additional_histories.append(history)
 
                 if verbose:
@@ -206,7 +203,7 @@ class JsonAgent(BaseAgent):
                 raise ValueError(f"Unhandled action: {turn.action}")
 
         # Update final stats
-        self.metrics["response_completed"] = (choice.finish_reason != "length") and (turn.action == TurnAction.ANSWER)
+        self.metrics["response_completed"] = (completion.choices[0].finish_reason != "length") and (turn.action == TurnAction.ANSWER)
         self.trajectory.finish()
 
         return self.trajectory

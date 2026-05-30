@@ -4,21 +4,21 @@ from typing import Any, cast
 import dataclasses
 
 from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
-from src.aliases import Message, Choice
+from src.aliases import Message, Response
 
 
 @dataclasses.dataclass
 class History:
-    messages_and_choices: list[Message | Choice]
+    messages_and_responses: list[Message | Response]
     tools: list[ChatCompletionToolParam] | None = None
 
     def messages(self) -> list[Message]:
-        return get_messages(self.messages_and_choices)
-
+        return get_messages(self.messages_and_responses)
+    
 
 @dataclasses.dataclass
 class Trajectory:
-    messages_and_choices: list[Message | Choice]
+    messages_and_responses: list[Message | Response]
     tools: list[ChatCompletionToolParam] | None = None
     additional_histories: list[History] = dataclasses.field(default_factory=list)
     reward: float = 0.0
@@ -36,7 +36,7 @@ class Trajectory:
         return self
 
     def messages(self) -> list[Message]:
-        return get_messages(self.messages_and_choices)
+        return get_messages(self.messages_and_responses)
 
     def for_logging(self) -> dict[str, Any]:
         loggable_dict: dict[str, Any] = {
@@ -47,23 +47,25 @@ class Trajectory:
             "tools": self.tools,
             "logs": self.logs,
         }
-        for message_or_choice in self.messages_and_choices:
-            if isinstance(message_or_choice, Choice):
+        for message_or_response in self.messages_and_responses:
+            if isinstance(message_or_response, Response):
                 trainable = True
-                message: dict[str, Any] = message_or_choice.message.to_dict()
+                choice = message_or_response.choices[0]
+                message: dict[str, Any] = choice.message.to_dict()
             else:
                 trainable = False
-                message = cast(dict[str, Any], message_or_choice)
+                message = cast(dict[str, Any], message_or_response)
             loggable_dict["messages"].append({**message, "trainable": trainable})
         return loggable_dict
 
 
-def get_messages(messages_and_choices: list[Message | Choice]) -> list[Message]:
+def get_messages(messages_and_responses: list[Message | Response]) -> list[Message]:
     messages: list[Message] = []
-    for message_or_choice in messages_and_choices:
-        if isinstance(message_or_choice, Choice):
-            content = message_or_choice.message.content or ""
-            tool_calls = message_or_choice.message.tool_calls or []
+    for message_or_response in messages_and_responses:
+        if isinstance(message_or_response, Response):
+            choice = message_or_response.choices[0]
+            content = choice.message.content or ""
+            tool_calls = choice.message.tool_calls or []
             assistant_message: Message = cast(
                 Message,
                 {
@@ -75,7 +77,7 @@ def get_messages(messages_and_choices: list[Message | Choice]) -> list[Message]:
             messages.append(assistant_message)
         else:
             # Ensure content is always a string for tokenizer chat templates
-            msg = dict(message_or_choice)
+            msg = dict(message_or_response)
             if msg.get("content") is None:
                 msg["content"] = ""
             messages.append(msg)  # type: ignore[arg-type]

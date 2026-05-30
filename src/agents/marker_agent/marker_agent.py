@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-from openai.types.chat import ChatCompletion
 
 from src.trajectories import Trajectory, History
 from src.agents.base import BaseAgent
@@ -9,7 +8,7 @@ from src.utils.visualize import trajectory_string, message_string
 import src.agents.marker_agent.markers as markers
 from src.agents.marker_agent.markers import Markers
 from src.utils.logging import create_logger
-from src.aliases import Message, UserMessage
+from src.aliases import Message, UserMessage, Response
 
 
 logger = create_logger(__name__)
@@ -26,7 +25,7 @@ class MarkerAgent(BaseAgent):
             additional_histories=False,  # NOTE: no support for recursive histories yet
         )
 
-    async def call(self, messages: list[Message], **kwargs) -> ChatCompletion:
+    async def call(self, messages: list[Message], **kwargs) -> Response:
         # By default allow only a single task and answer in the response
         extra_body = kwargs.setdefault("extra_body", {})
         extra_body.setdefault("include_stop_str_in_output", True)
@@ -64,7 +63,7 @@ class MarkerAgent(BaseAgent):
         # if not self._should_stop():
         #     prompt["content"] = f"{prompt.get('content')}\n\n{self._remaining_budget_string()}"
 
-        self.trajectory.messages_and_choices.append(prompt)
+        self.trajectory.messages_and_responses.append(prompt)
 
         # Store the initial prompt in metadata for reference
         content = prompt.get("content")
@@ -79,8 +78,7 @@ class MarkerAgent(BaseAgent):
         while True:
             # Call the OpenAI API to get a response
             completion = await self.call(self.trajectory.messages(), **kwargs)
-            choice = completion.choices[0]
-            self.trajectory.messages_and_choices.append(choice)
+            self.trajectory.messages_and_responses.append(completion)
 
             # Update metrics
             self.metrics["total_calls"] += 1
@@ -114,7 +112,7 @@ class MarkerAgent(BaseAgent):
                     answer = await sub_agent.answer(task, verbose, **kwargs)
 
                     if self.additional_histories:
-                        history = History(messages_and_choices=sub_agent.trajectory.messages_and_choices)
+                        history = History(messages_and_responses=sub_agent.trajectory.messages_and_responses)
                         self.trajectory.additional_histories.append(history)
 
                     # update metrics from sub-agent
@@ -139,13 +137,13 @@ class MarkerAgent(BaseAgent):
             # unified_answer = f"{unified_answer}\n\n{self.remaining_budget_string()}"
 
             joined_message = UserMessage(role="user", name="sub-agent", content=unified_answer)
-            self.trajectory.messages_and_choices.append(joined_message)
+            self.trajectory.messages_and_responses.append(joined_message)
 
             if verbose:
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
 
         # Update final stats
-        self.metrics["response_completed"] = choice.finish_reason != "length"
+        self.metrics["response_completed"] = completion.choices[0].finish_reason != "length"
         self.trajectory.finish()
 
         return self.trajectory

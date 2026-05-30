@@ -8,7 +8,10 @@ from openai.types.chat import (
     ChatCompletionMessageParam as Message,
 )
 
-from openai.types.chat.chat_completion import Choice
+from openai.types.chat.chat_completion import (
+    Choice as Choice,
+    ChatCompletion as Response,
+)
 
 
 __all__ = [
@@ -20,4 +23,5 @@ __all__ = [
     "DeveloperMessage",
     "Message",
     "Choice",
+    "Response",
 ]

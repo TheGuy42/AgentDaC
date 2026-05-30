@@ -1,12 +1,11 @@
 from __future__ import annotations
 from typing import Any
 from dataclasses import dataclass
-from openai.types.chat import ChatCompletion
 
 from src.trajectories import Trajectory, History
 from src.agents.base import BaseAgent
 from src.agents.regex_agent.actions import TurnAction
-from src.aliases import Message, UserMessage
+from src.aliases import Message, UserMessage, Response
 from src.utils.visualize import trajectory_string, message_string
 from src.utils.logging import create_logger
 import re
@@ -79,7 +78,7 @@ class RegexAgent(BaseAgent):
 
         return GuidedRegex(*allowed)
 
-    async def call(self, messages: list[Message], **kwargs) -> ChatCompletion:
+    async def call(self, messages: list[Message], **kwargs) -> Response:
         regex: GuidedRegex = kwargs.pop("regex")
         extra_body: dict = kwargs.setdefault("extra_body", {})
         extra_body.setdefault("include_stop_str_in_output", True)
@@ -111,7 +110,7 @@ class RegexAgent(BaseAgent):
         if prompt.get("role") != "user":
             logger.warning(f"Prompt role is expected to be 'user', but got {prompt.get('role')}.")
 
-        self.trajectory.messages_and_choices.append(prompt)
+        self.trajectory.messages_and_responses.append(prompt)
 
         # Store the initial prompt in metadata for reference
         content = prompt.get("content")
@@ -128,8 +127,7 @@ class RegexAgent(BaseAgent):
             # Model turn
             regex = self._create_regex()
             completion = await self.call(self.trajectory.messages(), regex=regex, **kwargs)
-            choice = completion.choices[0]
-            self.trajectory.messages_and_choices.append(choice)
+            self.trajectory.messages_and_responses.append(completion)
 
             # Update metrics
             self.metrics["total_calls"] += 1
@@ -160,10 +158,10 @@ class RegexAgent(BaseAgent):
                 task = UserMessage(role="user", content=turn.text)
                 task_answer = await sub_agent.answer(task, verbose, **kwargs)
                 task_response = UserMessage(role="user", name="sub-agent", content=task_answer)
-                self.trajectory.messages_and_choices.append(task_response)
+                self.trajectory.messages_and_responses.append(task_response)
 
                 if self.additional_histories:
-                    history = History(messages_and_choices=sub_agent.trajectory.messages_and_choices)
+                    history = History(messages_and_responses=sub_agent.trajectory.messages_and_responses)
                     self.trajectory.additional_histories.append(history)
 
                 if verbose:
@@ -182,7 +180,7 @@ class RegexAgent(BaseAgent):
                 raise ValueError(f"Unhandled action: {turn.action}")
 
         # Update final stats
-        self.metrics["response_completed"] = (choice.finish_reason != "length") and (turn.action == TurnAction.ANSWER)
+        self.metrics["response_completed"] = (completion.choices[0].finish_reason != "length") and (turn.action == TurnAction.ANSWER)
         self.trajectory.finish()
 
         return self.trajectory

@@ -1,5 +1,10 @@
 from art.trajectories import Trajectory as ArtTrajectory, History as ArtHistory
 from src import Trajectory, History
+from src.aliases import Message, Response, Choice
+
+
+def convert_messages(messages: list[Message | Response]) -> list[Message | Choice]:
+    return [msg.choices[0] if isinstance(msg, Response) else msg for msg in messages]
 
 
 def convert_history(history: History) -> ArtHistory:
@@ -9,7 +14,10 @@ def convert_history(history: History) -> ArtHistory:
     Args:
         history (src.History): The history to convert.
     """
-    return ArtHistory(messages_and_choices=history.messages_and_choices, tools=history.tools)
+    return ArtHistory(
+        messages_and_choices=convert_messages(history.messages_and_responses),
+        tools=history.tools,
+    )
 
 
 def convert_trajectory(trajectory: Trajectory) -> ArtTrajectory:
@@ -20,7 +28,7 @@ def convert_trajectory(trajectory: Trajectory) -> ArtTrajectory:
         trajectory (src.Trajectory): The trajectory to convert.
     """
     return ArtTrajectory(
-        messages_and_choices=trajectory.messages_and_choices,
+        messages_and_choices=convert_messages(trajectory.messages_and_responses),
         tools=trajectory.tools,
         additional_histories=[convert_history(h) for h in trajectory.additional_histories],
         reward=trajectory.reward,
