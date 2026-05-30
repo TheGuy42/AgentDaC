@@ -3,7 +3,7 @@ from typing import Any
 from dataclasses import dataclass
 import json_repair
 
-from src.trajectories import Trajectory, History
+from src.trajectory import Trajectory, History
 from src.agents.base import BaseAgent
 from src.agents.json_agent.actions import TurnAction
 from src.aliases import Message, UserMessage, Response

@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Any
 from dataclasses import dataclass
 
-from src.trajectories import Trajectory, History
+from src.trajectory import Trajectory, History
 from src.agents.base import BaseAgent
 from src.agents.regex_agent.actions import TurnAction
 from src.aliases import Message, UserMessage, Response

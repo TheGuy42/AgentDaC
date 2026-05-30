@@ -1,4 +1,4 @@
-from src.trajectories import Trajectory
+from src.trajectory import Trajectory
 from src.aliases import Message
 import re
 
@@ -68,9 +68,13 @@ def message_string(message: Message, indent: int = 0) -> str:
             raise ValueError("Message tool_calls must be a list.")
         tool_lines = []
         for tool_call in tool_calls:
+            if (tool_kind := tool_call.get("type")) != "function":
+                raise NotImplementedError(f"Unsupported tool call type: {tool_kind}")
+
             fn_name = tool_call["function"]["name"]
             fn_args = tool_call["function"]["arguments"]
             tool_lines.append(f"{fn_name}({fn_args.strip()})")
+
         tool_text = format_field("tool calls", tool_lines, indent)
         texts.append(tool_text)
 

@@ -1,4 +1,4 @@
-from src.trajectories import Trajectory, History
+from src.trajectory import Trajectory, History
 from src.agents.base import BaseAgent
 
 

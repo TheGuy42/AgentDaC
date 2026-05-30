@@ -2,7 +2,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from openai import AsyncOpenAI
-from src.trajectories import Trajectory
+from src.trajectory import Trajectory
 from src.utils.visualize import trajectory_string
 from src.utils.logging import create_logger
 from src.aliases import Message, SystemMessage, Response

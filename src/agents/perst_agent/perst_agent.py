@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from openai import AsyncOpenAI
 
-from src.trajectories import Trajectory, History
+from src.trajectory import Trajectory, History
 from src.agents.base import BaseAgent
 from src.agents.perst_agent.actions import TurnAction
 from src.aliases import Message, UserMessage, Response

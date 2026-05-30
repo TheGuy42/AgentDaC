@@ -31,7 +31,6 @@ def convert_trajectory(trajectory: Trajectory) -> ArtTrajectory:
         messages_and_choices=convert_messages(trajectory.messages_and_responses),
         tools=trajectory.tools,
         additional_histories=[convert_history(h) for h in trajectory.additional_histories],
-        reward=trajectory.reward,
         metrics=trajectory.metrics,
         metadata=trajectory.metadata,
         logs=trajectory.logs,
