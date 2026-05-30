@@ -88,7 +88,7 @@ class ArtTrainer:
                 await backend.close()
         except Exception as e:
             logger.error(f"Failed to close model backend: {e}")
-
+    
     def log_hparams(self, d: dict):
         """
         Logs hyperparameters to wandb.

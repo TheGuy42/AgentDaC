@@ -2,13 +2,13 @@ from src.agents import BaseAgent, RegexAgent
 from src.trainer import ArtTrainer, RolloutStage
 from src.aliases import UserMessage
 from src.configs import DecompConfig
-import random
+from src.utils.convert import convert_trajectory
 
 from experiments.easy2hard.rewards import answer_reward
 from experiments.easy2hard.format import format_prompt
 
 import art
-
+import random
 
 class Easy2HardRegexTrainer(ArtTrainer):
     def create_agent(self, stage: RolloutStage) -> BaseAgent:
@@ -50,7 +50,7 @@ class Easy2HardRegexTrainer(ArtTrainer):
         message = UserMessage(role="user", content=content)
         kwargs = self.rollout_config.get_kwargs(stage)
         trajectory = await agent.chat(message, **kwargs)
-        return trajectory.to_art()
+        return convert_trajectory(trajectory)
 
     async def score_trajectory(
         self,

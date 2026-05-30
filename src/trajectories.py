@@ -4,7 +4,6 @@ from typing import Any, cast
 import dataclasses
 
 from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
-from art.trajectories import Trajectory as ArtTrajectory, History as ArtHistory
 from src.aliases import Message, Choice
 
 
@@ -16,38 +15,17 @@ class History:
     def messages(self) -> list[Message]:
         return get_messages(self.messages_and_choices)
 
-    def to_art(self) -> ArtHistory:
-        """
-        Creates a shallow copy to an `art.trajectories.History` object, used for compatibility.
-        """
-        return ArtHistory(messages_and_choices=self.messages_and_choices, tools=self.tools)
-
 
 @dataclasses.dataclass
 class Trajectory:
     messages_and_choices: list[Message | Choice]
     tools: list[ChatCompletionToolParam] | None = None
-    additional_histories: list[History] = []
+    additional_histories: list[History] = dataclasses.field(default_factory=list)
     reward: float = 0.0
-    metrics: dict[str, float | int | bool] = {}
-    metadata: dict[str, float | int | str | bool | None] = {}
-    logs: list[str] = []
+    metrics: dict[str, float | int | bool] = dataclasses.field(default_factory=dict)
+    metadata: dict[str, float | int | str | bool | None] = dataclasses.field(default_factory=dict)
+    logs: list[str] = dataclasses.field(default_factory=list)
     start_time: datetime = dataclasses.field(default_factory=datetime.now)
-
-    def to_art(self) -> ArtTrajectory:
-        """
-        Creates a shallow copy to an `art.trajectories.Trajectory` object, used for compatibility.
-        """
-        return ArtTrajectory(
-            messages_and_choices=self.messages_and_choices,
-            tools=self.tools,
-            additional_histories=[h.to_art() for h in self.additional_histories],
-            reward=self.reward,
-            metrics=self.metrics,
-            metadata=self.metadata,
-            logs=self.logs,
-            start_time=self.start_time,
-        )
 
     def log(self, message: str) -> None:
         self.logs.append(message)

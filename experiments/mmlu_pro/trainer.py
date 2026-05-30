@@ -2,6 +2,7 @@ from src.agents import BaseAgent, MarkerAgent
 from src.trainer import ArtTrainer, RolloutStage
 from src.aliases import UserMessage
 from src.agents.marker_agent.markers import Markers, extract_between
+from src.utils.convert import convert_trajectory
 
 from experiments.general_rewards import format_reward, behavior_reward
 from experiments.mmlu_pro.rewards import answer_reward
@@ -30,7 +31,7 @@ class MmluProTrainer(ArtTrainer):
         message = UserMessage(role="user", content=content)
         kwargs = self.rollout_config.get_kwargs(stage)
         trajectory = await agent.chat(message, **kwargs)
-        return trajectory.to_art()
+        return convert_trajectory(trajectory)
 
     async def score_trajectory(
         self,
