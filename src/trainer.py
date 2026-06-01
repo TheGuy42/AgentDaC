@@ -32,10 +32,8 @@ from src.trajectory import Trajectory
 from src.utils.convert import convert_trajectory
 from src.utils.logging import create_logger
 
-logger = create_logger(__name__)
 
-# Resource key registered by VERL's daemon (agentlightning/verl/daemon.py).
-MAIN_LLM_RESOURCE = "main_llm"
+logger = create_logger(__name__)
 
 
 class RolloutStage(str, Enum):
@@ -71,12 +69,7 @@ class AglTrainer(agl.LitAgent, ABC):
         self.rollout_config = rollout_config
         self.extra_config = extra_config or {}
 
-        # The actual trainer instance
-        self._trainer: agl.Trainer | None = None
 
-    # ------------------------------------------------------------------ #
-    # Experiment extension points
-    # ------------------------------------------------------------------ #
     @abstractmethod
     def create_agent(self, client: AsyncOpenAI, model: str, stage: RolloutStage) -> BaseAgent:
         """Build the AgentDaC agent used for a single rollout.
