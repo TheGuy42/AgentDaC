@@ -1,5 +1,5 @@
-import art
-from openai.types.chat.chat_completion import Choice
+from src.trajectory import Trajectory
+from src.aliases import Response
 from src.agents.marker_agent.markers import Markers, extract_between
 
 
@@ -37,41 +37,41 @@ def _single_message_format_reward(content: str) -> float:
     return total_reward
 
 
-def format_reward(trajectory: art.Trajectory) -> float:
+def format_reward(trajectory: Trajectory) -> float:
     """
     Reward factor which penalizes for improper message formatting and conversation structure.
     It does not provide positive rewards or incentives for good formatting or structure.
     """
     fmt_count = 0
     fmt_reward = 0.0
-    for item in trajectory.messages_and_choices:
-        if isinstance(item, Choice):
-            content = item.message.content or ""
+    for item in trajectory.messages_and_responses:
+        if isinstance(item, Response):
+            content = item.choices[0].message.content or ""
             fmt_reward += _single_message_format_reward(content)
             fmt_count += 1
 
     for hist in trajectory.additional_histories:
-        for item in hist.messages_and_choices:
-            if isinstance(item, Choice):
-                content = item.message.content or ""
+        for item in hist.messages_and_responses:
+            if isinstance(item, Response):
+                content = item.choices[0].message.content or ""
                 fmt_reward += _single_message_format_reward(content)
                 fmt_count += 1
 
     ans_count = 0
     ans_reward = 0.0
-    last_message = trajectory.messages_and_choices[-1]
-    if isinstance(last_message, Choice):
+    last_message = trajectory.messages_and_responses[-1]
+    if isinstance(last_message, Response):
         ans_count += 1
-        content = last_message.message.content or ""
+        content = last_message.choices[0].message.content or ""
         num_answers = len(extract_between(content, Markers.ANS_START, Markers.ANS_END))
         if num_answers == 0:
             ans_reward -= 1.0
 
     for hist in trajectory.additional_histories:
-        last_message = hist.messages_and_choices[-1]
-        if isinstance(last_message, Choice):
+        last_message = hist.messages_and_responses[-1]
+        if isinstance(last_message, Response):
             ans_count += 1
-            content = last_message.message.content or ""
+            content = last_message.choices[0].message.content or ""
             num_answers = len(extract_between(content, Markers.ANS_START, Markers.ANS_END))
             if num_answers == 0:
                 ans_reward -= 1.0
@@ -97,7 +97,7 @@ def _hill_func(x: float, steepness: float, midpoint: float) -> float:
     return val / (1 + val)
 
 
-def behavior_reward(trajectory: art.Trajectory) -> float:
+def behavior_reward(trajectory: Trajectory) -> float:
     return 0
     total_reward = 0.0
 

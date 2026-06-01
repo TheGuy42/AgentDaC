@@ -32,7 +32,6 @@ class BaseAgent(ABC):
         self.trajectory = Trajectory(
             messages_and_responses=[],
             additional_histories=[],
-            reward=0,
             metrics={
                 "direct_calls": 0,
                 "total_calls": 0,
@@ -78,10 +77,14 @@ class BaseAgent(ABC):
             messages (list[Message]): The list of messages to send to the API.
             **kwargs: Additional keyword arguments to pass to the API call.
         """
+        # NOTE: Required for AGL
+        extra_body = kwargs.setdefault("extra_body", {})
+        extra_body.setdefault("return_token_ids", True)
+        
         return await self.openai_client.chat.completions.create(
             model=self.model,
             messages=messages,
-            logprobs=True,
+            logprobs=False, # NOTE: we dont need logprobs for AGL
             **kwargs,
         )
 

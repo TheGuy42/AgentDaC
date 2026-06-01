@@ -83,13 +83,7 @@ class RegexAgent(BaseAgent):
         extra_body: dict = kwargs.setdefault("extra_body", {})
         extra_body.setdefault("include_stop_str_in_output", True)
         extra_body["guided_regex"] = regex.model_pattern
-
-        return await self.openai_client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            logprobs=True,
-            **kwargs,
-        )
+        return await super().call(messages, **kwargs)
 
     def _create_subagent(self) -> BaseAgent:
         return RegexAgent(

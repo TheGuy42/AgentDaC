@@ -101,13 +101,7 @@ class JsonAgent(BaseAgent):
         extra_body: dict = kwargs.setdefault("extra_body", {})
         extra_body.setdefault("include_stop_str_in_output", True)
         kwargs["response_format"] = {"type": "json_schema", "json_schema": schema_descriptor}
-
-        return await self.openai_client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            logprobs=True,
-            **kwargs,
-        )
+        return await super().call(messages, **kwargs)
 
     def _create_subagent(self) -> BaseAgent:
         return JsonAgent(

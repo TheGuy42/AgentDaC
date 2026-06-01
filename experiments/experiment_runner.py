@@ -1,11 +1,5 @@
 import sys
 import os
-
-# NOTE: Some ART library black-magic
-os.environ["IMPORT_UNSLOTH"] = "1"
-os.environ["IMPORT_PEFT"] = "1"
-import art
-
 import torch
 import pathlib
 import asyncio
@@ -18,14 +12,13 @@ import random
 import json
 import pydantic
 from datasets import Dataset
+from datetime import datetime
 
 from src.utils.env import prepare_environment, set_seed
 from src.utils.logging import create_logger, setup_logging
 from src.utils.io import load_object
-from src.utils.loaders import load_art_model
-from src.vllm_client import VllmClient, ArtClient, VllmRouter
-from src.configs import PathConfig, TrainingConfig, PromptConfig, DecompConfig, RolloutConfig, ArtConfig
-from src.trainer import ArtTrainer, RolloutStage
+from src.configs import TrainingConfig, PromptConfig, DecompConfig, RolloutConfig
+from src.trainer import AglTrainer
 
 
 logger = create_logger(__name__)
@@ -56,17 +49,21 @@ class ExperimentRunner(ABC):
         pass
 
     @abstractmethod
-    def create_trainer(
-        self,
-        model: art.Model,
-        **kwargs,
-    ) -> ArtTrainer:
+    def create_trainer(self, **kwargs) -> AglTrainer:
         """Return the trainer class to use."""
         pass
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         """Override to add custom command line arguments."""
         pass
+
+    def _generate_run_name(self, base_model: str) -> str:
+        """
+        Generate a run name based on the model name and current date.
+        """
+        base_model = base_model.split("/")[-1]
+        date_str = datetime.now().strftime("%m_%d_%H_%M")
+        return f"{base_model}_{date_str}"
 
     def _parse_args(self) -> argparse.Namespace:
         """Parse command line arguments."""
@@ -83,7 +80,7 @@ class ExperimentRunner(ABC):
             "--run",
             type=str,
             default="",
-            help="The name of the run to continue (if exists).",
+            help="The name of the experiment run.",
         )
 
         parser.add_argument(
@@ -92,14 +89,6 @@ class ExperimentRunner(ABC):
             nargs="+",
             default=[0],
             help=f"The ID of the GPU(s) to use (e.g., 0 or 0 1). Available GPUs: {list(range(torch.cuda.device_count()))}",
-        )
-
-        parser.add_argument(
-            "--vllm_ports",
-            type=int,
-            nargs="*",
-            default=[],
-            help="List of endpoint ports for vLLM servers.",
         )
 
         parser.add_argument(
@@ -120,12 +109,6 @@ class ExperimentRunner(ABC):
             "--silent",
             action="store_true",
             help="Disable verbose outputs.",
-        )
-
-        parser.add_argument(
-            "--eval",
-            action="store_true",
-            help="Run evaluation only of base model (skip training).",
         )
 
         self.add_arguments(parser)
@@ -151,7 +134,6 @@ class ExperimentRunner(ABC):
             dir = pathlib.Path(dir)
 
         return {
-            "art_config": ArtConfig.load_from_path(dir / "art_config.json", do_raise=True),
             "train_config": TrainingConfig.load_from_path(dir / "train_config.json", do_raise=True),
             "prompt_config": PromptConfig.load_from_path(dir / "prompt_config.json", do_raise=True),
             "decomp_config": DecompConfig.load_from_path(dir / "decomp_config.json", do_raise=True),
@@ -161,45 +143,20 @@ class ExperimentRunner(ABC):
 
     def _patch_configs(self, configs: dict[str, Any]) -> dict[str, Any]:
         rollout_config: RolloutConfig = configs["rollout_config"]
-        art_config: ArtConfig = configs["art_config"]
+        train_config: TrainingConfig = configs["train_config"]
+        verl_config = train_config.verl_config
 
-        if "Qwen3" in art_config.base_model:
+        model_name = verl_config["actor_rollout_ref"]["model"]["path"]
+        exp_name = self.args().run or self._generate_run_name(model_name)
+
+        verl_config.setdefault("trainer", {})["project_name"] = self.args().project
+        verl_config.setdefault("trainer", {})["experiment_name"] = exp_name
+
+        if "Qwen3" in model_name:
             # disable "thinking" for Qwen3 models
             logger.info("Disabling 'thinking' for Qwen3 model.")
             rollout_config.kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": False}}
         return configs
-
-    def _create_inference_clients(self, model: art.Model, vllm_ports: list[int]) -> VllmRouter:
-        """Create and configure inference clients."""
-
-        if isinstance(model, art.TrainableModel):
-            # A client which is automatically managed by ART, 
-            # including LORA loading/unloading and current inference_name
-            art_client = ArtClient(model) 
-
-        else:
-            # A static client which points to the base model inference endpoint, 
-            # without dynamic inference_name updating. 
-            # This is used for eval-only runs where the model is not trainable and won't have LORA updates.            
-            art_client = VllmClient(
-                openai_client=model.openai_client(),
-                base_model=model.inference_model_name or model.name,
-                model_name=None,
-            )
-
-        inference_clients: list[VllmClient] = [art_client]
-        for port in vllm_ports:
-            inference_clients.append(
-                VllmClient.from_connection(
-                    port=port,
-                    base_model=art_client.base_model,
-                    model_name=art_client.model_name,
-                    api_key=art_client.openai_client.api_key,
-                    timeout=art_client.openai_client.timeout,
-                    max_retries=art_client.openai_client.max_retries,
-                )
-            )
-        return VllmRouter(inference_clients)
 
     def _print_configs(self, configs: dict[str, Any]) -> None:
         for cfg_name, cfg_obj in configs.items():
@@ -213,7 +170,7 @@ class ExperimentRunner(ABC):
 
             logger.info(f"Configuration for {cfg_name} ({type(cfg_obj).__name__}): {cfg_str}")
 
-    async def _main(self) -> None:
+    def _main(self) -> None:
         """Main experiment execution logic."""
 
         args = self.args()
@@ -228,11 +185,8 @@ class ExperimentRunner(ABC):
 
         # Load configurations
         configs = self._load_configs(args.config_dir)
-        base_model = configs["art_config"].base_model
-        configs["path_config"] = PathConfig(base_model=base_model, project_name=args.project, run_name=args.run)
         configs = self._patch_configs(configs)
-
-        train_config: TrainingConfig = configs["train_config"]
+        train_config: TrainingConfig = configs.pop("train_config")
 
         # Print all configurations
         if not args.silent:
@@ -260,77 +214,16 @@ class ExperimentRunner(ABC):
             test_dataset = test_dataset[: train_config.val_size]  # TODO: create separate config entry test_size
             logger.info(f"Truncated test dataset to size: {len(test_dataset)}")
 
-        # Load model
-        model = await load_art_model(
-            path_config=configs["path_config"],
-            art_config=configs["art_config"],
-            seed=args.seed,
-        )
-
-        # If eval only, create a non-trainable version of the model
-        if args.eval:
-            eval_model = art.Model(
-                name=f"{model.name}_eval",
-                project=model.project,
-                inference_api_key=model.inference_api_key,
-                inference_base_url=model.inference_base_url,
-                inference_model_name=model.base_model,
-            )
-
-            # BUG: when registering the backend, then get_inference_name()
-            # is returned from the backend instead from the base model,
-            # returning an incorrect model name
-            await eval_model.register(model.backend())
-            model = eval_model
-
-        # Create inference clients
-        vllm_router = self._create_inference_clients(model, args.vllm_ports)
-
         # Create and configure the trainer
-        trainer = self.create_trainer(
-            model=model,
-            vllm_router=vllm_router,
-            **configs,
+        trainer = self.create_trainer(**configs)
+
+        # Start training
+        logger.info("Starting training...")
+        trainer.train(
+            config=train_config,
+            train_dataset=train_dataset,
+            val_dataset=val_dataset,
         )
-
-        # Log code files
-        if trainer.wandb_run is not None:
-            trainer.wandb_run.log_code(root="src", name="src")
-            trainer.wandb_run.log_code(root="scripts", name="scripts")
-            trainer.wandb_run.log_code(root="experiments", name="experiments")
-
-        try:
-            if not args.eval:
-                # Run training if applicable
-                logger.info("Starting training...")
-                await trainer.train(
-                    config=train_config,
-                    train_dataset=train_dataset,
-                    val_dataset=val_dataset,
-                )
-
-            # Run evaluation
-            logger.info("Starting val-set evaluation...")
-            groups = await trainer.rollout(
-                dataset=val_dataset,
-                group_size=1,
-                stage=RolloutStage.VAL,
-                max_exceptions=train_config.max_exceptions,
-            )
-            await trainer.model.log(groups, split=RolloutStage.VAL.value)
-
-            logger.info("Starting test-set evaluation...")
-            groups = await trainer.rollout(
-                dataset=test_dataset,
-                group_size=1,
-                stage=RolloutStage.TEST,
-                max_exceptions=train_config.max_exceptions,
-            )
-            await trainer.model.log(groups, split=RolloutStage.TEST.value)
-
-        finally:
-            await trainer.close()
-            await vllm_router.close()
 
     def run(self) -> None:
         """Entry point to run the experiment."""
@@ -338,7 +231,7 @@ class ExperimentRunner(ABC):
             self._parse_args()
             prepare_environment()
             setup_logging(level=logging.WARNING if self.args().silent else logging.INFO)
-            asyncio.run(self._main())
+            self._main()
         except KeyboardInterrupt:
             logger.info("Training interrupted by user.")
             sys.exit(0)

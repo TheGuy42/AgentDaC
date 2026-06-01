@@ -1,9 +1,10 @@
-from argparse import ArgumentParser
-import sys
-import pathlib
+from __future__ import annotations
 
-import art
-from datasets import Dataset, load_dataset, DatasetDict
+import argparse
+import pathlib
+import sys
+from typing import Any
+from datasets import load_dataset, DatasetDict
 
 # set pythonpath to the main module directory
 module_dir = pathlib.Path(__file__).parent.parent.parent.resolve()
@@ -11,9 +12,9 @@ if str(module_dir) not in sys.path:
     sys.path.append(str(module_dir))
 
 
-from experiments.experiment_runner import ExperimentRunner
+from src.trainer import AglTrainer
+from experiments.experiment_runner import Dataset, ExperimentRunner
 from experiments.math.trainer import MathTrainer
-from src.trainer import ArtTrainer
 
 
 class Runner(ExperimentRunner):
@@ -23,18 +24,9 @@ class Runner(ExperimentRunner):
     def default_config_dir(self) -> str:
         return "experiments/math/defaults"
 
-    def add_arguments(self, parser: ArgumentParser) -> None:
-        parser.add_argument(
-            "--min_level",
-            type=int,
-            default=1,
-        )
-        
-        parser.add_argument(
-            "--max_level",
-            type=int,
-            default=5,
-        )
+    def add_arguments(self, parser: argparse.ArgumentParser) -> None:
+        parser.add_argument("--min_level", type=int, default=1)
+        parser.add_argument("--max_level", type=int, default=5)
 
     def load_data(self) -> tuple[Dataset, Dataset, Dataset]:
         dataset_dict: DatasetDict = load_dataset(
@@ -44,7 +36,7 @@ class Runner(ExperimentRunner):
 
         ds_train: Dataset = dataset_dict["train"]
         ds_val: Dataset = dataset_dict["test"]
-        
+
         # filter by difficulty
         min_level = self.args().min_level
         max_level = self.args().max_level
@@ -53,8 +45,8 @@ class Runner(ExperimentRunner):
 
         return ds_train, ds_val, ds_val
 
-    def create_trainer(self, model: art.Model, **kwargs) -> ArtTrainer: 
-        return MathTrainer(model=model, **kwargs)
+    def create_trainer(self, **kwargs) -> AglTrainer:
+        return MathTrainer(**kwargs)
 
 
 if __name__ == "__main__":

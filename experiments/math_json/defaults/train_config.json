@@ -66,8 +66,8 @@
                 "console",
                 "wandb"
             ],
-            "project_name": "math_regex_dac",
-            "experiment_name": "math_regex",
+            "project_name": "math_json_dac",
+            "experiment_name": "math_json",
             "nnodes": 1,
             "test_freq": 32,
             "total_epochs": 10

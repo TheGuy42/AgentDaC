@@ -4,7 +4,8 @@
         "loras",
         "Multistep",
         "OPENPIPE",
-        "perst"
+        "perst",
+        "verl"
     ],
     "python.analysis.typeCheckingMode": "standard"
 }

@@ -1,17 +1,17 @@
 from src.trajectory import Trajectory
-from src.agents import BaseAgent, RegexAgent
+from src.agents import BaseAgent, JsonAgent
 from src.trainer import AglTrainer, RolloutStage
 from src.configs import DecompConfig
 
-from experiments.math.format import format_prompt
 from experiments.math.rewards import answer_reward
+from experiments.math.format import format_prompt
 
 from openai import AsyncOpenAI
 import random
 from typing import Any
 
 
-class MathRegexTrainer(AglTrainer):
+class MathJsonTrainer(AglTrainer):
     def create_agent(self, client: AsyncOpenAI, model: str, stage: RolloutStage) -> BaseAgent:
         max_depth = self.decomp_config.max_depth
         max_tasks = self.decomp_config.max_tasks
@@ -31,25 +31,20 @@ class MathRegexTrainer(AglTrainer):
             max_rounds=max_rounds,
         )
 
-        return RegexAgent(
-            model_name=model,
+        return JsonAgent(
             openai_client=client,
+            model_name=model,
             prompt_config=self.prompt_config,
             decomp_config=decomp_config,
-            additional_histories=self.extra_config.get("additional_histories", False),
         )
-        
+
     def format_prompt(self, sample: dict[str, Any]) -> str:
         return format_prompt(sample)
 
-    async def score_trajectory(
-        self,
-        sample: dict,
-        trajectory: Trajectory,
-        stage: RolloutStage,
-    ) -> Trajectory:
+    async def score_trajectory(self, sample: dict[str, Any], trajectory: Trajectory, stage: RolloutStage) -> Trajectory:
+
         ans_message = trajectory.messages()[-1]
-        agent_answer = RegexAgent.parse_answer(ans_message)
+        agent_answer = JsonAgent.parse_answer(ans_message)
 
         # Compute rewards
         trajectory.reward = 0.0
