@@ -12,6 +12,40 @@ from src.utils.logging import create_logger
 logger = create_logger(__name__)
 
 
+def _extract_attributes(resp: Response) -> dict[str, Any]:
+
+    response_token_ids: list[int]
+    prompt_token_ids: list[int]
+
+    if hasattr(resp, "response_token_ids"):
+        # This attr appears in the patched response object by AGL
+        # See `agentlightning.instrumentation.vllm.ChatCompletionResponsePatched`
+        response_token_ids = getattr(resp, "response_token_ids")[0]
+    
+    elif hasattr(resp.choices[0], "token_ids"):
+        # This is the original response object structure from OpenAI
+        response_token_ids = getattr(resp.choices[0], "token_ids")
+    
+    else:
+        logger.error(f"Response object missing expected token id attributes: {resp.model_dump()}")
+        raise ValueError("Unable to extract response token ids from response object")
+
+    if hasattr(resp, "prompt_token_ids"):
+        # This attr appears in the original and the patched response object by AGL
+        # See `agentlightning.instrumentation.vllm.ChatCompletionResponsePatched`
+        prompt_token_ids = getattr(resp, "prompt_token_ids")
+    
+    else:
+        logger.error(f"Response object missing expected token id attributes: {resp.model_dump()}")
+        raise ValueError("Unable to extract prompt token ids from response object")
+
+    return {
+        "prompt_token_ids": prompt_token_ids,
+        "response_token_ids": response_token_ids,
+        "gen_ai.response.id": resp.id,
+    }
+
+
 def convert_trajectory(trajectory: Trajectory, rollout: agl.AttemptedRollout) -> list[Span]:
 
     spans: list[Span] = []
@@ -19,27 +53,10 @@ def convert_trajectory(trajectory: Trajectory, rollout: agl.AttemptedRollout) ->
     responses = [r for r in trajectory.messages_and_responses if isinstance(r, Response)]
 
     for i, resp in enumerate(responses):
-        
-        try:
-        
-            attributes: dict[str, Any] = {
-                "prompt_token_ids": resp.prompt_token_ids,  # type: ignore[attr-defined]
-                "response_token_ids": resp.choices[0].token_ids,  # type: ignore[attr-defined]
-                "gen_ai.response.id": resp.id,  # Helps the adapter dedup repeated spans for the same response.
-            }
-            
-        except (Exception, BaseException) as e:
-            raise Exception(
-                f"Error for response index {i}:"
-                f"Warning: Response object is missing expected token ID attributes: {e}"
-                f"Available attributes on response: {resp.model_extra.keys() if resp.model_extra is not None else []}"
-                f"Available attributes on choices[0]: {resp.choices[0].model_extra.keys() if resp.choices and resp.choices[0].model_extra is not None else []}"
-            )
-
         core = agl.SpanCoreFields(
             name="openai.chat.completion",
             status=TraceStatus(status_code="OK"),
-            attributes=attributes,
+            attributes=_extract_attributes(resp),
             start_time=(base_time + i),
             end_time=(base_time + i + 0.5),
         )

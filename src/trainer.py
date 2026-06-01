@@ -1,20 +1,3 @@
-"""Base AgentLightning ``LitAgent`` for AgentDaC experiments.
-
-This is the AGL analogue of the old ``ArtTrainer``: a generic rollout executor that each
-experiment subclasses, implementing a few small methods. There are no callbacks — the
-extension points are plain overridable methods, mirroring the previous design:
-
-* ``create_agent(client, model, stage)`` — build the AgentDaC agent for one rollout.
-* ``format_prompt(task)`` — turn a task dict into the user-prompt string.
-* ``score_trajectory(task, trajectory, stage)`` — compute the scalar reward.
-
-The base ``rollout_async`` wires these together: it reads the ``"main_llm"`` LLM resource
-that VERL registers, builds an OpenAI client against it, runs the agent, scores the
-trajectory, and converts ``(trajectory, reward)`` into AgentLightning spans (which VERL's
-daemon turns into training triplets). Override ``forward_step`` for full control of the
-prompt/chat step; most experiments only need the three methods above.
-"""
-
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
