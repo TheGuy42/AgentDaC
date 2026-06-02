@@ -111,6 +111,12 @@ class ExperimentRunner(ABC):
             help="Disable verbose outputs.",
         )
 
+        parser.add_argument(
+            "--dev",
+            action="store_true",
+            help="Perform a quick development run.",
+        )
+
         self.add_arguments(parser)
         self._parser_args = parser.parse_args()
         args = self.args()
@@ -217,13 +223,23 @@ class ExperimentRunner(ABC):
         # Create and configure the trainer
         trainer = self.create_trainer(**configs)
 
-        # Start training
-        logger.info("Starting training...")
-        trainer.train(
-            config=train_config,
-            train_dataset=train_dataset,
-            val_dataset=val_dataset,
-        )
+        if not args.dev:
+            # Start training
+            logger.info("Starting training...")
+            trainer.train(
+                config=train_config,
+                train_dataset=train_dataset,
+                val_dataset=val_dataset,
+            )
+
+        else:
+            # Perform a development run
+            logger.info("Starting development run...")
+            trainer.dev(
+                config=train_config,
+                train_dataset=train_dataset,
+                val_dataset=val_dataset,
+            )
 
     def run(self) -> None:
         """Entry point to run the experiment."""

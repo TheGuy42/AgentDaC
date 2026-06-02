@@ -6,6 +6,8 @@ from typing import Any
 
 import agentlightning as agl
 from agentlightning.algorithm.verl import VERL
+from agentlightning.algorithm.fast import Baseline
+
 from openai import AsyncOpenAI
 
 from src.agents.base import BaseAgent
@@ -52,7 +54,6 @@ class AglTrainer(agl.LitAgent, ABC):
         self.rollout_config = rollout_config
         self.extra_config = extra_config or {}
 
-
     @abstractmethod
     def create_agent(self, client: AsyncOpenAI, model: str, stage: RolloutStage) -> BaseAgent:
         """Build the AgentDaC agent used for a single rollout.
@@ -79,6 +80,7 @@ class AglTrainer(agl.LitAgent, ABC):
         chat_kwargs: dict[str, Any],
     ) -> Trajectory:
         """Run the agent on the task and return its trajectory."""
+
         message = UserMessage(role="user", content=self.format_prompt(task))
         return await agent.chat(message, **chat_kwargs)
 
@@ -118,11 +120,43 @@ class AglTrainer(agl.LitAgent, ABC):
         train_dataset: list[dict],
         val_dataset: list[dict] | None = None,
     ):
+
         trainer = agl.Trainer(
             n_runners=config.n_runners,
             algorithm=VERL(config=config.verl_config),
             adapter=agl.TracerTraceToTriplet(repair_hierarchy=False),  # TODO: currently no need to repair anything since we emit traces manually
         )
 
-        trainer.fit(self, train_dataset=train_dataset, val_dataset=val_dataset)
+        try:
+            trainer.fit(self, train_dataset=train_dataset, val_dataset=val_dataset)
+
+        except Exception as e:
+            logger.error("Training failed with exception, performing cleanup...")
+            trainer.kill_orphaned_processes()
+            raise e
+
+        return trainer
+
+    def dev(
+        self,
+        config: TrainingConfig,
+        train_dataset: list[dict],
+        val_dataset: list[dict] | None = None,
+    ):
+        """Performs a quick development run."""
+
+        trainer = agl.Trainer(
+            n_runners=1,
+            algorithm=Baseline(),
+            adapter=agl.TracerTraceToTriplet(repair_hierarchy=False),
+        )
+
+        try:
+            trainer.dev(self, train_dataset=train_dataset, val_dataset=val_dataset)
+
+        except Exception as e:
+            logger.error("Dev run failed with exception, performing cleanup...")
+            trainer.kill_orphaned_processes()
+            raise e
+
         return trainer

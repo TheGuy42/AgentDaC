@@ -67,7 +67,13 @@
             "model": {
                 "path": "Qwen/Qwen3-1.7B",
                 "use_remove_padding": true,
-                "enable_gradient_checkpointing": false
+                "enable_gradient_checkpointing": false,
+                "lora_rank": 16,
+                "lora_alpha": 32,
+                "target_modules": "all-linear",
+                "lora": {
+                    "merge": true
+                }
             }
         },
         "trainer": {

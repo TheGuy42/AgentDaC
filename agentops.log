@@ -1,1 +1,11 @@
-2026-06-01 23:41:51,404 - WARNING - [OPENAI INSTRUMENTOR] Error setting up OpenAI streaming wrappers: No module named 'openai.resources.beta.chat'
+2026-06-02 02:10:48,377 - WARNING - [OPENAI INSTRUMENTOR] Error setting up OpenAI streaming wrappers: No module named 'openai.resources.beta.chat'
+2026-06-02 02:14:02,375 - INFO - Session Replay for ro-fa2efcefb99e trace: https://app.agentops.ai/sessions?trace_id=25a687e5d6d6c66e514febf1c73a1d0c
+2026-06-02 02:14:08,963 - INFO - Session Replay for ro-d77a7ec65e78.session trace: https://app.agentops.ai/sessions?trace_id=1cac424355881f210f79354e12e82420
+2026-06-02 02:14:08,987 - INFO - Session Replay for ro-bf549ae707a2 trace: https://app.agentops.ai/sessions?trace_id=33a919e34be5260a0ab8f061f35b30fa
+2026-06-02 02:14:22,480 - INFO - Session Replay for ro-65bcab3a0f12.session trace: https://app.agentops.ai/sessions?trace_id=a7e1bdb68013d7019bbf653c134d2cbd
+2026-06-02 02:14:22,507 - INFO - Session Replay for ro-943434bff1cb trace: https://app.agentops.ai/sessions?trace_id=c8a2610f622bf941fad5da8dfb4af30c
+2026-06-02 02:14:28,493 - INFO - Session Replay for ro-943434bff1cb.session trace: https://app.agentops.ai/sessions?trace_id=c8a2610f622bf941fad5da8dfb4af30c
+2026-06-02 02:14:28,514 - INFO - Session Replay for ro-ccc0ce6d04ad trace: https://app.agentops.ai/sessions?trace_id=1ce0a9d5df0d199f725b4808516b90d5
+2026-06-02 02:14:31,714 - INFO - Session Replay for ro-ccc0ce6d04ad.session trace: https://app.agentops.ai/sessions?trace_id=1ce0a9d5df0d199f725b4808516b90d5
+2026-06-02 02:14:28,943 - INFO - Session Replay for ro-08204635db15 trace: https://app.agentops.ai/sessions?trace_id=d49e4c95c7d8fccfc5c70a5ea921924f
+2026-06-02 02:14:31,714 - INFO - Session Replay for ro-08204635db15.session trace: https://app.agentops.ai/sessions?trace_id=d49e4c95c7d8fccfc5c70a5ea921924f
