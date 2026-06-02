@@ -1,19 +1,18 @@
+from src.trajectory import Trajectory
 from src.agents import BaseAgent, RegexAgent
-from src.trainer import ArtTrainer, RolloutStage
+from src.trainer import AglTrainer, RolloutStage
 from src.aliases import UserMessage
 from src.configs import DecompConfig
-from src.utils.convert import convert_trajectory
 
 from experiments.easy2hard.rewards import answer_reward
 from experiments.easy2hard.format import format_prompt
 
-import art
+from openai import AsyncOpenAI
 import random
+from typing import Any
 
-class Easy2HardRegexTrainer(ArtTrainer):
-    def create_agent(self, stage: RolloutStage) -> BaseAgent:
-        client = self.vllm_router.next()
-
+class Easy2HardRegexTrainer(AglTrainer):
+    def create_agent(self, client: AsyncOpenAI, model: str, stage: RolloutStage) -> BaseAgent:
         max_depth = self.decomp_config.max_depth
         max_tasks = self.decomp_config.max_tasks
         max_rounds = self.decomp_config.max_rounds
@@ -33,31 +32,22 @@ class Easy2HardRegexTrainer(ArtTrainer):
         )
 
         return RegexAgent(
-            model_name=client.get_inference_name(),
-            openai_client=client.openai_client,
+            openai_client=client,
+            model_name=model,
             prompt_config=self.prompt_config,
             decomp_config=decomp_config,
             additional_histories=self.extra_config.get("additional_histories", False),
         )
 
-    async def forward_step(
-        self,
-        agent: BaseAgent,
-        sample: dict,
-        stage: RolloutStage,
-    ) -> art.Trajectory:
-        content = format_prompt(sample)
-        message = UserMessage(role="user", content=content)
-        kwargs = self.rollout_config.get_kwargs(stage)
-        trajectory = await agent.chat(message, **kwargs)
-        return convert_trajectory(trajectory)
+    def format_prompt(self, sample: dict[str, Any]) -> str:
+        return format_prompt(sample)
 
     async def score_trajectory(
         self,
-        sample: dict,
-        trajectory: art.Trajectory,
+        sample: dict[str, Any],
+        trajectory: Trajectory,
         stage: RolloutStage,
-    ) -> art.Trajectory:
+    ) -> Trajectory:
         ans_message = trajectory.messages()[-1]
         agent_answer = RegexAgent.parse_answer(ans_message)
 

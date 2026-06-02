@@ -2,7 +2,6 @@ from argparse import ArgumentParser
 import sys
 import pathlib
 
-import art
 from datasets import Dataset, load_dataset, DatasetDict
 
 # set pythonpath to the main module directory
@@ -12,7 +11,7 @@ if str(module_dir) not in sys.path:
 
 from experiments.experiment_runner import ExperimentRunner
 from experiments.easy2hard.trainer import Easy2HardTrainer
-from src.trainer import ArtTrainer
+from src.trainer import AglTrainer
 
 
 class Runner(ExperimentRunner):
@@ -53,8 +52,8 @@ class Runner(ExperimentRunner):
         ds_val = ds_val.filter(lambda sample: max_dif >= sample["item_difficulty"] >= min_dif)
         return ds_train, ds_val, ds_val
 
-    def create_trainer(self, model: art.Model, **kwargs) -> ArtTrainer:
-        return Easy2HardTrainer(model=model, **kwargs)
+    def create_trainer(self, **kwargs) -> AglTrainer:
+        return Easy2HardTrainer(**kwargs)
 
 
 if __name__ == "__main__":

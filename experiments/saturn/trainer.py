@@ -1,26 +1,25 @@
+from src.trajectory import Trajectory
 from src.agents import BaseAgent, MarkerAgent
-from src.trainer import ArtTrainer, RolloutStage
+from src.trainer import AglTrainer, RolloutStage
 from src.aliases import UserMessage
 from src.agents.marker_agent.markers import Markers, extract_between
 from src.configs import DecompConfig
-from src.utils.convert import convert_trajectory
 
 from experiments.general_rewards import format_reward, behavior_reward
 from experiments.saturn.rewards import answer_reward
 from experiments.saturn.format import format_prompt
 
-import art
+from openai import AsyncOpenAI
 import random
+from typing import Any
 
 
-class SaturnTrainer(ArtTrainer):
+class SaturnTrainer(AglTrainer):
     """
     See: https://arxiv.org/abs/2505.16368
     """
 
-    def create_agent(self, stage: RolloutStage) -> BaseAgent:
-        client = self.vllm_router.next()
-
+    def create_agent(self, client: AsyncOpenAI, model: str, stage: RolloutStage) -> BaseAgent:
         max_depth = self.decomp_config.max_depth
         max_tasks = self.decomp_config.max_tasks
         max_rounds = self.decomp_config.max_rounds
@@ -40,30 +39,21 @@ class SaturnTrainer(ArtTrainer):
         )
 
         return MarkerAgent(
-            model_name=client.get_inference_name(),
-            openai_client=client.openai_client,
+            openai_client=client,
+            model_name=model,
             prompt_config=self.prompt_config,
             decomp_config=decomp_config,
         )
 
-    async def forward_step(
-        self,
-        agent: BaseAgent,
-        sample: dict,
-        stage: RolloutStage,
-    ) -> art.Trajectory:
-        content = format_prompt(sample)
-        message = UserMessage(role="user", content=content)
-        kwargs = self.rollout_config.get_kwargs(stage)
-        trajectory = await agent.chat(message, **kwargs)
-        return convert_trajectory(trajectory)
+    def format_prompt(self, sample: dict[str, Any]) -> str:
+        return format_prompt(sample)
 
     async def score_trajectory(
         self,
-        sample: dict,
-        trajectory: art.Trajectory,
+        sample: dict[str, Any],
+        trajectory: Trajectory,
         stage: RolloutStage,
-    ) -> art.Trajectory:
+    ) -> Trajectory:
         ans_message = trajectory.messages()[-1]
         ans_content = ans_message.get("content")
         assert ans_message["role"] == "assistant", f"Expected role 'assistant', got '{ans_message['role']}'"

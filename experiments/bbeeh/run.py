@@ -1,7 +1,6 @@
 import sys
 import pathlib
 
-import art
 from datasets import Dataset
 
 # set pythonpath to the main module directory
@@ -12,7 +11,7 @@ if str(module_dir) not in sys.path:
 
 from experiments.experiment_runner import ExperimentRunner
 from experiments.bbeeh.trainer import BbeehTrainer
-from src.trainer import ArtTrainer
+from src.trainer import AglTrainer
 
 
 class Runner(ExperimentRunner):
@@ -33,8 +32,8 @@ class Runner(ExperimentRunner):
 
         return train_data, val_data, test_data
 
-    def create_trainer(self, model: art.Model, **kwargs) -> ArtTrainer:
-        return BbeehTrainer(model=model, **kwargs)
+    def create_trainer(self, **kwargs) -> AglTrainer:
+        return BbeehTrainer(**kwargs)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,5 @@
 import sys
 import pathlib
-import art
 
 # set pythonpath to the main module directory
 module_dir = pathlib.Path(__file__).parent.parent.parent.resolve()
@@ -9,7 +8,7 @@ if str(module_dir) not in sys.path:
 
 from experiments.easy2hard_regex.trainer import Easy2HardRegexTrainer
 from experiments.easy2hard.run import Runner as Easy2HardRunner
-from src.trainer import ArtTrainer
+from src.trainer import AglTrainer
 
 
 class Runner(Easy2HardRunner):
@@ -19,8 +18,8 @@ class Runner(Easy2HardRunner):
     def default_config_dir(self) -> str:
         return "experiments/easy2hard_regex/defaults"
 
-    def create_trainer(self, model: art.Model, **kwargs) -> ArtTrainer:
-        return Easy2HardRegexTrainer(model=model, **kwargs)
+    def create_trainer(self, **kwargs) -> AglTrainer:
+        return Easy2HardRegexTrainer(**kwargs)
 
 
 if __name__ == "__main__":

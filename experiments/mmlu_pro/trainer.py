@@ -1,44 +1,35 @@
+from src.trajectory import Trajectory
 from src.agents import BaseAgent, MarkerAgent
-from src.trainer import ArtTrainer, RolloutStage
+from src.trainer import AglTrainer, RolloutStage
 from src.aliases import UserMessage
 from src.agents.marker_agent.markers import Markers, extract_between
-from src.utils.convert import convert_trajectory
 
 from experiments.general_rewards import format_reward, behavior_reward
 from experiments.mmlu_pro.rewards import answer_reward
 from experiments.mmlu_pro.format import format_prompt
 
-import art
+from openai import AsyncOpenAI
+from typing import Any
 
 
-class MmluProTrainer(ArtTrainer):
-    def create_agent(self, stage: RolloutStage) -> BaseAgent:
-        client = self.vllm_router.next()
+class MmluProTrainer(AglTrainer):
+    def create_agent(self, client: AsyncOpenAI, model: str, stage: RolloutStage) -> BaseAgent:
         return MarkerAgent(
-            model_name=client.get_inference_name(),
-            openai_client=client.openai_client,
+            openai_client=client,
+            model_name=model,
             prompt_config=self.prompt_config,
             decomp_config=self.decomp_config,
         )
 
-    async def forward_step(
-        self,
-        agent: BaseAgent,
-        sample: dict,
-        stage: RolloutStage,
-    ) -> art.Trajectory:
-        content = format_prompt(sample)
-        message = UserMessage(role="user", content=content)
-        kwargs = self.rollout_config.get_kwargs(stage)
-        trajectory = await agent.chat(message, **kwargs)
-        return convert_trajectory(trajectory)
+    def format_prompt(self, sample: dict[str, Any]) -> str:
+        return format_prompt(sample)
 
     async def score_trajectory(
         self,
-        sample: dict,
-        trajectory: art.Trajectory,
+        sample: dict[str, Any],
+        trajectory: Trajectory,
         stage: RolloutStage,
-    ) -> art.Trajectory:
+    ) -> Trajectory:
         ans_message = trajectory.messages()[-1]
         ans_content = ans_message.get("content")
         assert ans_message["role"] == "assistant", f"Expected role 'assistant', got '{ans_message['role']}'"

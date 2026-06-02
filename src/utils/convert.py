@@ -16,21 +16,21 @@ def _extract_attributes(resp: Response) -> dict[str, Any]:
 
     response_token_ids: list[int]
     prompt_token_ids: list[int]
-    
-    if hasattr(resp.choices[0], "provider_specific_fields") and ("token_ids" in resp.choices[0].provider_specific_fields):
+
+    if hasattr(resp.choices[0], "provider_specific_fields") and ("token_ids" in resp.choices[0].provider_specific_fields):  # type: ignore[attr-defined]
         # When manually upgrading to vllm==0.11.0 and verl==0.6.1 (latest stable versions)
         # then AGL patch stops working and the token_ids are placed here
-        response_token_ids = resp.choices[0].provider_specific_fields["token_ids"] # type: ignore[attr-defined]
+        response_token_ids = resp.choices[0].provider_specific_fields["token_ids"]  # type: ignore[attr-defined]
 
     elif hasattr(resp, "response_token_ids"):
         # This attr appears in the patched response object by AGL
         # See `agentlightning.instrumentation.vllm.ChatCompletionResponsePatched`
         response_token_ids = getattr(resp, "response_token_ids")[0]
-    
+
     elif hasattr(resp.choices[0], "token_ids"):
-        # This is the original response object structure from OpenAI
+        # This is the original object structure from OpenAI
         response_token_ids = getattr(resp.choices[0], "token_ids")
-    
+
     else:
         logger.error(f"Response object missing expected token id attributes: {resp.model_dump()}")
         raise ValueError("Unable to extract response token ids from response object")
@@ -39,7 +39,7 @@ def _extract_attributes(resp: Response) -> dict[str, Any]:
         # This attr appears in the original and the patched response object by AGL
         # See `agentlightning.instrumentation.vllm.ChatCompletionResponsePatched`
         prompt_token_ids = getattr(resp, "prompt_token_ids")
-    
+
     else:
         logger.error(f"Response object missing expected token id attributes: {resp.model_dump()}")
         raise ValueError("Unable to extract prompt token ids from response object")

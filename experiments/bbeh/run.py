@@ -2,7 +2,6 @@ from argparse import ArgumentParser
 import sys
 import pathlib
 
-import art
 from datasets import Dataset, load_dataset, DatasetDict
 
 # set pythonpath to the main module directory
@@ -14,7 +13,7 @@ if str(module_dir) not in sys.path:
 from experiments.experiment_runner import ExperimentRunner
 from experiments.bbeh.trainer import BbehTrainer
 from experiments.bbeh.tasks import SupportedTasks
-from src.trainer import ArtTrainer
+from src.trainer import AglTrainer
 
 
 class Runner(ExperimentRunner):
@@ -49,8 +48,8 @@ class Runner(ExperimentRunner):
         ds_eval = split_dict["test"]
         return ds_train, ds_eval, ds_eval
 
-    def create_trainer(self, model: art.Model, **kwargs) -> ArtTrainer:
-        return BbehTrainer(model=model, **kwargs)
+    def create_trainer(self, **kwargs) -> AglTrainer:
+        return BbehTrainer(**kwargs)
 
 
 if __name__ == "__main__":
