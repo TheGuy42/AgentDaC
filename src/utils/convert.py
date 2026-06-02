@@ -16,8 +16,13 @@ def _extract_attributes(resp: Response) -> dict[str, Any]:
 
     response_token_ids: list[int]
     prompt_token_ids: list[int]
+    
+    if hasattr(resp.choices[0], "provider_specific_fields") and ("token_ids" in resp.choices[0].provider_specific_fields):
+        # When manually upgrading to vllm==0.11.0 and verl==0.6.1 (latest stable versions)
+        # then AGL patch stops working and the token_ids are placed here
+        response_token_ids = resp.choices[0].provider_specific_fields["token_ids"] # type: ignore[attr-defined]
 
-    if hasattr(resp, "response_token_ids"):
+    elif hasattr(resp, "response_token_ids"):
         # This attr appears in the patched response object by AGL
         # See `agentlightning.instrumentation.vllm.ChatCompletionResponsePatched`
         response_token_ids = getattr(resp, "response_token_ids")[0]

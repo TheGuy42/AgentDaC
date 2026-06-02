@@ -13,8 +13,8 @@ dependencies = [
     "torch==2.8.0",
     "torchvision==0.23.0",
     "flash-attn",
-    "vllm==0.10.2",
-    "verl==0.5.0",
+    "vllm==0.11.0",
+    "verl==0.6.1",
     "datasets==4.3.0", # otherwise there is a dependency conflict with pyarrow
 ]
 
