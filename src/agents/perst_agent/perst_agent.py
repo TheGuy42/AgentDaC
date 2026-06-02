@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from openai import AsyncOpenAI
 
-from src.trajectory import Trajectory, History
+from src.trajectory import Trajectory
 from src.agents.base import BaseAgent
 from src.agents.perst_agent.actions import TurnAction
 from src.aliases import Message, UserMessage, Response
@@ -130,13 +130,7 @@ class PersistentAgent(BaseAgent):
         extra_body: dict = kwargs.setdefault("extra_body", {})
         extra_body.setdefault("include_stop_str_in_output", True)
         extra_body["guided_regex"] = regex.model_pattern
-
-        return await self.openai_client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            logprobs=True,
-            **kwargs,
-        )
+        return await super().call(messages, **kwargs)
 
     def _create_subagent(self) -> PersistentAgent:
         return PersistentAgent(
@@ -210,8 +204,10 @@ class PersistentAgent(BaseAgent):
                 self.metrics["total_agents"] += 1
                 self.latest_metrics["total_agents"] += 1
 
-                if self.additional_histories:  # Each sub-agent defines its own history
-                    self.trajectory.additional_histories.append(History(messages_and_responses=[]))
+                if self.additional_histories:  
+                    # Each sub-agent defines its own history
+                    # The history is dynamically updated as the sub-agent performs its own chat rounds
+                    self.trajectory.additional_histories.append(self.sub_agent.trajectory)
 
             # Issue a sub-task to the current sub-agent
             if turn.action == TurnAction.ISSUE_FRESH_TASK or turn.action == TurnAction.ISSUE_TASK:
@@ -221,10 +217,6 @@ class PersistentAgent(BaseAgent):
                 task_answer = await self.sub_agent.answer(task, verbose, **kwargs)
                 task_response = UserMessage(role="user", name="sub-agent", content=task_answer)
                 self.trajectory.messages_and_responses.append(task_response)
-
-                if self.additional_histories:  # Update sub-agent history
-                    agent_history = self.trajectory.additional_histories[-1]
-                    agent_history.messages_and_responses = self.sub_agent.trajectory.messages_and_responses
 
                 if verbose:
                     print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))

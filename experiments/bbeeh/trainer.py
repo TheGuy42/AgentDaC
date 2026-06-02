@@ -50,7 +50,7 @@ class BbeehTrainer(ArtTrainer):
     ) -> art.Trajectory:
         content = format_prompt(sample)
         message = UserMessage(role="user", content=content)
-        kwargs = self.rollout_config.get_kwargs(stage)
+        kwargs = self.chat_kwargs(stage)
         trajectory = await agent.chat(message, **kwargs)
         return convert_trajectory(trajectory)
 

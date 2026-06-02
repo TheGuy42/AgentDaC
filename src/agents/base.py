@@ -32,7 +32,6 @@ class BaseAgent(ABC):
         self.trajectory = Trajectory(
             messages_and_responses=[],
             additional_histories=[],
-            reward=0,
             metrics={
                 "direct_calls": 0,
                 "total_calls": 0,
@@ -81,7 +80,6 @@ class BaseAgent(ABC):
         return await self.openai_client.chat.completions.create(
             model=self.model,
             messages=messages,
-            logprobs=True,
             **kwargs,
         )
 

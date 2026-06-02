@@ -3,7 +3,7 @@ from typing import Any
 from dataclasses import dataclass
 import json_repair
 
-from src.trajectory import Trajectory, History
+from src.trajectory import Trajectory
 from src.agents.base import BaseAgent
 from src.agents.json_agent.actions import TurnAction
 from src.aliases import Message, UserMessage, Response
@@ -101,13 +101,7 @@ class JsonAgent(BaseAgent):
         extra_body: dict = kwargs.setdefault("extra_body", {})
         extra_body.setdefault("include_stop_str_in_output", True)
         kwargs["response_format"] = {"type": "json_schema", "json_schema": schema_descriptor}
-
-        return await self.openai_client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            logprobs=True,
-            **kwargs,
-        )
+        return await super().call(messages, **kwargs)
 
     def _create_subagent(self) -> BaseAgent:
         return JsonAgent(
@@ -184,8 +178,7 @@ class JsonAgent(BaseAgent):
                 self.trajectory.messages_and_responses.append(task_response)
 
                 if self.additional_histories:
-                    history = History(messages_and_responses=sub_agent.trajectory.messages_and_responses)
-                    self.trajectory.additional_histories.append(history)
+                    self.trajectory.additional_histories.append(sub_agent.trajectory)
 
                 if verbose:
                     print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))

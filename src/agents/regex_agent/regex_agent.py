@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Any
 from dataclasses import dataclass
 
-from src.trajectory import Trajectory, History
+from src.trajectory import Trajectory
 from src.agents.base import BaseAgent
 from src.agents.regex_agent.actions import TurnAction
 from src.aliases import Message, UserMessage, Response
@@ -83,13 +83,7 @@ class RegexAgent(BaseAgent):
         extra_body: dict = kwargs.setdefault("extra_body", {})
         extra_body.setdefault("include_stop_str_in_output", True)
         extra_body["guided_regex"] = regex.model_pattern
-
-        return await self.openai_client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            logprobs=True,
-            **kwargs,
-        )
+        return await super().call(messages, **kwargs)
 
     def _create_subagent(self) -> BaseAgent:
         return RegexAgent(
@@ -161,8 +155,7 @@ class RegexAgent(BaseAgent):
                 self.trajectory.messages_and_responses.append(task_response)
 
                 if self.additional_histories:
-                    history = History(messages_and_responses=sub_agent.trajectory.messages_and_responses)
-                    self.trajectory.additional_histories.append(history)
+                    self.trajectory.additional_histories.append(sub_agent.trajectory)
 
                 if verbose:
                     print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))

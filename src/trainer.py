@@ -88,7 +88,19 @@ class ArtTrainer:
                 await backend.close()
         except Exception as e:
             logger.error(f"Failed to close model backend: {e}")
-    
+
+    def chat_kwargs(self, stage: RolloutStage) -> dict:
+        """
+        Returns openai client kwargs to be passed to `openai.chat.completions.create` method.
+
+        Args:
+            stage (RolloutStage): The current stage of the rollout.
+
+        Returns:
+            (dict): A dictionary of kwargs to be passed to the OpenAI client's chat completion method.
+        """
+        return {**self.rollout_config.get_kwargs(stage), "logprobs": True}
+
     def log_hparams(self, d: dict):
         """
         Logs hyperparameters to wandb.
