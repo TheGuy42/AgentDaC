@@ -5,7 +5,7 @@ import agentlightning as agl
 from agentlightning import Span, TraceStatus
 
 from src.aliases import Response
-from src.trajectory import History, Trajectory
+from src.trajectory import Trajectory
 from src.utils.logging import create_logger
 
 
@@ -52,6 +52,10 @@ def _extract_attributes(resp: Response) -> dict[str, Any]:
 
 
 def convert_trajectory(trajectory: Trajectory, rollout: agl.AttemptedRollout) -> list[Span]:
+
+    if len(trajectory.additional_histories) > 0:
+        logger.warning("Trajectory has additional histories; They are not yet supported and will be ignored in the span conversion.")
+        logger.info("To explicitly convert and train on additional histories, please pass them explicitly.")
 
     spans: list[Span] = []
     base_time = trajectory.start_time.timestamp()

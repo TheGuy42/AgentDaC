@@ -7,5 +7,6 @@
         "perst",
         "verl"
     ],
-    "python.analysis.typeCheckingMode": "standard"
+    "python.analysis.typeCheckingMode": "standard",
+    "python.analysis.diagnosticMode": "workspace"
 }

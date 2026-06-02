@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from src.trajectory import Trajectory, History
+from src.trajectory import Trajectory
 from src.agents.base import BaseAgent
 from src.utils.visualize import trajectory_string, message_string
 import src.agents.marker_agent.markers as markers
@@ -112,8 +112,7 @@ class MarkerAgent(BaseAgent):
                     answer = await sub_agent.answer(task, verbose, **kwargs)
 
                     if self.additional_histories:
-                        history = History(messages_and_responses=sub_agent.trajectory.messages_and_responses)
-                        self.trajectory.additional_histories.append(history)
+                        self.trajectory.additional_histories.append(sub_agent.trajectory)
 
                     # update metrics from sub-agent
                     self.metrics["total_tasks"] += sub_agent.metrics["total_tasks"]

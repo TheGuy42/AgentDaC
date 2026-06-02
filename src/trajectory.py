@@ -5,22 +5,13 @@ import dataclasses
 
 from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
 from src.aliases import Message, Response
-
-
-@dataclasses.dataclass
-class History:
-    messages_and_responses: list[Message | Response]
-    tools: list[ChatCompletionToolParam] | None = None
-
-    def messages(self) -> list[Message]:
-        return get_messages(self.messages_and_responses)
     
 
 @dataclasses.dataclass
 class Trajectory:
     messages_and_responses: list[Message | Response]
     tools: list[ChatCompletionToolParam] | None = None
-    additional_histories: list[History] = dataclasses.field(default_factory=list)
+    additional_histories: list[Trajectory] = dataclasses.field(default_factory=list)
     reward: float = 0.0
     metrics: dict[str, float | int | bool] = dataclasses.field(default_factory=dict)
     metadata: dict[str, float | int | str | bool | None] = dataclasses.field(default_factory=dict)

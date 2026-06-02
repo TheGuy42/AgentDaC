@@ -135,7 +135,6 @@ async def run_smoke_suite(
                 UserMessage(role="user", content=prompt),
                 verbose=verbose,
                 max_completion_tokens=max_completion_tokens,
-                
             )
 
             final_message = trajectory.messages()[-1]
