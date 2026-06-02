@@ -10,17 +10,25 @@
         "data": {
             "train_batch_size": 20,
             "max_prompt_length": 4096,
-            "max_response_length": 2048,
-            "truncation": "error"
+            "max_response_length": 350,
+            "truncation": "right",
+            "shuffle": true,
+            "train_files": null,
+            "val_files": null
         },
         "actor_rollout_ref": {
             "rollout": {
-                "tensor_model_parallel_size": 1,
                 "n": 16,
-                "log_prob_micro_batch_size_per_gpu": 4,
-                "multi_turn": {
-                    "format": "hermes"
+                "do_sample": true,
+                "temperature": 0.7,
+                "top_p": 0.8,
+                "val_kwargs": {
+                    "do_sample": true,
+                    "temperature": 0.7,
+                    "top_p": 0.8
                 },
+                "tensor_model_parallel_size": 1,
+                "log_prob_micro_batch_size_per_gpu": 4,
                 "name": "vllm",
                 "dtype": "bfloat16",
                 "load_format": "safetensors",
@@ -32,19 +40,17 @@
                         "tool_call_parser": "hermes",
                         "max_lora_rank": 16
                     }
+                },
+                "multi_turn": {
+                    "enable": true,
+                    "format": "hermes"
                 }
             },
             "actor": {
                 "ppo_mini_batch_size": 20,
-                "ppo_micro_batch_size_per_gpu": 10,
+                "ppo_micro_batch_size_per_gpu": 20,
                 "optim": {
-                    "lr": 5e-6,
-                    "betas": [
-                        0.9,
-                        0.99
-                    ],
-                    "weight_decay": 0.1,
-                    "clip_grad": 0.1
+                    "lr": 5e-6
                 },
                 "use_kl_loss": false,
                 "kl_loss_coef": 0.0,
