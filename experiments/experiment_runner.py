@@ -4,7 +4,7 @@ import torch
 import pathlib
 import argparse
 import logging
-from typing import Any, Tuple, Literal
+from typing import Any, Tuple
 from abc import ABC, abstractmethod
 import random
 
@@ -16,90 +16,12 @@ from datetime import datetime
 from src.utils.env import prepare_environment, set_seed
 from src.utils.logging import create_logger, setup_logging
 from src.utils.io import load_object
+from src.utils.dicts import get_dict_value, set_dict_value
 from src.configs import TrainingConfig, PromptConfig, DecompConfig, RolloutConfig
 from src.trainer import AglTrainer
 
 
 logger = create_logger(__name__)
-
-
-def get_value(dicts: dict[str, Any], *keys: str, raise_missing: bool = False) -> Tuple[Any, bool]:
-    """
-    Recursively get a value from a nested dictionary using a sequence of keys.
-    Creates intermediate dictionaries if they do not exist.
-
-    Args:
-        dicts (dict): The dictionary to search through.
-        *keys (str): A sequence of keys representing the path to the desired value.
-        raise_missing (bool): Whether to raise an error if the key is not found.
-
-    Returns:
-        tuple[value, found]: A tuple where 'value' is the retrieved value (or None if not found) and 'found' is a boolean indicating whether the value was found.
-    """
-    assert len(keys) > 0, "At least one key must be provided"
-
-    current = dicts
-    for i, key in enumerate(keys[:-1]):
-        if not isinstance(current, dict):
-            raise ValueError(f"Expected a dictionary at key path {'->'.join(keys[:i])}, but got {type(current).__name__}")
-        current = current.setdefault(key, {} if not raise_missing else None)
-        if current is None:
-            raise ValueError(f"Key not found: {'->'.join(keys[: i + 1])}")
-
-    last_key = keys[-1]
-    if last_key not in current:
-        if raise_missing:
-            raise ValueError(f"Key not found: {'->'.join(keys)}")
-        return None, False
-
-    return current[last_key], True
-
-
-def set_value(dicts: dict[str, Any], value: Any, *keys: str, raise_missing: bool = False) -> None:
-    """
-    Recursively set a value in a nested dictionary using a sequence of keys.
-    Creates intermediate dictionaries if they do not exist.
-
-    Args:
-        dicts (dict): The dictionary to modify.
-        value (Any): The value to set at the specified key path.
-        *keys (str): A sequence of keys representing the path where the value should be set.
-        raise_missing (bool): Whether to raise an error if an intermediate key is not found.
-    """
-    assert len(keys) > 0, "At least one key must be provided"
-
-    current = dicts
-    for i, key in enumerate(keys[:-1]):
-        if not isinstance(current, dict):
-            raise ValueError(f"Expected a dictionary at key path {'->'.join(keys[:i])}, but got {type(current).__name__}")
-        current = current.setdefault(key, {} if not raise_missing else None)
-        if current is None:
-            raise ValueError(f"Key not found: {'->'.join(keys[: i + 1])}")
-
-    last_key = keys[-1]
-    current[last_key] = value
-
-
-def _update_configs_test_run(configs: dict[str, Any]):
-    train_config = configs["train_config"]
-    train_config.train_size = 20
-    train_config.val_size = 10
-
-    verl_config = configs["verl_config"]
-    set_value(verl_config, ["console"], "trainer", "logger")
-    
-    set_value(verl_config, 1, "trainer", "nnodes")
-    set_value(verl_config, 1, "trainer", "n_gpus_per_node")
-    set_value(verl_config, 1, "trainer", "test_freq")
-    set_value(verl_config, -1, "trainer", "save_freq")
-    set_value(verl_config, 1, "trainer", "total_epochs")
-    set_value(verl_config, 2, "trainer", "total_training_steps")
-
-    set_value(verl_config, 6, "data", "train_batch_size")
-    set_value(verl_config, 2, "actor_rollout_ref", "rollout", "n")
-    set_value(verl_config, 2, "actor_rollout_ref", "actor", "ppo_mini_batch_size")
-    set_value(verl_config, 2, "actor_rollout_ref", "actor", "ppo_micro_batch_size_per_gpu")
-    set_value(verl_config, 2, "actor_rollout_ref", "ref", "log_prob_micro_batch_size_per_gpu")
 
 
 class ExperimentRunner(ABC):
@@ -159,6 +81,13 @@ class ExperimentRunner(ABC):
             type=str,
             default="",
             help="The name of the experiment run.",
+        )
+
+        parser.add_argument(
+            "--resume",
+            type=str,
+            default=None,
+            help="Whether to resume from a previous checkpoint. Provide the checkpoint path.",
         )
 
         parser.add_argument(
@@ -226,24 +155,51 @@ class ExperimentRunner(ABC):
             "extra_config": load_object(dir / "extra_config.json", do_raise=False),
         }
 
+    def _update_configs_test(self, configs: dict[str, Any]):
+        train_config = configs["train_config"]
+        train_config.train_size = 20
+        train_config.val_size = 10
+
+        verl_config = configs["verl_config"]
+        set_dict_value(verl_config, "trainer", "logger", value=["console"])
+        set_dict_value(verl_config, "trainer", "nnodes", value=1)
+        set_dict_value(verl_config, "trainer", "n_gpus_per_node", value=1)
+        set_dict_value(verl_config, "trainer", "test_freq", value=1)
+        set_dict_value(verl_config, "trainer", "save_freq", value=-1)
+        set_dict_value(verl_config, "trainer", "total_epochs", value=1)
+        set_dict_value(verl_config, "trainer", "total_training_steps", value=2)
+        set_dict_value(verl_config, "data", "train_batch_size", value=6)
+        set_dict_value(verl_config, "actor_rollout_ref", "rollout", "n", value=2)
+        set_dict_value(verl_config, "actor_rollout_ref", "actor", "ppo_mini_batch_size", value=2)
+        set_dict_value(verl_config, "actor_rollout_ref", "actor", "ppo_micro_batch_size_per_gpu", value=2)
+        set_dict_value(verl_config, "actor_rollout_ref", "ref", "log_prob_micro_batch_size_per_gpu", value=2)
+
     def _patch_configs(self, configs: dict[str, Any]) -> dict[str, Any]:
         rollout_config: RolloutConfig = configs["rollout_config"]
         verl_config = configs["verl_config"]
 
-        model_name, _ = get_value(verl_config, "actor_rollout_ref", "model", "path", raise_missing=True)
+        model_name, _ = get_dict_value(verl_config, "actor_rollout_ref", "model", "path", raise_missing=True)
         exp_name = self.args().run or self._generate_run_name(model_name)
-        set_value(verl_config, self.args().project, "trainer", "project_name")
-        set_value(verl_config, exp_name, "trainer", "experiment_name")
+        set_dict_value(verl_config, "trainer", "project_name", value=self.args().project)
+        set_dict_value(verl_config, "trainer", "experiment_name", value=exp_name)
+
+        logger.info(f"Setting VERL seed to {self.args().seed}")
+        set_dict_value(verl_config, "data", "seed", value=self.args().seed)
 
         if "Qwen3" in model_name:
             # disable "thinking" for Qwen3 models
             logger.info("Disabling 'thinking' for Qwen3 model.")
-            set_value(rollout_config.kwargs, False, "extra_body", "chat_template_kwargs", "enable_thinking")
-            set_value(verl_config, False, "data", "apply_chat_template_kwargs", "enable_thinking")
+            set_dict_value(rollout_config.kwargs, "extra_body", "chat_template_kwargs", "enable_thinking", value=False)
+            set_dict_value(verl_config, "data", "apply_chat_template_kwargs", "enable_thinking", value=False)
+
+        if resume_path := self.args().resume:
+            logger.info(f"Resuming from checkpoint: {resume_path}")
+            set_dict_value(verl_config, "trainer", "resume_mode", value="resume_path")
+            set_dict_value(verl_config, "trainer", "resume_from_path", value=resume_path)
 
         if self.args().test_run:
             logger.info("Test run enabled: Overriding configs for a quick test run.")
-            _update_configs_test_run(configs)
+            self._update_configs_test(configs)
 
         return configs
 
@@ -299,8 +255,8 @@ class ExperimentRunner(ABC):
             val_dataset = val_dataset[: train_config.val_size]
             logger.info(f"Truncated val dataset to size: {len(val_dataset)}")
 
-        if train_config.val_size is not None:
-            test_dataset = test_dataset[: train_config.val_size]  # TODO: create separate config entry test_size
+        if train_config.test_size is not None:
+            test_dataset = test_dataset[: train_config.test_size]
             logger.info(f"Truncated test dataset to size: {len(test_dataset)}")
 
         # Create and configure the trainer

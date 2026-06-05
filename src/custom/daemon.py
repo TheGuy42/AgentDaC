@@ -2,9 +2,9 @@ import numpy as np
 from typing import Any
 from collections import defaultdict
 
-from src.utils.logging import create_logger
-from agentlightning.verl.daemon import AgentModeDaemon
 import agentlightning as agl
+from agentlightning.verl.daemon import AgentModeDaemon
+from src.utils.logging import create_logger
 
 
 logger = create_logger(__name__)
@@ -37,7 +37,6 @@ class VerlDaemon(AgentModeDaemon):
         Collect custom metrics from the completed rollouts.
         The custom metrics should be stored in the `metadata` of the triplet with the key 'custom_metrics.{metric}'.
         """
-
         metric_dict = defaultdict(list)
         for rollout in self._completed_rollouts_v0.values():
             instance_metrics = self._find_custom_metrics(rollout.triplets or [])
@@ -60,13 +59,13 @@ class VerlDaemon(AgentModeDaemon):
         )
 
         custom_metrics = self._collect_custom_metrics()
-        custom_metrics = {f"train/{k}": v for k, v in custom_metrics.items()}
+        custom_metrics = {f"train-custom/{k}": v for k, v in custom_metrics.items()}
         metrics.update(custom_metrics)
         return data_proto, metrics
 
     def get_test_metrics(self):
         metrics = super().get_test_metrics()
         custom_metrics = self._collect_custom_metrics()
-        custom_metrics = {f"val/{k}": v for k, v in custom_metrics.items()}
+        custom_metrics = {f"val-custom/{k}": v for k, v in custom_metrics.items()}
         metrics.update(custom_metrics)
         return metrics

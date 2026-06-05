@@ -9,3 +9,4 @@ class TrainingConfig(BaseConfig):
     n_runners: int = 16
     train_size: int | None = None
     val_size: int | None = None
+    test_size: int | None = None
