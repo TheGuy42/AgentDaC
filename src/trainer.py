@@ -6,7 +6,6 @@ from typing import Any
 
 import agentlightning as agl
 from agentlightning.algorithm.verl import VERL
-from agentlightning.algorithm.fast import Baseline
 
 from openai import AsyncOpenAI
 
@@ -14,8 +13,8 @@ from src.agents.base import BaseAgent
 from src.aliases import UserMessage
 from src.configs import DecompConfig, PromptConfig, RolloutConfig, TrainingConfig
 from src.trajectory import Trajectory
-from src.utils.convert import convert_trajectory
 from src.utils.logging import create_logger
+from src.custom import convert_trajectory, VerlTrainer, VerlDaemon, VerlTracer
 
 
 logger = create_logger(__name__)
@@ -46,12 +45,16 @@ class AglTrainer(agl.LitAgent, ABC):
         prompt_config: PromptConfig,
         decomp_config: DecompConfig,
         rollout_config: RolloutConfig,
+        train_config: TrainingConfig,
+        verl_config: dict[str, Any],
         extra_config: dict[str, Any] | None = None,
     ) -> None:
         super().__init__()
         self.prompt_config = prompt_config
         self.decomp_config = decomp_config
         self.rollout_config = rollout_config
+        self.train_config = train_config
+        self.verl_config = verl_config
         self.extra_config = extra_config or {}
 
     @abstractmethod
@@ -100,31 +103,48 @@ class AglTrainer(agl.LitAgent, ABC):
     ) -> agl.RolloutRawResult:
         llm = resources["main_llm"]
         if not isinstance(llm, agl.LLM):
-            raise TypeError(f"Resource 'main_llm' must be an LLM, got {type(llm)!r}.")
+            raise TypeError(f"Resource 'main_llm' must be an LLM, got {type(llm)}.")
 
         if not isinstance(rollout, agl.AttemptedRollout):
-            raise TypeError(f"Expected rollout to be an AttemptedRollout, got {type(rollout)!r}.")
+            raise TypeError(f"Expected rollout to be an AttemptedRollout, got {type(rollout)}.")
 
         stage = RolloutStage(rollout.mode or RolloutStage.TRAIN.value)
         client = self.build_client(llm, rollout)
         agent = self.create_agent(client=client, model=llm.model, stage=stage)
 
         kwargs = self.chat_kwargs(stage, llm)
-        trajectory = await self.forward_step(agent, task, stage, kwargs)
-        trajectory = await self.score_trajectory(task, trajectory, stage)
+
+        try:
+            trajectory = await self.forward_step(agent, task, stage, kwargs)
+            trajectory = await self.score_trajectory(task, trajectory, stage)
+        except Exception as e:
+            logger.error(f"Rollout failed with exception: {e}")
+            return []
+
         return convert_trajectory(trajectory, rollout)
 
-    def train(
-        self,
-        config: TrainingConfig,
-        train_dataset: list[dict],
-        val_dataset: list[dict] | None = None,
-    ):
+    def train(self, train_dataset: list[dict], val_dataset: list[dict] | None = None) -> agl.Trainer:
+
+        # NOTE: consider using config.agentlightning.trace_aggregator.level="trajectory" (see agentlightning.algorithm.verl.VERL docs)
+        # This combines multiple spans from the same rollout into a single span with the full trajectory and masking
+        # Otherwise, GRPO groups contain all the spans of the trajectory simultaneously: https://github.com/microsoft/agent-lightning/issues/489
+        # Read the blog about trajectory-level aggregation: https://agent-lightning.github.io/posts/trajectory_level_aggregation/
+        # Another reason why we should enable it is this: https://github.com/microsoft/agent-lightning/pull/462
+        assert self.verl_config["agentlightning"]["trace_aggregator"]["level"] == "trajectory", (
+            "For proper training with AgentLightning, the trace aggregator level must be set to 'trajectory'. "
+            "Please update verl_config.json accordingly."
+        )
+        
+        if val_dataset is None:
+            val_dataset = train_dataset
 
         trainer = agl.Trainer(
-            n_runners=config.n_runners,
-            algorithm=VERL(config=config.verl_config),
-            adapter=agl.TracerTraceToTriplet(repair_hierarchy=False),  # TODO: currently no need to repair anything since we emit traces manually
+            n_runners=self.train_config.n_runners,
+            algorithm=VERL(config=self.verl_config, trainer_cls=VerlTrainer, daemon_cls=VerlDaemon),
+            # NOTE: currently no need to repair anything since we emit traces manually
+            # NOTE: we explicitly need to use `agl.TracerTraceToTriplet` adapter since our conversion
+            # function [Trajectories -> Spans] was designed around this adapter.
+            adapter=VerlTracer(),
         )
 
         try:
@@ -132,30 +152,6 @@ class AglTrainer(agl.LitAgent, ABC):
 
         except Exception as e:
             logger.error("Training failed with exception, performing cleanup...")
-            trainer.kill_orphaned_processes()
-            raise e
-
-        return trainer
-
-    def dev(
-        self,
-        config: TrainingConfig,
-        train_dataset: list[dict],
-        val_dataset: list[dict] | None = None,
-    ):
-        """Performs a quick development run."""
-
-        trainer = agl.Trainer(
-            n_runners=1,
-            algorithm=Baseline(),
-            adapter=agl.TracerTraceToTriplet(repair_hierarchy=False),
-        )
-
-        try:
-            trainer.dev(self, train_dataset=train_dataset, val_dataset=val_dataset)
-
-        except Exception as e:
-            logger.error("Dev run failed with exception, performing cleanup...")
             trainer.kill_orphaned_processes()
             raise e
 

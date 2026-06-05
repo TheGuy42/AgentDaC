@@ -12,22 +12,29 @@ from openai import AsyncOpenAI
 from src.agents.base import BaseAgent
 from src.aliases import UserMessage, Response
 from src.configs import DecompConfig, PromptConfig
-from src.utils.convert import convert_trajectory
+from src.custom.convert import convert_trajectory
 
 REPO_ROOT = pathlib.Path(__file__).parent.parent.resolve()
 
 SmokePrompt = tuple[str, str]
 
-COMMON_SMOKE_PROMPTS: list[SmokePrompt] = [
-    ("arithmetic", "Compute 37 * 48 and give the exact result."),
-    ("factorization", "Find the prime factorization of 462 and verify the multiplication."),
-    ("debugging", "Give two concrete debugging steps for a failing API smoke test."),
-]
-
-PERSISTENT_SMOKE_PROMPTS: list[SmokePrompt] = [
-    ("fresh-helper arithmetic", "Use a fresh helper if it helps. Compute 37 * 48 and give the exact result."),
-    ("fresh-helper factorization", "If you want to delegate, first create a fresh helper, then find the prime factorization of 462."),
-    ("debugging", "Give two concrete debugging steps for a failing API smoke test."),
+SMOKE_PROMPTS: list[SmokePrompt] = [
+    (
+        "cryptarithmetic puzzle",
+        "Solve the cryptarithmetic puzzle SEND + MORE = MONEY, where each unique letter represents a unique digit (0-9). Use systematic logical deduction (feel free to delegate aspects to helpers) and verify the complete solution.",
+    ),
+    (
+        "complex prime factorization",
+        "Find the complete prime factorization of 1,000,081. Verify your factorization by multiplying the factors back to confirm they equal the original number.",
+    ),
+    (
+        "algorithmic number theory",
+        "Find all unique pairs (a,b) where 1 ≤ a ≤ b ≤ 20 and a³ + b³ is also a perfect cube. Verify each solution by computing the cubes and checking if the sum is a perfect cube.",
+    ),
+    (
+        "chess endgame analysis",
+        "Analyze the following chess endgame position: White King on e4, White Rook on a1, Black King on h8, Black Rook on h1. It is White's turn. Find the best move that leads to checkmate within 10 moves, or determine if White can force a win. Explain your reasoning step-by-step, considering Black's best defensive resources.",
+    ),
 ]
 
 
@@ -50,91 +57,27 @@ def build_decomp_config(*, max_depth: int = 1, max_tasks: int = 1, max_rounds: i
     return DecompConfig(max_depth=max_depth, max_tasks=max_tasks, max_rounds=max_rounds)
 
 
-def build_marker_prompt_config() -> PromptConfig:
-    return PromptConfig(
-        mode="path",
-        system_root=repo_path("config_files", "prompts", "gilad", "v2_root.txt"),
-        system_inter=repo_path("config_files", "prompts", "gilad", "v2_inter.txt"),
-        system_leaf=repo_path("config_files", "prompts", "gilad", "v2_leaf.txt"),
-        tasks_depleted=repo_path("config_files", "prompts", "depleted", "v2_depleted.txt"),
-    )
-
-
-def build_regex_prompt_config() -> PromptConfig:
-    return PromptConfig(
-        mode="path",
-        system_root=repo_path("config_files", "prompts", "regex", "v2_root.txt"),
-        system_inter=None,
-        system_leaf=repo_path("config_files", "prompts", "regex", "v2_leaf.txt"),
-        tasks_depleted=None,
-    )
-
-
-def build_json_prompt_config() -> PromptConfig:
-    return PromptConfig(
-        mode="path",
-        system_root=repo_path("config_files", "prompts", "json", "v2_root.txt"),
-        system_inter=None,
-        system_leaf=repo_path("config_files", "prompts", "json", "v2_leaf.txt"),
-        tasks_depleted=None,
-    )
-
-
-PERSISTENT_ROOT_PROMPT = """You are a highly capable and truthful AI assistant that excels at logical reasoning.
-
-You may break complex tasks into smaller sub-tasks. For this agent, the valid actions are:
-Action: think | issue_fresh_task | issue_task | answer
-Text: <content>
-
-Use issue_fresh_task when you want to create a brand-new helper for the first delegated step.
-Use issue_task when you want to send another task to the current helper.
-Use answer when you are ready to respond directly.
-Return exactly one action/text block and keep the format exact.
-"""
-
-PERSISTENT_LEAF_PROMPT = """You are a leaf helper. Do not delegate further.
-
-Action: answer
-Text: <content>
-"""
-
-PERSISTENT_DEPLETED_PROMPT = """All subtasks are exhausted. Respond directly.
-
-Action: answer
-Text: <content>
-"""
-
-
-def build_persistent_prompt_config() -> PromptConfig:
-    return PromptConfig(
-        mode="text",
-        system_root=PERSISTENT_ROOT_PROMPT,
-        system_inter=None,
-        system_leaf=PERSISTENT_LEAF_PROMPT,
-        tasks_depleted=PERSISTENT_DEPLETED_PROMPT,
-    )
-
-
 async def run_smoke_suite(
     *,
     agent_name: str,
     agent_factory: Callable[[], BaseAgent],
     prompts: Sequence[SmokePrompt],
-    max_completion_tokens: int,
     verbose: bool,
+    **kwargs,
 ) -> int:
     failures = 0
 
     for index, (label, prompt) in enumerate(prompts, start=1):
         agent = agent_factory()
-        print(f"\n=== {agent_name} prompt {index}: {label} ===")
+        print(f"\n\n=== {agent_name} prompt {index}: {label} ===\n\n")
         print(prompt)
+        print("\n\n")
 
         try:
             trajectory = await agent.chat(
                 UserMessage(role="user", content=prompt),
                 verbose=verbose,
-                max_completion_tokens=max_completion_tokens,
+                **kwargs,
             )
 
             final_message = trajectory.messages()[-1]
@@ -152,6 +95,7 @@ async def run_smoke_suite(
 
             finish_reason = final_response.choices[0].finish_reason
 
+            print("\n\n")
             print("assistant raw content:")
             print(raw_content)
             print("assistant parsed answer:")

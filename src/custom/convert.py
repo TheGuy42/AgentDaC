@@ -2,7 +2,8 @@ from __future__ import annotations
 from typing import Any
 
 import agentlightning as agl
-from agentlightning import Span, TraceStatus
+from agentlightning import Span, TraceStatus, Attributes
+
 
 from src.aliases import Response
 from src.trajectory import Trajectory
@@ -52,10 +53,15 @@ def _extract_attributes(resp: Response) -> dict[str, Any]:
 
 
 def convert_trajectory(trajectory: Trajectory, rollout: agl.AttemptedRollout) -> list[Span]:
+    """
+    Converts native Trajectory to a list of Spans for AGL training.
 
+    - *Note:* This function is explicitly designed to work with `custom.adapter.VerlAdapter` adapter, and the emitted spans are structured accordingly.
+        The below implementation is not designed to work with other adapters and may fail or produce incorrect results if used with a different adapter.
+    """
     if len(trajectory.additional_histories) > 0:
         logger.warning("Trajectory has additional histories; They are not yet supported and will be ignored in the span conversion.")
-        logger.info("To explicitly convert and train on additional histories, please pass them explicitly.")
+        logger.info("To convert and train on additional histories, please pass them explicitly.")
 
     spans: list[Span] = []
     base_time = trajectory.start_time.timestamp()
@@ -80,10 +86,13 @@ def convert_trajectory(trajectory: Trajectory, rollout: agl.AttemptedRollout) ->
         spans.append(span)
 
     if not spans:
-        logger.warning("Trajectory produced no LLM-call spans; the reward span will be orphaned.")
+        logger.debug("Trajectory produced no LLM-call spans; returning empty span list.")
+        return []
 
-    reward_core = agl.emit_reward(trajectory.reward, propagate=False)
-    reward_core.start_time = base_time + len(responses) + 1
+    metrics = {"custom_metrics": trajectory.metrics.copy()}
+
+    reward_core = agl.emit_reward(trajectory.reward, attributes=metrics, propagate=False)
+    reward_core.start_time = base_time + len(spans) + 1
     reward_core.end_time = reward_core.start_time + 0.5
 
     reward_span = Span.from_core_fields(

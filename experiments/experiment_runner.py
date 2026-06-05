@@ -2,10 +2,9 @@ import sys
 import os
 import torch
 import pathlib
-import asyncio
 import argparse
 import logging
-from typing import Any, Tuple
+from typing import Any, Tuple, Literal
 from abc import ABC, abstractmethod
 import random
 
@@ -22,6 +21,85 @@ from src.trainer import AglTrainer
 
 
 logger = create_logger(__name__)
+
+
+def get_value(dicts: dict[str, Any], *keys: str, raise_missing: bool = False) -> Tuple[Any, bool]:
+    """
+    Recursively get a value from a nested dictionary using a sequence of keys.
+    Creates intermediate dictionaries if they do not exist.
+
+    Args:
+        dicts (dict): The dictionary to search through.
+        *keys (str): A sequence of keys representing the path to the desired value.
+        raise_missing (bool): Whether to raise an error if the key is not found.
+
+    Returns:
+        tuple[value, found]: A tuple where 'value' is the retrieved value (or None if not found) and 'found' is a boolean indicating whether the value was found.
+    """
+    assert len(keys) > 0, "At least one key must be provided"
+
+    current = dicts
+    for i, key in enumerate(keys[:-1]):
+        if not isinstance(current, dict):
+            raise ValueError(f"Expected a dictionary at key path {'->'.join(keys[:i])}, but got {type(current).__name__}")
+        current = current.setdefault(key, {} if not raise_missing else None)
+        if current is None:
+            raise ValueError(f"Key not found: {'->'.join(keys[: i + 1])}")
+
+    last_key = keys[-1]
+    if last_key not in current:
+        if raise_missing:
+            raise ValueError(f"Key not found: {'->'.join(keys)}")
+        return None, False
+
+    return current[last_key], True
+
+
+def set_value(dicts: dict[str, Any], value: Any, *keys: str, raise_missing: bool = False) -> None:
+    """
+    Recursively set a value in a nested dictionary using a sequence of keys.
+    Creates intermediate dictionaries if they do not exist.
+
+    Args:
+        dicts (dict): The dictionary to modify.
+        value (Any): The value to set at the specified key path.
+        *keys (str): A sequence of keys representing the path where the value should be set.
+        raise_missing (bool): Whether to raise an error if an intermediate key is not found.
+    """
+    assert len(keys) > 0, "At least one key must be provided"
+
+    current = dicts
+    for i, key in enumerate(keys[:-1]):
+        if not isinstance(current, dict):
+            raise ValueError(f"Expected a dictionary at key path {'->'.join(keys[:i])}, but got {type(current).__name__}")
+        current = current.setdefault(key, {} if not raise_missing else None)
+        if current is None:
+            raise ValueError(f"Key not found: {'->'.join(keys[: i + 1])}")
+
+    last_key = keys[-1]
+    current[last_key] = value
+
+
+def _update_configs_test_run(configs: dict[str, Any]):
+    train_config = configs["train_config"]
+    train_config.train_size = 20
+    train_config.val_size = 10
+
+    verl_config = configs["verl_config"]
+    set_value(verl_config, ["console"], "trainer", "logger")
+    
+    set_value(verl_config, 1, "trainer", "nnodes")
+    set_value(verl_config, 1, "trainer", "n_gpus_per_node")
+    set_value(verl_config, 1, "trainer", "test_freq")
+    set_value(verl_config, -1, "trainer", "save_freq")
+    set_value(verl_config, 1, "trainer", "total_epochs")
+    set_value(verl_config, 2, "trainer", "total_training_steps")
+
+    set_value(verl_config, 6, "data", "train_batch_size")
+    set_value(verl_config, 2, "actor_rollout_ref", "rollout", "n")
+    set_value(verl_config, 2, "actor_rollout_ref", "actor", "ppo_mini_batch_size")
+    set_value(verl_config, 2, "actor_rollout_ref", "actor", "ppo_micro_batch_size_per_gpu")
+    set_value(verl_config, 2, "actor_rollout_ref", "ref", "log_prob_micro_batch_size_per_gpu")
 
 
 class ExperimentRunner(ABC):
@@ -112,9 +190,9 @@ class ExperimentRunner(ABC):
         )
 
         parser.add_argument(
-            "--dev",
+            "--test_run",
             action="store_true",
-            help="Perform a quick development run.",
+            help="Perform a quick test run with minimal training for debugging purposes.",
         )
 
         self.add_arguments(parser)
@@ -144,24 +222,29 @@ class ExperimentRunner(ABC):
             "prompt_config": PromptConfig.load_from_path(dir / "prompt_config.json", do_raise=True),
             "decomp_config": DecompConfig.load_from_path(dir / "decomp_config.json", do_raise=True),
             "rollout_config": RolloutConfig.load_from_path(dir / "rollout_config.json", do_raise=True),
+            "verl_config": load_object(dir / "verl_config.json", do_raise=True),
             "extra_config": load_object(dir / "extra_config.json", do_raise=False),
         }
 
     def _patch_configs(self, configs: dict[str, Any]) -> dict[str, Any]:
         rollout_config: RolloutConfig = configs["rollout_config"]
-        train_config: TrainingConfig = configs["train_config"]
-        verl_config = train_config.verl_config
+        verl_config = configs["verl_config"]
 
-        model_name = verl_config["actor_rollout_ref"]["model"]["path"]
+        model_name, _ = get_value(verl_config, "actor_rollout_ref", "model", "path", raise_missing=True)
         exp_name = self.args().run or self._generate_run_name(model_name)
-
-        verl_config.setdefault("trainer", {})["project_name"] = self.args().project
-        verl_config.setdefault("trainer", {})["experiment_name"] = exp_name
+        set_value(verl_config, self.args().project, "trainer", "project_name")
+        set_value(verl_config, exp_name, "trainer", "experiment_name")
 
         if "Qwen3" in model_name:
             # disable "thinking" for Qwen3 models
             logger.info("Disabling 'thinking' for Qwen3 model.")
-            rollout_config.kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": False}}
+            set_value(rollout_config.kwargs, False, "extra_body", "chat_template_kwargs", "enable_thinking")
+            set_value(verl_config, False, "data", "apply_chat_template_kwargs", "enable_thinking")
+
+        if self.args().test_run:
+            logger.info("Test run enabled: Overriding configs for a quick test run.")
+            _update_configs_test_run(configs)
+
         return configs
 
     def _print_configs(self, configs: dict[str, Any]) -> None:
@@ -192,7 +275,7 @@ class ExperimentRunner(ABC):
         # Load configurations
         configs = self._load_configs(args.config_dir)
         configs = self._patch_configs(configs)
-        train_config: TrainingConfig = configs.pop("train_config")
+        train_config: TrainingConfig = configs["train_config"]
 
         # Print all configurations
         if not args.silent:
@@ -223,23 +306,9 @@ class ExperimentRunner(ABC):
         # Create and configure the trainer
         trainer = self.create_trainer(**configs)
 
-        if not args.dev:
-            # Start training
-            logger.info("Starting training...")
-            trainer.train(
-                config=train_config,
-                train_dataset=train_dataset,
-                val_dataset=val_dataset,
-            )
-
-        else:
-            # Perform a development run
-            logger.info("Starting development run...")
-            trainer.dev(
-                config=train_config,
-                train_dataset=train_dataset,
-                val_dataset=val_dataset,
-            )
+        # Start training
+        logger.info("Starting training...")
+        trainer.train(train_dataset=train_dataset, val_dataset=val_dataset)
 
     def run(self) -> None:
         """Entry point to run the experiment."""

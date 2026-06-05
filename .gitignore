@@ -18,6 +18,8 @@ tmux.inner.conf
 notebooks/examples
 regex_perst_agent
 agentops.log
+logs
+checkpoints
 
 # API keys
 api_keys/*
