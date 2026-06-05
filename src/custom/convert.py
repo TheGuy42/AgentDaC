@@ -90,7 +90,6 @@ def convert_trajectory(trajectory: Trajectory, rollout: agl.AttemptedRollout) ->
         return []
 
     metrics = {"custom_metrics": trajectory.metrics.copy()}
-
     reward_core = agl.emit_reward(trajectory.reward, attributes=metrics, propagate=False)
     reward_core.start_time = base_time + len(spans) + 1
     reward_core.end_time = reward_core.start_time + 0.5

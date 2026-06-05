@@ -14,6 +14,7 @@ class VerlTracer(agl.TracerTraceToTriplet):
     Custom implementation of the `agentlightning.TracerTraceToTriplet` to support additional custom metrics.
     Searches for `custom_metrics` in the span attributes of the reward span, and places them in the metadata of the last triplet of the rollout.
     """
+
     def __init__(self, agent_match: Optional[str] = None):
         super().__init__(
             repair_hierarchy=False,
@@ -27,9 +28,6 @@ class VerlTracer(agl.TracerTraceToTriplet):
     def adapt(self, source: Sequence[agl.Span] | Sequence[ReadableSpan]) -> list[agl.Triplet]:
 
         triplets = super().adapt(source)
-        if not triplets:
-            return triplets
-
         custom_metrics: dict[str, Any] = {}
 
         # Since we attach metrics to the reward span, search reward spans from the end.
@@ -41,20 +39,17 @@ class VerlTracer(agl.TracerTraceToTriplet):
             if not any(k.startswith("custom_metrics.") for k in attrs):
                 continue
 
-            recovered = filter_and_unflatten_attributes(attrs, "custom_metrics")
+            recovered = filter_and_unflatten_attributes(attrs, "custom_metrics")  # type: ignore
             if isinstance(recovered, dict):
                 custom_metrics = recovered
                 break
-            else:
-                raise ValueError(f"Recovered custom metrics is not a dict: {recovered}")
 
-        if not custom_metrics:
+        if not custom_metrics or not triplets:
             return triplets
 
         # attach to last triplet
         last = triplets[-1]
         metadata = dict(last.metadata)
         metadata["custom_metrics"] = custom_metrics
-
         triplets[-1] = last.model_copy(update={"metadata": metadata})
         return triplets
