@@ -17,6 +17,7 @@ dependencies = [
     "verl==0.6.1",
     "datasets==4.3.0", # otherwise there is a dependency conflict with pyarrow
     "transformers<5.0.0", # tried upgrading transformers v4.57.6 -> v5.9.0 (doesnt work)
+    "chess>=1.11.2",
 ]
 
 [tool.uv.sources]

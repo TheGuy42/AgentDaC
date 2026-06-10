@@ -6,7 +6,6 @@ from typing import Any
 
 import agentlightning as agl
 from agentlightning.algorithm.verl import VERL
-
 from openai import AsyncOpenAI
 
 from src.agents.base import BaseAgent
@@ -134,7 +133,7 @@ class AglTrainer(agl.LitAgent, ABC):
             "For proper training with AgentLightning, the trace aggregator level must be set to 'trajectory'. "
             "Please update verl_config.json accordingly."
         )
-        
+
         if val_dataset is None:
             val_dataset = train_dataset
 

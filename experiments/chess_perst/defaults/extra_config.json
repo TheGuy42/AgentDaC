@@ -1,0 +1,6 @@
+{
+    "randomize_decomp_depth": true,
+    "randomize_decomp_tasks": false,
+    "randomize_decomp_rounds": false,
+    "additional_histories": true
+}

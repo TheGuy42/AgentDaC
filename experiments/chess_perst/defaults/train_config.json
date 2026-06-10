@@ -1,0 +1,5 @@
+{
+    "train_size": 100,
+    "val_size": 100,
+    "n_runners": 16
+}

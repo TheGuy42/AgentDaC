@@ -157,6 +157,7 @@ class ExperimentRunner(ABC):
 
     def _update_configs_test(self, configs: dict[str, Any]):
         train_config = configs["train_config"]
+        train_config.n_runners = 1
         train_config.train_size = 20
         train_config.val_size = 10
 
