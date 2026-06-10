@@ -1,8 +1,11 @@
 {
+    "limit": {
+        "depth": 12
+    },
     "engine_path": "stockfish",
-    "depth": 12,
     "threads": 1,
     "hash_mb": 64,
     "reward": "win_prob",
-    "illegal_score": 0.0
+    "illegal_score": 0.0,
+    "mate_score": 10000
 }

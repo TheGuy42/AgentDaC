@@ -37,11 +37,11 @@ def generate(
         return positions.generate_positions(num, min_ply, max_ply, seed, positions.random_game)
 
     if source == "engine":
-        config = engine_config or EngineConfig()
+        config = engine_config or EngineConfig(limit=chess.engine.Limit(depth=12))
         engine = chess.engine.SimpleEngine.popen_uci(config.engine_path)
         try:
             engine.configure({"Threads": config.threads, "Hash": config.hash_mb})
-            game = positions.make_engine_game(engine, chess.engine.Limit(depth=config.depth), epsilon)
+            game = positions.make_engine_game(engine, config.limit, epsilon)
             return positions.generate_positions(num, min_ply, max_ply, seed, game)
         finally:
             engine.quit()
@@ -86,7 +86,7 @@ def _parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = _parse_args()
-    engine_config = EngineConfig(engine_path=args.engine_path, depth=args.depth)
+    engine_config = EngineConfig(engine_path=args.engine_path, limit=chess.engine.Limit(depth=args.depth))
     build_and_save("train", args.source, args.num_train, args.min_ply, args.max_ply, args.seed, engine_config, args.epsilon)
     build_and_save("val", args.source, args.num_val, args.min_ply, args.max_ply, args.seed + 1, engine_config, args.epsilon)
 
