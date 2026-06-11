@@ -2,6 +2,7 @@ from __future__ import annotations
 import random
 from copy import deepcopy
 
+import numpy as np
 import torch
 from src.utils.logging import create_logger
 
@@ -33,7 +34,47 @@ class VerlTrainer(AgentLightningTrainer):
     This is the exact same implementation as the original, except with the following bugfixes:
     - https://github.com/microsoft/agent-lightning/issues/492
     - https://github.com/microsoft/agent-lightning/issues/50
+
+    Additionally, it attaches a `custom_meta` dict to every sample handed to the daemon
+    (see `_attach_custom_meta`), carrying dynamic metadata such as the current training step.
     """
+
+    def _attach_custom_meta(self, non_tensor_batch: dict) -> None:
+        """
+        Stamp a `custom_meta` dict column onto every sample of the batch (in place).
+
+        It holds dynamic metadata that is only known at training time — currently the
+        `step_number` of the batch; extend the dict below as needed.
+
+        The daemon copies every column of this dict into the task delivered to the runners,
+        so it arrives in `rollout_async` as `task["custom_meta"]` (e.g. for trajectory
+        logging). Related: https://github.com/microsoft/agent-lightning/issues/401
+        """
+        num_samples = len(next(iter(non_tensor_batch.values())))
+        non_tensor_batch["custom_meta"] = np.array(
+            [{"step_number": self.global_steps} for _ in range(num_samples)], dtype=object
+        )
+
+    # NOTE: exactly the same implementation as the upstream `_validate`, except that
+    # the samples are stamped with `custom_meta` (see `_attach_custom_meta`).
+    def _validate(self):
+        assert len(self.val_dataloader) == 1, "Please set val_batch_size to None for better throughput."
+
+        test_data = next(iter(self.val_dataloader))
+        test_batch = DataProto.from_single_dict(test_data)
+
+        self.async_rollout_manager.wake_up()
+        self._attach_custom_meta(test_batch.non_tensor_batch)
+        self.agent_mode_daemon.set_up_data_and_server(
+            test_batch.non_tensor_batch,
+            self.async_rollout_manager.server_addresses,
+            is_train=False,
+        )
+        self.agent_mode_daemon.run_until_all_finished()
+        test_metrics = self.agent_mode_daemon.get_test_metrics()
+        self.agent_mode_daemon.clear_data_and_server()
+        self.async_rollout_manager.sleep()
+        return test_metrics
 
     # NOTE: exactly the same implementation, except with the following bugfix:
     # https://github.com/microsoft/agent-lightning/issues/492
@@ -50,6 +91,7 @@ class VerlTrainer(AgentLightningTrainer):
             # generate a batch
             with _timer("gen", timing_raw):
                 self.async_rollout_manager.wake_up()
+                self._attach_custom_meta(gen_batch.non_tensor_batch)
                 self.agent_mode_daemon.set_up_data_and_server(gen_batch.non_tensor_batch, self.async_rollout_manager.server_addresses)
                 self.agent_mode_daemon.run_until_all_finished()
                 batch, agent_metrics = self.agent_mode_daemon.get_train_data_batch(

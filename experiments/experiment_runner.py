@@ -19,6 +19,7 @@ from src.utils.io import load_object
 from src.utils.dicts import get_dict_value, set_dict_value
 from src.configs import TrainingConfig, PromptConfig, DecompConfig, RolloutConfig
 from src.trainer import AglTrainer
+from src.trajectory_writer import TrajectoryWriter
 
 
 logger = create_logger(__name__)
@@ -56,6 +57,17 @@ class ExperimentRunner(ABC):
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         """Override to add custom command line arguments."""
         pass
+
+    def _create_trajectory_writer(self, configs: dict[str, Any]) -> TrajectoryWriter:
+        """Build the trajectory writer."""
+        args = self.args()
+        exp_name, _ = get_dict_value(configs["verl_config"], "trainer", "experiment_name", raise_missing=True)
+        output_dir = pathlib.Path(args.traj_dir or "trajectories") / args.project / exp_name
+
+        if args.traj_dir is not None:
+            logger.info(f"Logging full rollout trajectories to '{output_dir}'.")
+
+        return TrajectoryWriter(output_dir, enabled=args.traj_dir is not None)
 
     def _generate_run_name(self, base_model: str) -> str:
         """
@@ -103,6 +115,16 @@ class ExperimentRunner(ABC):
             type=str,
             default=self.default_config_dir(),
             help="Directory containing experiment configuration files.",
+        )
+
+        parser.add_argument(
+            "--traj_dir",
+            type=str,
+            default=None,
+            help=(
+                "Base directory for logging full rollout trajectories to disk "
+                "(one JSON file per rollout, grouped by training step). Disabled when not provided."
+            ),
         )
 
         parser.add_argument(
@@ -261,7 +283,8 @@ class ExperimentRunner(ABC):
             logger.info(f"Truncated test dataset to size: {len(test_dataset)}")
 
         # Create and configure the trainer
-        trainer = self.create_trainer(**configs)
+        writer = self._create_trajectory_writer(configs)
+        trainer = self.create_trainer(**configs, trajectory_writer=writer)
 
         # Start training
         logger.info("Starting training...")

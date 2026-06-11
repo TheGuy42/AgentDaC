@@ -12,6 +12,7 @@ from src.agents.base import BaseAgent
 from src.aliases import UserMessage
 from src.configs import DecompConfig, PromptConfig, RolloutConfig, TrainingConfig
 from src.trajectory import Trajectory
+from src.trajectory_writer import TrajectoryWriter
 from src.utils.logging import create_logger
 from src.custom import convert_trajectory, VerlTrainer, VerlDaemon, VerlTracer
 
@@ -34,6 +35,8 @@ class AglTrainer(agl.LitAgent, ABC):
         prompt_config: Prompt configuration handed to the agent.
         decomp_config: Decomposition configuration handed to the agent.
         rollout_config: Inference kwargs (per stage) forwarded to ``agent.chat``.
+        trajectory_writer: Writes full rollout trajectories to disk. Defaults to a
+            disabled writer when not provided.
         extra_config: Optional free-form experiment settings (e.g. decomposition
             randomization flags), available to subclasses as ``self.extra_config``.
     """
@@ -46,6 +49,7 @@ class AglTrainer(agl.LitAgent, ABC):
         rollout_config: RolloutConfig,
         train_config: TrainingConfig,
         verl_config: dict[str, Any],
+        trajectory_writer: TrajectoryWriter | None = None,
         extra_config: dict[str, Any] | None = None,
     ) -> None:
         super().__init__()
@@ -54,6 +58,7 @@ class AglTrainer(agl.LitAgent, ABC):
         self.rollout_config = rollout_config
         self.train_config = train_config
         self.verl_config = verl_config
+        self.trajectory_writer = trajectory_writer or TrajectoryWriter("", enabled=False)
         self.extra_config = extra_config or {}
 
     @abstractmethod
@@ -110,7 +115,6 @@ class AglTrainer(agl.LitAgent, ABC):
         stage = RolloutStage(rollout.mode or RolloutStage.TRAIN.value)
         client = self.build_client(llm, rollout)
         agent = self.create_agent(client=client, model=llm.model, stage=stage)
-
         kwargs = self.chat_kwargs(stage, llm)
 
         try:
@@ -119,6 +123,13 @@ class AglTrainer(agl.LitAgent, ABC):
         except Exception as e:
             logger.error(f"Rollout failed with exception: {e}")
             return []
+
+        self.trajectory_writer.write(
+            trajectory,
+            rollout_id=rollout.rollout_id,
+            stage=stage.value,
+            step=task["custom_meta"].get("step_number"),
+        )
 
         return convert_trajectory(trajectory, rollout)
 
