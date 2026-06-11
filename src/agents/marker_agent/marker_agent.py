@@ -112,7 +112,7 @@ class MarkerAgent(BaseAgent):
                     answer = await sub_agent.answer(task, verbose, **kwargs)
 
                     if self.additional_histories:
-                        self.trajectory.additional_histories.append(sub_agent.trajectory)
+                        self.trajectory.histories.append(sub_agent.trajectory)
 
                     # update metrics from sub-agent
                     self.metrics["total_tasks"] += sub_agent.metrics["total_tasks"]

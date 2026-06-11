@@ -5,13 +5,13 @@ import dataclasses
 
 from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
 from src.aliases import Message, Response
-    
+
 
 @dataclasses.dataclass
 class Trajectory:
     messages_and_responses: list[Message | Response]
     tools: list[ChatCompletionToolParam] | None = None
-    additional_histories: list[Trajectory] = dataclasses.field(default_factory=list)
+    histories: list[Trajectory] = dataclasses.field(default_factory=list)
     reward: float = 0.0
     metrics: dict[str, float | int | bool] = dataclasses.field(default_factory=dict)
     metadata: dict[str, float | int | str | bool | None] = dataclasses.field(default_factory=dict)
@@ -30,24 +30,21 @@ class Trajectory:
         return get_messages(self.messages_and_responses)
 
     def for_logging(self) -> dict[str, Any]:
-        loggable_dict: dict[str, Any] = {
+        result_dict: dict[str, Any] = {
             "reward": self.reward,
             "metrics": self.metrics,
             "metadata": self.metadata,
-            "messages": [],
+            "messages": get_messages(self.messages_and_responses),
+            "histories": [history.for_logging() for history in self.histories],
             "tools": self.tools,
             "logs": self.logs,
         }
-        for message_or_response in self.messages_and_responses:
-            if isinstance(message_or_response, Response):
-                trainable = True
-                choice = message_or_response.choices[0]
-                message: dict[str, Any] = choice.message.to_dict()
-            else:
-                trainable = False
-                message = cast(dict[str, Any], message_or_response)
-            loggable_dict["messages"].append({**message, "trainable": trainable})
-        return loggable_dict
+
+        # add field "trainable" to each message dict
+        for msg, item in zip(result_dict["messages"], self.messages_and_responses):
+            msg["trainable"] = isinstance(item, Response)
+
+        return result_dict
 
 
 def get_messages(messages_and_responses: list[Message | Response]) -> list[Message]:

@@ -59,7 +59,7 @@ def convert_trajectory(trajectory: Trajectory, rollout: agl.AttemptedRollout) ->
     - *Note:* This function is explicitly designed to work with `custom.adapter.VerlAdapter` adapter, and the emitted spans are structured accordingly.
         The below implementation is not designed to work with other adapters and may fail or produce incorrect results if used with a different adapter.
     """
-    if len(trajectory.additional_histories) > 0:
+    if len(trajectory.histories) > 0:
         logger.warning("Trajectory has additional histories; They are not yet supported and will be ignored in the span conversion.")
         logger.info("To convert and train on additional histories, please pass them explicitly.")
 

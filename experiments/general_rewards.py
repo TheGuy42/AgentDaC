@@ -50,7 +50,7 @@ def format_reward(trajectory: Trajectory) -> float:
             fmt_reward += _single_message_format_reward(content)
             fmt_count += 1
 
-    for hist in trajectory.additional_histories:
+    for hist in trajectory.histories:
         for item in hist.messages_and_responses:
             if isinstance(item, Response):
                 content = item.choices[0].message.content or ""
@@ -67,7 +67,7 @@ def format_reward(trajectory: Trajectory) -> float:
         if num_answers == 0:
             ans_reward -= 1.0
 
-    for hist in trajectory.additional_histories:
+    for hist in trajectory.histories:
         last_message = hist.messages_and_responses[-1]
         if isinstance(last_message, Response):
             ans_count += 1

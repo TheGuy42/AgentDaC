@@ -207,7 +207,7 @@ class PersistentAgent(BaseAgent):
                 if self.additional_histories:  
                     # Each sub-agent defines its own history
                     # The history is dynamically updated as the sub-agent is invoked, as expected.
-                    self.trajectory.additional_histories.append(self.sub_agent.trajectory)
+                    self.trajectory.histories.append(self.sub_agent.trajectory)
 
             # Issue a sub-task to the current sub-agent
             if turn.action == TurnAction.ISSUE_FRESH_TASK or turn.action == TurnAction.ISSUE_TASK:

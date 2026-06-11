@@ -155,7 +155,7 @@ class RegexAgent(BaseAgent):
                 self.trajectory.messages_and_responses.append(task_response)
 
                 if self.additional_histories:
-                    self.trajectory.additional_histories.append(sub_agent.trajectory)
+                    self.trajectory.histories.append(sub_agent.trajectory)
 
                 if verbose:
                     print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
