@@ -18,7 +18,7 @@ from src.utils.logging import create_logger
 from experiments.experiment_runner import ExperimentRunner
 from experiments.chess_perst.trainer import ChessTrainer
 from experiments.chess_perst.chess_engine import EngineConfig
-from experiments.chess_perst.data import load_dataset
+from experiments.chess_perst.data import ChessDataset, SUPPORTED_DATASETS, load_dataset
 
 
 logger = create_logger(__name__)
@@ -38,20 +38,26 @@ class Runner(ExperimentRunner):
         return configs
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("--position_source", choices=["random", "engine"], default="random", help="How positions are generated.")
-        parser.add_argument("--num_train", type=int, default=2000, help="Number of training positions to generate.")
-        parser.add_argument("--num_val", type=int, default=200, help="Number of validation positions to generate.")
-        parser.add_argument("--min_ply", type=int, default=8, help="Minimum plies played before sampling a position.")
-        parser.add_argument("--max_ply", type=int, default=40, help="Maximum plies played before sampling a position.")
-        parser.add_argument("--data_seed", type=int, default=1234, help="Seed for reproducible position generation.")
+        parser.add_argument(
+            "--datasets", nargs="+", choices=SUPPORTED_DATASETS, default=[ChessDataset.PUZZLES.value],
+            help="Which chess dataset(s) to load positions from (pooled when more than one).",
+        )
+        parser.add_argument("--num_train", type=int, default=2000, help="Number of training positions.")
+        parser.add_argument("--num_val", type=int, default=200, help="Number of validation positions.")
+        parser.add_argument("--data_seed", type=int, default=1234, help="Seed for reproducible data loading/shuffling.")
+        parser.add_argument("--min_rating", type=int, default=None, help="Minimum puzzle rating (lichess-puzzles only).")
+        parser.add_argument("--max_rating", type=int, default=None, help="Maximum puzzle rating (lichess-puzzles only).")
 
     def load_data(self) -> tuple[Dataset, Dataset, Dataset]:
         args = self.args()
-        engine_config = EngineConfig.load_from_path(pathlib.Path(args.config_dir) / "engine_config.json", do_raise=True)
-        common = dict(source=args.position_source, min_ply=args.min_ply, max_ply=args.max_ply, engine_config=engine_config)
-
-        train = load_dataset("train", num=args.num_train, seed=args.data_seed, **common)
-        val = load_dataset("val", num=args.num_val, seed=args.data_seed + 1, **common)
+        train, val = load_dataset(
+            args.datasets,
+            num_train=args.num_train,
+            num_val=args.num_val,
+            seed=args.data_seed,
+            min_rating=args.min_rating,
+            max_rating=args.max_rating,
+        )
         return train, val, val
 
     def create_trainer(self, **kwargs) -> AglTrainer:
