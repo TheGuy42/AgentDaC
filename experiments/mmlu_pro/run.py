@@ -1,7 +1,7 @@
 import sys
 import pathlib
 
-from datasets import Dataset, load_dataset, DatasetDict
+from datasets import Dataset, load_dataset
 
 # set pythonpath to the main module directory
 module_dir = pathlib.Path(__file__).parent.parent.parent.resolve()

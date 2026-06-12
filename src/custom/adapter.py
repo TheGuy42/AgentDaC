@@ -9,7 +9,7 @@ from agentlightning.utils.otel import filter_and_unflatten_attributes
 from opentelemetry.sdk.trace import ReadableSpan
 
 
-class VerlTracer(agl.TracerTraceToTriplet):
+class VerlAdapter(agl.TracerTraceToTriplet):
     """
     Custom implementation of the `agentlightning.TracerTraceToTriplet` to support additional custom metrics.
     Searches for `custom_metrics` in the span attributes of the reward span, and places them in the metadata of the last triplet of the rollout.
@@ -17,7 +17,7 @@ class VerlTracer(agl.TracerTraceToTriplet):
 
     def __init__(self, agent_match: Optional[str] = None):
         super().__init__(
-            repair_hierarchy=False,
+            repair_hierarchy=False,  # NOTE: currently no need to repair anything since we emit traces manually
             llm_call_match=r"openai\.chat\.completion",
             agent_match=agent_match,
             exclude_llm_call_in_reward=True,

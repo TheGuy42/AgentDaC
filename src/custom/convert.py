@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Any
 
 import agentlightning as agl
-from agentlightning import Span, TraceStatus, Attributes
+from agentlightning import Span, TraceStatus
 
 
 from src.aliases import Response

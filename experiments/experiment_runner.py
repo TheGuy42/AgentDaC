@@ -197,6 +197,44 @@ class ExperimentRunner(ABC):
         set_dict_value(verl_config, "actor_rollout_ref", "actor", "ppo_micro_batch_size_per_gpu", value=2)
         set_dict_value(verl_config, "actor_rollout_ref", "ref", "log_prob_micro_batch_size_per_gpu", value=2)
 
+    def _patch_lengths(self, configs: dict[str, Any]) -> None:
+        """
+        Patch the prompt and response lengths in the VERL config to ensure they fit within the model's context window.
+        Utilizes `DecompConfig` to compute a conservative upper bound on the maximum cumulative response length of a trajectory.
+        """
+
+        # NOTE: Index:
+        # - agentlightning.trace_aggregator.trajectory_max_prompt_length is the length of the initial prompt fed to the model, which includes the user question and the system instructions
+        # - agentlightning.trace_aggregator.trajectory_max_response_length is the cumulative length of the rest of the conversation without the initial prompt over the entire trajectory rollout, which includes all model responses and tool responses.
+        # - data.max_response_length is the length of single model response. Controls vllm max_new_tokens in SamplingParams
+        # - data.max_prompt_length is the maximum length of the prompt fed to the model during any stage of the trajectory rollout, which includes the initial prompt and the conversation history.
+        # - actor_rollout_ref.rollout.max_model_len is the maximum overall length of the entire trajectory
+
+        verl_config = configs["verl_config"]
+        decomp_config: DecompConfig = configs["decomp_config"]
+
+        # Compute the maximum possible cumulative response length of a trajectory based on the number of rounds and tasks,
+        # assuming the worst case where every task is decomposed until the max rounds, and every model response is as long as the max_response_length.
+        # This is a conservative upper bound to ensure we never exceed the model context window, even in edge cases.
+        sing_resp_len, _ = get_dict_value(verl_config, "data", "max_response_length", raise_missing=True)
+        traj_resp_len = decomp_config.max_tasks * (2 * sing_resp_len) + (decomp_config.max_rounds - decomp_config.max_tasks) * sing_resp_len
+        traj_resp_len += 32 * decomp_config.max_rounds  # Add extra buffer chat template
+
+        inp_len = 1024  # Max length of the input first system + user prompt
+        if get_dict_value(verl_config, "agentlightning", "trace_aggregator", "level") == "trajectory":
+            inp_len, _ = get_dict_value(verl_config, "agentlightning", "trace_aggregator", "trajectory_max_prompt_length", raise_missing=True)
+
+        model_len = inp_len + traj_resp_len # Overall model context length needed to fit the entire trajectory
+        prompt_len = model_len - sing_resp_len
+
+        set_dict_value(verl_config, "agentlightning", "trace_aggregator", "trajectory_max_response_length", value=traj_resp_len)
+        set_dict_value(verl_config, "data", "max_prompt_length", value=prompt_len)
+        set_dict_value(verl_config, "actor_rollout_ref", "rollout", "max_model_len", value=model_len)
+
+        logger.info(f"Setting `agentlightning.trace_aggregator.trajectory_max_response_length` to {traj_resp_len}")
+        logger.info(f"Setting `data.max_prompt_length` to {prompt_len}")
+        logger.info(f"Setting `actor_rollout_ref.rollout.max_model_len` to {model_len}")
+
     def _patch_configs(self, configs: dict[str, Any]) -> dict[str, Any]:
         rollout_config: RolloutConfig = configs["rollout_config"]
         verl_config = configs["verl_config"]
@@ -208,6 +246,8 @@ class ExperimentRunner(ABC):
 
         logger.info(f"Setting VERL seed to {self.args().seed}")
         set_dict_value(verl_config, "data", "seed", value=self.args().seed)
+
+        self._patch_lengths(configs)
 
         if "Qwen3" in model_name:
             # disable "thinking" for Qwen3 models

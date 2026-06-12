@@ -14,6 +14,8 @@ unsloth_compiled_cache
 
 # Other
 TODO.txt
+out.txt
+err.txt
 tmux.inner.conf
 notebooks/examples
 regex_perst_agent

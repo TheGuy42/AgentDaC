@@ -6,6 +6,7 @@
         "Multistep",
         "OPENPIPE",
         "perst",
+        "traj",
         "verl"
     ],
     "python.analysis.typeCheckingMode": "standard",

@@ -14,7 +14,7 @@ from src.configs import DecompConfig, PromptConfig, RolloutConfig, TrainingConfi
 from src.trajectory import Trajectory
 from src.trajectory_writer import TrajectoryWriter
 from src.utils.logging import create_logger
-from src.custom import convert_trajectory, VerlTrainer, VerlDaemon, VerlTracer
+from src.custom import convert_trajectory, VerlTrainer, VerlDaemon, VerlAdapter, NullTracer
 
 
 logger = create_logger(__name__)
@@ -87,7 +87,6 @@ class AglTrainer(agl.LitAgent, ABC):
         chat_kwargs: dict[str, Any],
     ) -> Trajectory:
         """Run the agent on the task and return its trajectory."""
-
         message = UserMessage(role="user", content=self.format_prompt(task))
         return await agent.chat(message, **chat_kwargs)
 
@@ -122,6 +121,8 @@ class AglTrainer(agl.LitAgent, ABC):
             trajectory = await self.score_trajectory(task, trajectory, stage)
         except Exception as e:
             logger.error(f"Rollout failed with exception: {e}")
+            # TODO: we need to decide how to handle somehow exceptions in agent.chat()
+            # Specifically do we return a partial trajectory, or do nothing
             return []
 
         self.trajectory_writer.write(
@@ -150,11 +151,18 @@ class AglTrainer(agl.LitAgent, ABC):
 
         trainer = agl.Trainer(
             n_runners=self.train_config.n_runners,
+            
+            # NOTE: We use our custom VerlTrainer and VerlDaemon to support additional custom metrics
+            # and propagate the training step to the rollout function
             algorithm=VERL(config=self.verl_config, trainer_cls=VerlTrainer, daemon_cls=VerlDaemon),
-            # NOTE: currently no need to repair anything since we emit traces manually
-            # NOTE: we explicitly need to use `agl.TracerTraceToTriplet` adapter since our conversion
+             
+            # NOTE: we explicitly need to use a custom adapter since our conversion
             # function [Trajectories -> Spans] was designed around this adapter.
-            adapter=VerlTracer(),
+            adapter=VerlAdapter(),
+            
+            # NOTE: We construct traces manually so no need for auto-instrumentation 
+            # or any sophisticated tracer. We keep this tracer as a dummy tracer.
+            tracer=NullTracer(), # TODO: test this tracer
         )
 
         try:
