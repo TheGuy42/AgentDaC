@@ -66,7 +66,8 @@
             },
             "multi_turn": {
                 "enable": true,
-                "format": "hermes"
+                "format": "hermes",
+                "use_inference_chat_template": true
             }
         },
         "actor": {
@@ -97,7 +98,7 @@
             }
         },
         "model": {
-            "path": "unsloth/Qwen3-14B",
+            "path": "OpenPipe/Qwen3-14B-Instruct",
             "use_remove_padding": true,
             "enable_gradient_checkpointing": true,
             "lora_rank": 16,

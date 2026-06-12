@@ -236,11 +236,12 @@ class ExperimentRunner(ABC):
         logger.info(f"Setting `actor_rollout_ref.rollout.max_model_len` to {model_len}")
 
     def _patch_configs(self, configs: dict[str, Any]) -> dict[str, Any]:
-        rollout_config: RolloutConfig = configs["rollout_config"]
         verl_config = configs["verl_config"]
-
+        
         model_name, _ = get_dict_value(verl_config, "actor_rollout_ref", "model", "path", raise_missing=True)
         exp_name = self.args().run or self._generate_run_name(model_name)
+        
+        logger.info(f"Experiment name set to '{exp_name}'")
         set_dict_value(verl_config, "trainer", "project_name", value=self.args().project)
         set_dict_value(verl_config, "trainer", "experiment_name", value=exp_name)
 
@@ -248,13 +249,7 @@ class ExperimentRunner(ABC):
         set_dict_value(verl_config, "data", "seed", value=self.args().seed)
 
         self._patch_lengths(configs)
-
-        if "Qwen3" in model_name:
-            # disable "thinking" for Qwen3 models
-            logger.info("Disabling 'thinking' for Qwen3 model.")
-            set_dict_value(rollout_config.kwargs, "extra_body", "chat_template_kwargs", "enable_thinking", value=False)
-            set_dict_value(verl_config, "data", "apply_chat_template_kwargs", "enable_thinking", value=False)
-
+            
         if resume_path := self.args().resume:
             logger.info(f"Resuming from checkpoint: {resume_path}")
             set_dict_value(verl_config, "trainer", "resume_mode", value="resume_path")
