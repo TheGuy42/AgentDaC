@@ -66,8 +66,7 @@
             },
             "multi_turn": {
                 "enable": true,
-                "format": "hermes",
-                "use_inference_chat_template": true
+                "format": "hermes"
             }
         },
         "actor": {

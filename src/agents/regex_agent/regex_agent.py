@@ -106,11 +106,6 @@ class RegexAgent(BaseAgent):
 
         self.trajectory.messages_and_responses.append(prompt)
 
-        # Store the initial prompt in metadata for reference
-        content = prompt.get("content")
-        if isinstance(content, str):
-            self.metadata["prompt"] = content
-
         if verbose:
             print(trajectory_string(self.trajectory, indent=self.current_depth))
 

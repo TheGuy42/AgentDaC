@@ -107,8 +107,9 @@ class PersistentAgent(BaseAgent):
         4) If tasks exhausted (total_tasks >= max_tasks): cannot ISSUE_FRESH_TASK or ISSUE_TASK.
         5) ANSWER is always allowed.
         """
-        if self.current_depth >= self.decomp_config.max_depth:
-            self.decomp_config.max_rounds = 1  # Force only one round at leaf nodes
+        # TODO: testing disabling this rule
+        # if self.current_depth >= self.decomp_config.max_depth:
+            # self.decomp_config.max_rounds = 1  # Force only one round at leaf nodes
 
         dc = self.decomp_config
         is_leaf = self.current_depth >= dc.max_depth
@@ -153,11 +154,6 @@ class PersistentAgent(BaseAgent):
 
         self.decomp_config.reset()
         self.trajectory.messages_and_responses.append(prompt)
-
-        # Store the initial prompt in metadata for reference
-        content = prompt.get("content")
-        if "prompt" not in self.metadata and isinstance(content, str):
-            self.metadata["prompt"] = content
 
         if verbose:
             print(trajectory_string(self.trajectory, indent=self.current_depth))

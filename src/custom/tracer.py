@@ -1,11 +1,11 @@
-from __future__ import annotations
 import contextlib
 import agentlightning as agl
 
 
 class NullTracer(agl.DummyTracer):
     """
-    A no-op tracer that can be used when we don't want to record any traces. Inherits from `agentlightning.DummyTracer`.
+    A no-op tracer that can be used when we don't want to record any traces. 
+    Inherits from `agentlightning.DummyTracer`.
     """
 
     def trace_context(

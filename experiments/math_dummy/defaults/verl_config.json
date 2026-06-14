@@ -4,8 +4,8 @@
         "use_kl_in_reward": false
     },
     "trainer": {
-        "project_name": "math_perst_dac",
-        "experiment_name": "math_perst",
+        "project_name": "math_dummy",
+        "experiment_name": "math_dummy",
         "resume_from_path": null,
         "nnodes": 1,
         "n_gpus_per_node": 1,

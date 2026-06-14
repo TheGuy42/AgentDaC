@@ -122,6 +122,10 @@ class JsonAgent(BaseAgent):
         if prompt.get("role") != "user":
             logger.warning(f"Prompt role is expected to be 'user', but got {prompt.get('role')}.")
 
+        # TODO: we probably need to perform the following:
+        # self.decomp_config.reset()
+        # We might also need to reset some metrics
+
         self.trajectory.messages_and_responses.append(prompt)
 
         # Store the initial prompt in metadata for reference
@@ -161,6 +165,8 @@ class JsonAgent(BaseAgent):
 
             # Finish if the model chose to answer
             if turn.action == TurnAction.ANSWER:
+                # TODO: we should probably update the rounds as well
+                # for the case that chat() is called several times
                 break
 
             # If the model chose to think, continue
