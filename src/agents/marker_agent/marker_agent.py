@@ -14,7 +14,28 @@ from src.aliases import Message, UserMessage, Response
 logger = create_logger(__name__)
 
 
+METRIC_PREFIXES = ("total_direct", "total_subtree", "latest_direct", "latest_subtree")
+
+
 class MarkerAgent(BaseAgent):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        
+        self.metrics.update(
+            {
+                f"{prefix}_{counter}": 0
+                for counter in ("calls", "tasks", "responses_completed", "responses_incomplete")
+                for prefix in METRIC_PREFIXES
+            }
+        )
+        self.metrics.update(
+            {
+                "total_subtree_depth": 0,
+                "latest_subtree_depth": 0,
+                "latest_direct_tokens": 0,
+            }
+        )
+
     def _create_subagent(self) -> MarkerAgent:
         return MarkerAgent(
             openai_client=self.openai_client,
@@ -63,10 +84,16 @@ class MarkerAgent(BaseAgent):
         # if not self._should_stop():
         #     prompt["content"] = f"{prompt.get('content')}\n\n{self._remaining_budget_string()}"
 
+        self.decomp_config.reset()
         self.trajectory.messages_and_responses.append(prompt)
 
         if verbose:
             print(trajectory_string(self.trajectory, indent=self.current_depth))
+
+        # Reset metrics of the latest run
+        for k in self.metrics.keys():
+            if k.startswith("latest"):
+                self.metrics[k] = 0
 
         should_break = False
 
@@ -76,10 +103,10 @@ class MarkerAgent(BaseAgent):
             self.trajectory.messages_and_responses.append(completion)
 
             # Update metrics
-            self.metrics["total_calls"] += 1
-            self.metrics["direct_calls"] += 1
+            for prefix in METRIC_PREFIXES:
+                self.metrics[f"{prefix}_calls"] += 1
             if completion.usage is not None:
-                self.metrics["direct_tokens"] = completion.usage.total_tokens
+                self.metrics["latest_direct_tokens"] = completion.usage.total_tokens
 
             if verbose:
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
@@ -109,17 +136,21 @@ class MarkerAgent(BaseAgent):
                     if self.additional_histories:
                         self.trajectory.histories.append(sub_agent.trajectory)
 
-                    # update metrics from sub-agent
-                    self.metrics["total_tasks"] += sub_agent.metrics["total_tasks"]
-                    self.metrics["total_calls"] += sub_agent.metrics["total_calls"]
-                    self.metrics["max_depth"] = max(1 + sub_agent.metrics["max_depth"], self.metrics["max_depth"])
+                    # Fold in the sub-agent's subtree contribution from this single invocation
+                    for q in ("calls", "tasks", "responses_completed", "responses_incomplete"):
+                        self.metrics[f"total_subtree_{q}"] += sub_agent.metrics[f"latest_subtree_{q}"]
+                        self.metrics[f"latest_subtree_{q}"] += sub_agent.metrics[f"latest_subtree_{q}"]
+
+                    child_depth = 1 + sub_agent.metrics["latest_subtree_depth"]
+                    self.metrics["total_subtree_depth"] = max(self.metrics["total_subtree_depth"], child_depth)
+                    self.metrics["latest_subtree_depth"] = max(self.metrics["latest_subtree_depth"], child_depth)
                     return answer
 
                 tasks_answers = await asyncio.gather(*[subagent_forward(task) for task in tasks_inputs])
 
-            # Update metrics
-            self.metrics["direct_tasks"] += len(tasks_inputs)
-            self.metrics["total_tasks"] += len(tasks_inputs)
+            # The direct tasks issued by this agent
+            for prefix in METRIC_PREFIXES:
+                self.metrics[f"{prefix}_tasks"] += len(tasks_inputs)
 
             self.decomp_config.update_round(num_tasks=len(tasks_inputs))
 
@@ -137,7 +168,13 @@ class MarkerAgent(BaseAgent):
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
 
         # Update final stats
-        self.metrics["response_completed"] = completion.choices[0].finish_reason != "length"
+        completed = int(completion.choices[0].finish_reason != "length")
+        incomplete = 1 - completed
+
+        # This agent's own response completion, counted across all four quadrants
+        for prefix in METRIC_PREFIXES:
+            self.metrics[f"{prefix}_responses_completed"] += completed
+            self.metrics[f"{prefix}_responses_incomplete"] += incomplete
         self.trajectory.finish()
 
         return self.trajectory

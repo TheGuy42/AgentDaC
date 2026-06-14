@@ -9,6 +9,9 @@ from src.utils.logging import create_logger
 logger = create_logger(__name__)
 
 
+METRIC_PREFIXES = ("total_direct", "latest_direct")
+
+
 class DummyAgent(BaseAgent):
     """
     A simple model wrapper that satisfies the BaseAgent interface.
@@ -36,6 +39,15 @@ class DummyAgent(BaseAgent):
         if kwargs:
             logger.warning(f"DummyAgent ignores additional kwargs: {kwargs}")
 
+        self.metrics.update(
+            {
+                f"{prefix}_{counter}": 0
+                for counter in ("calls", "responses_completed", "responses_incomplete")
+                for prefix in METRIC_PREFIXES
+            }
+        )
+        self.metrics["latest_direct_tokens"] = 0
+
     async def call(self, messages: list[Message], **kwargs) -> Response:
         extra_body: dict = kwargs.setdefault("extra_body", {})
         extra_body.setdefault("include_stop_str_in_output", True)
@@ -56,18 +68,20 @@ class DummyAgent(BaseAgent):
         if verbose:
             print(trajectory_string(self.trajectory, indent=self.current_depth))
 
-        self.metrics.setdefault("direct_thinks", 0)
-        self.metrics.setdefault("total_thinks", 0)
+        # Reset metrics of the latest run
+        for k in self.metrics.keys():
+            if k.startswith("latest"):
+                self.metrics[k] = 0
 
         # Model turn
         completion = await self.call(self.trajectory.messages(), **kwargs)
         self.trajectory.messages_and_responses.append(completion)
 
         # Update metrics
-        self.metrics["total_calls"] += 1
-        self.metrics["direct_calls"] += 1
+        for prefix in METRIC_PREFIXES:
+            self.metrics[f"{prefix}_calls"] += 1
         if completion.usage is not None:
-            self.metrics["direct_tokens"] = completion.usage.total_tokens
+            self.metrics["latest_direct_tokens"] = completion.usage.total_tokens
 
         if verbose:
             print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
@@ -75,7 +89,13 @@ class DummyAgent(BaseAgent):
         self.decomp_config.update_round(num_tasks=0)
 
         # Update final stats
-        self.metrics["response_completed"] = completion.choices[0].finish_reason != "length"
+        completed = int(completion.choices[0].finish_reason != "length")
+        incomplete = 1 - completed
+
+        # This agent's own response completion (direct only; no subtree)
+        for prefix in METRIC_PREFIXES:
+            self.metrics[f"{prefix}_responses_completed"] += completed
+            self.metrics[f"{prefix}_responses_incomplete"] += incomplete
         self.trajectory.finish()
         return self.trajectory
 

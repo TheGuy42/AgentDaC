@@ -57,18 +57,46 @@ def build_decomp_config(*, max_depth: int = 1, max_tasks: int = 1, max_rounds: i
     return DecompConfig(max_depth=max_depth, max_tasks=max_tasks, max_rounds=max_rounds)
 
 
+def check_metric_invariants(metrics: dict) -> None:
+    """Validate the {time}_{scope}_{quantity} metric axes after a chat().
+
+    These invariants must hold regardless of what the model produced:
+      - subtree counts include the agent's own direct work, so subtree >= direct
+      - total accumulates over all chat() calls, so total >= latest
+    """
+    for key in metrics:
+        if not key.startswith("total_direct_"):
+            continue
+        quantity = key[len("total_direct_"):]
+        subtree_key = f"total_subtree_{quantity}"
+        if subtree_key in metrics:
+            assert metrics[subtree_key] >= metrics[key], f"{subtree_key} < {key}"
+
+    for key in metrics:
+        if not key.startswith("latest_"):
+            continue
+        total_key = "total_" + key[len("latest_"):]
+        if total_key in metrics and isinstance(metrics[key], (int, float)):
+            assert metrics[total_key] >= metrics[key], f"{total_key} < {key}"
+
+
 async def run_smoke_suite(
     *,
     agent_name: str,
     agent_factory: Callable[[], BaseAgent],
     prompts: Sequence[SmokePrompt],
     verbose: bool,
+    reuse_agent: bool = False,
     **kwargs,
 ) -> int:
     failures = 0
 
+    # When reuse_agent is set, a single agent instance handles every prompt, so
+    # chat() is called multiple times on it (the multi-step interaction case).
+    shared_agent = agent_factory() if reuse_agent else None
+
     for index, (label, prompt) in enumerate(prompts, start=1):
-        agent = agent_factory()
+        agent = shared_agent if shared_agent is not None else agent_factory()
         print(f"\n\n=== {agent_name} prompt {index}: {label} ===\n\n")
         print(prompt)
         print("\n\n")
@@ -103,6 +131,7 @@ async def run_smoke_suite(
             print(f"finish_reason: {finish_reason}")
             print(f"convert_trajectory: OK ({len(spans)} spans, reward={trajectory.reward:.4f})")
             print(f"metrics: {trajectory.metrics}")
+            check_metric_invariants(trajectory.metrics)
         except Exception as exc:
             failures += 1
             print(f"FAIL: {exc}")

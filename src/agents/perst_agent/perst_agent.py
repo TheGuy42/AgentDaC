@@ -17,6 +17,9 @@ import re
 logger = create_logger(__name__)
 
 
+METRIC_PREFIXES = ("total_direct", "total_subtree", "latest_direct", "latest_subtree")
+
+
 @dataclass
 class AgentTurn:
     action: TurnAction
@@ -74,28 +77,23 @@ class PersistentAgent(BaseAgent):
             additional_histories=additional_histories,
         )
 
-        # Additional metrics that we track
         self.metrics.update(
             {
-                "direct_thinks": 0,
-                "total_thinks": 0,
-                "direct_agents": 0,
-                "total_agents": 0,
-                "responses_completed": 0,
-                "responses_incomplete": 0,
+                f"{prefix}_{counter}": 0
+                for counter in ("calls", "tasks", "thinks", "agents", "responses_completed", "responses_incomplete")
+                for prefix in METRIC_PREFIXES
+            }
+        )
+        self.metrics.update(
+            {
+                "total_subtree_depth": 0,
+                "latest_subtree_depth": 0,
+                "latest_direct_tokens": 0,
             }
         )
 
         # We support a persistent sub-agent across chat rounds
         self.sub_agent: PersistentAgent | None = None
-
-        # Metrics from only the latest chat()/answer() invocation
-        self.latest_metrics: dict[str, int] = {
-            "total_tasks": 0,
-            "total_calls": 0,
-            "total_thinks": 0,
-            "total_agents": 0,
-        }
 
     def _create_regex(self) -> GuidedRegex:
         """
@@ -158,9 +156,10 @@ class PersistentAgent(BaseAgent):
         if verbose:
             print(trajectory_string(self.trajectory, indent=self.current_depth))
 
-        # Reset metrics of the current run
-        for k in self.latest_metrics:
-            self.latest_metrics[k] = 0
+        # Reset metrics of the latest run
+        for k in self.metrics.keys():
+            if k.startswith("latest"):
+                self.metrics[k] = 0
 
         while True:
             # Model turn
@@ -169,11 +168,10 @@ class PersistentAgent(BaseAgent):
             self.trajectory.messages_and_responses.append(completion)
 
             # Update metrics
-            self.metrics["total_calls"] += 1
-            self.metrics["direct_calls"] += 1
-            self.latest_metrics["total_calls"] += 1
+            for prefix in METRIC_PREFIXES:
+                self.metrics[f"{prefix}_calls"] += 1
             if completion.usage is not None:
-                self.metrics["direct_tokens"] = completion.usage.total_tokens
+                self.metrics["latest_direct_tokens"] = completion.usage.total_tokens
 
             if verbose:
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
@@ -188,19 +186,17 @@ class PersistentAgent(BaseAgent):
 
             # If the model chose to think, continue
             elif turn.action == TurnAction.THINK:
-                self.metrics["direct_thinks"] += 1
-                self.metrics["total_thinks"] += 1
-                self.latest_metrics["total_thinks"] += 1
+                for prefix in METRIC_PREFIXES:
+                    self.metrics[f"{prefix}_thinks"] += 1
                 self.decomp_config.update_round(num_tasks=0)
 
             # Create a new sub-agent
             elif turn.action == TurnAction.ISSUE_FRESH_TASK:
                 self.sub_agent = self._create_subagent()
-                self.metrics["direct_agents"] += 1
-                self.metrics["total_agents"] += 1
-                self.latest_metrics["total_agents"] += 1
+                for prefix in METRIC_PREFIXES:
+                    self.metrics[f"{prefix}_agents"] += 1
 
-                if self.additional_histories:  
+                if self.additional_histories:
                     # Each sub-agent defines its own history
                     # The history is dynamically updated as the sub-agent is invoked, as expected.
                     self.trajectory.histories.append(self.sub_agent.trajectory)
@@ -217,24 +213,31 @@ class PersistentAgent(BaseAgent):
                 if verbose:
                     print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
 
-                # Update metrics from sub-agent
-                self.metrics["direct_tasks"] += 1
-                self.metrics["total_tasks"] += 1
-                self.metrics["max_depth"] = max(1 + self.sub_agent.metrics["max_depth"], self.metrics["max_depth"])
-                self.latest_metrics["total_tasks"] += 1
+                # The direct task issued by this agent
+                for prefix in METRIC_PREFIXES:
+                    self.metrics[f"{prefix}_tasks"] += 1
 
-                # For cumulative metrics, only add the delta from the
-                # last sub-agent invocation, to avoid double-counting
-                for metric in ["total_tasks", "total_calls", "total_thinks", "total_agents"]:
-                    self.metrics[metric] += self.sub_agent.latest_metrics[metric]
-                    self.latest_metrics[metric] += self.sub_agent.latest_metrics[metric]
+                # Fold in the sub-agent's subtree contribution from this single invocation.
+                # The persistent sub-agent is reused across rounds, so reading its
+                # latest_subtree_* (the delta from this one invocation) avoids double-counting.
+                for q in ("calls", "tasks", "thinks", "agents", "responses_completed", "responses_incomplete"):
+                    self.metrics[f"total_subtree_{q}"] += self.sub_agent.metrics[f"latest_subtree_{q}"]
+                    self.metrics[f"latest_subtree_{q}"] += self.sub_agent.metrics[f"latest_subtree_{q}"]
+
+                child_depth = 1 + self.sub_agent.metrics["latest_subtree_depth"]
+                self.metrics["total_subtree_depth"] = max(self.metrics["total_subtree_depth"], child_depth)
+                self.metrics["latest_subtree_depth"] = max(self.metrics["latest_subtree_depth"], child_depth)
 
                 self.decomp_config.update_round(num_tasks=1)
 
         # Update final stats
         completed = int((completion.choices[0].finish_reason != "length") and (turn.action == TurnAction.ANSWER))
-        self.metrics["responses_completed"] += completed
-        self.metrics["responses_incomplete"] += 1 - completed
+        incomplete = 1 - completed
+
+        # This agent's own response completion, counted across all four quadrants
+        for prefix in METRIC_PREFIXES:
+            self.metrics[f"{prefix}_responses_completed"] += completed
+            self.metrics[f"{prefix}_responses_incomplete"] += incomplete
 
         self.trajectory.finish()
         return self.trajectory

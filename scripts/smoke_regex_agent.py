@@ -37,6 +37,7 @@ async def main() -> int:
     parser.add_argument("--model", required=True)
     parser.add_argument("--api-key", default="EMPTY")
     parser.add_argument("--max-completion-tokens", type=int, default=256)
+    parser.add_argument("--multi-step", action="store_true", help="Reuse one agent instance across all prompts (multi-step interaction)")
     args = parser.parse_args()
 
     return await run_smoke_suite(
@@ -50,6 +51,7 @@ async def main() -> int:
         prompts=SMOKE_PROMPTS,
         max_completion_tokens=args.max_completion_tokens,
         verbose=True,
+        reuse_agent=args.multi_step,
     )
 
 

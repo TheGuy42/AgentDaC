@@ -29,17 +29,7 @@ class BaseAgent(ABC):
         self.current_depth = current_depth
         self.additional_histories = additional_histories
 
-        self.trajectory = Trajectory(
-            messages_and_responses=[],
-            histories=[],
-            metrics={
-                "direct_calls": 0,
-                "total_calls": 0,
-                "direct_tasks": 0,
-                "total_tasks": 0,
-                "max_depth": 0,
-            },
-        )
+        self.trajectory = Trajectory(messages_and_responses=[])
 
         if sys_msg := self._get_system_message():
             self.trajectory.messages_and_responses.append(sys_msg)
@@ -80,11 +70,11 @@ class BaseAgent(ABC):
         # NOTE: Required for AGL
         extra_body = kwargs.setdefault("extra_body", {})
         extra_body.setdefault("return_token_ids", True)
-        
+
         return await self.openai_client.chat.completions.create(
             model=self.model,
             messages=messages,
-            logprobs=False, # NOTE: we dont need logprobs for AGL
+            logprobs=False,  # NOTE: we dont need logprobs for AGL
             **kwargs,
         )
 

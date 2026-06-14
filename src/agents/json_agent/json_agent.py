@@ -14,6 +14,9 @@ from src.utils.logging import create_logger
 logger = create_logger(__name__)
 
 
+METRIC_PREFIXES = ("total_direct", "total_subtree", "latest_direct", "latest_subtree")
+
+
 @dataclass
 class AgentTurn:
     action: TurnAction
@@ -71,6 +74,24 @@ class GuidedJson:
 
 
 class JsonAgent(BaseAgent):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.metrics.update(
+            {
+                f"{prefix}_{counter}": 0
+                for counter in ("calls", "tasks", "thinks", "responses_completed", "responses_incomplete")
+                for prefix in METRIC_PREFIXES
+            }
+        )
+        self.metrics.update(
+            {
+                "total_subtree_depth": 0,
+                "latest_subtree_depth": 0,
+                "latest_direct_tokens": 0,
+            }
+        )
+
     def _create_schema(self) -> GuidedJson:
         """
         Rules for allowed actions:
@@ -122,10 +143,7 @@ class JsonAgent(BaseAgent):
         if prompt.get("role") != "user":
             logger.warning(f"Prompt role is expected to be 'user', but got {prompt.get('role')}.")
 
-        # TODO: we probably need to perform the following:
-        # self.decomp_config.reset()
-        # We might also need to reset some metrics
-
+        self.decomp_config.reset()
         self.trajectory.messages_and_responses.append(prompt)
 
         # Store the initial prompt in metadata for reference
@@ -136,8 +154,10 @@ class JsonAgent(BaseAgent):
         if verbose:
             print(trajectory_string(self.trajectory, indent=self.current_depth))
 
-        self.metrics.setdefault("direct_thinks", 0)
-        self.metrics.setdefault("total_thinks", 0)
+        # Reset metrics of the latest run
+        for k in self.metrics.keys():
+            if k.startswith("latest"):
+                self.metrics[k] = 0
 
         while True:
             # Model turn
@@ -146,10 +166,10 @@ class JsonAgent(BaseAgent):
             self.trajectory.messages_and_responses.append(completion)
 
             # Update metrics
-            self.metrics["total_calls"] += 1
-            self.metrics["direct_calls"] += 1
+            for prefix in METRIC_PREFIXES:
+                self.metrics[f"{prefix}_calls"] += 1
             if completion.usage is not None:
-                self.metrics["direct_tokens"] = completion.usage.total_tokens
+                self.metrics["latest_direct_tokens"] = completion.usage.total_tokens
 
             if verbose:
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
@@ -165,14 +185,12 @@ class JsonAgent(BaseAgent):
 
             # Finish if the model chose to answer
             if turn.action == TurnAction.ANSWER:
-                # TODO: we should probably update the rounds as well
-                # for the case that chat() is called several times
                 break
 
             # If the model chose to think, continue
             elif turn.action == TurnAction.THINK:
-                self.metrics["direct_thinks"] += 1
-                self.metrics["total_thinks"] += 1
+                for prefix in METRIC_PREFIXES:
+                    self.metrics[f"{prefix}_thinks"] += 1
                 self.decomp_config.update_round(num_tasks=0)
 
             # Issue a task and get the answer from a sub-agent
@@ -189,12 +207,18 @@ class JsonAgent(BaseAgent):
                 if verbose:
                     print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
 
-                # Update metrics from sub-agent
-                self.metrics["direct_tasks"] += 1
-                self.metrics["total_tasks"] += 1 + sub_agent.metrics["total_tasks"]
-                self.metrics["total_calls"] += sub_agent.metrics["total_calls"]
-                self.metrics["total_thinks"] += sub_agent.metrics["total_thinks"]
-                self.metrics["max_depth"] = max(1 + sub_agent.metrics["max_depth"], self.metrics["max_depth"])
+                # The direct task issued by this agent
+                for prefix in METRIC_PREFIXES:
+                    self.metrics[f"{prefix}_tasks"] += 1
+
+                # Fold in the sub-agent's subtree contribution from this single invocation
+                for q in ("calls", "tasks", "thinks", "responses_completed", "responses_incomplete"):
+                    self.metrics[f"total_subtree_{q}"] += sub_agent.metrics[f"latest_subtree_{q}"]
+                    self.metrics[f"latest_subtree_{q}"] += sub_agent.metrics[f"latest_subtree_{q}"]
+
+                child_depth = 1 + sub_agent.metrics["latest_subtree_depth"]
+                self.metrics["total_subtree_depth"] = max(self.metrics["total_subtree_depth"], child_depth)
+                self.metrics["latest_subtree_depth"] = max(self.metrics["latest_subtree_depth"], child_depth)
 
                 self.decomp_config.update_round(num_tasks=1)
 
@@ -202,7 +226,13 @@ class JsonAgent(BaseAgent):
                 raise ValueError(f"Unhandled action: {turn.action}")
 
         # Update final stats
-        self.metrics["response_completed"] = (completion.choices[0].finish_reason != "length") and (turn.action == TurnAction.ANSWER)
+        completed = int((completion.choices[0].finish_reason != "length") and (turn.action == TurnAction.ANSWER))
+        incomplete = 1 - completed
+
+        # This agent's own response completion, counted across all four quadrants
+        for prefix in METRIC_PREFIXES:
+            self.metrics[f"{prefix}_responses_completed"] += completed
+            self.metrics[f"{prefix}_responses_incomplete"] += incomplete
         self.trajectory.finish()
 
         return self.trajectory
