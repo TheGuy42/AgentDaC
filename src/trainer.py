@@ -141,11 +141,7 @@ class AglTrainer(agl.LitAgent, ABC):
         # Otherwise, GRPO groups contain all the spans of the trajectory simultaneously: https://github.com/microsoft/agent-lightning/issues/489
         # Read the blog about trajectory-level aggregation: https://agent-lightning.github.io/posts/trajectory_level_aggregation/
         # Another reason why we should enable it is this: https://github.com/microsoft/agent-lightning/pull/462
-        assert self.verl_config["agentlightning"]["trace_aggregator"]["level"] == "trajectory", (
-            "For proper training with AgentLightning, the trace aggregator level must be set to 'trajectory'. "
-            "Please update verl_config.json accordingly."
-        )
-
+        
         if val_dataset is None:
             val_dataset = train_dataset
 
