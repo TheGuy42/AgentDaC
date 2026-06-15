@@ -24,12 +24,14 @@ class MarkerAgent(BaseAgent):
         self.metrics.update(
             {
                 f"{prefix}_{counter}": 0
-                for counter in ("calls", "tasks", "responses_completed", "responses_incomplete")
+                for counter in ("calls", "tasks", "chats", "responses_completed", "responses_incomplete")
                 for prefix in METRIC_PREFIXES
             }
         )
         self.metrics.update(
             {
+                "total_direct_chats": 0,
+                "total_subtree_chats": 0,
                 "total_subtree_depth": 0,
                 "latest_subtree_depth": 0,
                 "latest_direct_tokens": 0,
@@ -96,6 +98,9 @@ class MarkerAgent(BaseAgent):
                 self.metrics[k] = 0
 
         should_break = False
+        
+        for prefix in METRIC_PREFIXES:
+            self.metrics[f"{prefix}_chats"] += 1
 
         while True:
             # Call the OpenAI API to get a response
@@ -137,7 +142,7 @@ class MarkerAgent(BaseAgent):
                         self.trajectory.histories.append(sub_agent.trajectory)
 
                     # Fold in the sub-agent's subtree contribution from this single invocation
-                    for q in ("calls", "tasks", "responses_completed", "responses_incomplete"):
+                    for q in ("calls", "tasks", "chats", "responses_completed", "responses_incomplete"):
                         self.metrics[f"total_subtree_{q}"] += sub_agent.metrics[f"latest_subtree_{q}"]
                         self.metrics[f"latest_subtree_{q}"] += sub_agent.metrics[f"latest_subtree_{q}"]
 

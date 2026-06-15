@@ -42,7 +42,7 @@ class DummyAgent(BaseAgent):
         self.metrics.update(
             {
                 f"{prefix}_{counter}": 0
-                for counter in ("calls", "responses_completed", "responses_incomplete")
+                for counter in ("calls", "chats", "responses_completed", "responses_incomplete")
                 for prefix in METRIC_PREFIXES
             }
         )
@@ -72,6 +72,9 @@ class DummyAgent(BaseAgent):
         for k in self.metrics.keys():
             if k.startswith("latest"):
                 self.metrics[k] = 0
+                
+        for prefix in METRIC_PREFIXES:
+            self.metrics[f"{prefix}_chats"] += 1
 
         # Model turn
         completion = await self.call(self.trajectory.messages(), **kwargs)

@@ -61,7 +61,7 @@ class RegexAgent(BaseAgent):
         self.metrics.update(
             {
                 f"{prefix}_{counter}": 0
-                for counter in ("calls", "tasks", "thinks", "responses_completed", "responses_incomplete")
+                for counter in ("calls", "tasks", "thinks", "chats", "responses_completed", "responses_incomplete")
                 for prefix in METRIC_PREFIXES
             }
         )
@@ -135,6 +135,9 @@ class RegexAgent(BaseAgent):
             if k.startswith("latest"):
                 self.metrics[k] = 0
 
+        for prefix in METRIC_PREFIXES:
+            self.metrics[f"{prefix}_chats"] += 1
+
         while True:
             # Model turn
             regex = self._create_regex()
@@ -183,7 +186,7 @@ class RegexAgent(BaseAgent):
                     self.metrics[f"{prefix}_tasks"] += 1
 
                 # Fold in the sub-agent's subtree contribution from this single invocation
-                for q in ("calls", "tasks", "thinks", "responses_completed", "responses_incomplete"):
+                for q in ("calls", "tasks", "thinks", "chats", "responses_completed", "responses_incomplete"):
                     self.metrics[f"total_subtree_{q}"] += sub_agent.metrics[f"latest_subtree_{q}"]
                     self.metrics[f"latest_subtree_{q}"] += sub_agent.metrics[f"latest_subtree_{q}"]
 
