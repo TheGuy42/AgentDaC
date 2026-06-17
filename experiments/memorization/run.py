@@ -16,7 +16,7 @@ from experiments.experiment_runner import Dataset, ExperimentRunner
 from experiments.memorization.trainer import MemorizationTrainer
 
 
-LABEL_KINDS = ["random", "uniform"]
+LABEL_KINDS = ["random", "const"]
 
 
 class Runner(ExperimentRunner):
@@ -42,7 +42,7 @@ class Runner(ExperimentRunner):
         if kind == "random":
             random_labels = (labels * (num_samples // len(labels) + 1))[:num_samples]
             random.shuffle(random_labels)
-        elif kind == "uniform":
+        elif kind == "const":
             lbl = random.choice(labels)
             random_labels = [lbl] * num_samples
         else:

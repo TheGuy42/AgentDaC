@@ -15,6 +15,7 @@ from src.trajectory import Trajectory
 from src.trajectory_writer import TrajectoryWriter
 from src.utils.logging import create_logger
 from src.custom import convert_trajectory, VerlTrainer, VerlDaemon, VerlAdapter, NullTracer
+from src.utils.dicts import get_dict_value, set_dict_value
 
 
 logger = create_logger(__name__)
@@ -95,8 +96,33 @@ class AglTrainer(agl.LitAgent, ABC):
         return AsyncOpenAI(base_url=base_url, api_key=llm.api_key or "EMPTY")
 
     def chat_kwargs(self, stage: RolloutStage, llm: agl.LLM) -> dict[str, Any]:
-        # VERL-provided sampling parameters take precedence over experiment defaults.
-        return {**self.rollout_config.get_kwargs(stage.value), **llm.sampling_parameters}
+        """
+        Build the kwargs for the agent's chat method, combining rollout_config with the LLM's sampling parameters.
+        Note, that we need to ensure that certain sampling parameters (e.g. temperature) are consistent between the rollout_config and verl_config for correct GRPO training.
+
+        Precedence order (highest to lowest):
+        1. rollout_config.{stage}_kwargs
+        2. rollout_config.kwargs
+        3. llm.sampling_parameters
+        4. verl_config.actor_rollout_ref.rollout
+        """
+        kwargs = {**llm.sampling_parameters, **self.rollout_config.get_kwargs(stage.value)}
+        set_dict_value(kwargs, "extra_body", "return_token_ids", value=True)  # NOTE: required by AGL
+        set_dict_value(kwargs, "logprobs", value=False, set_default=True)
+
+        if stage == RolloutStage.TRAIN:
+            err_msg = (
+                "Mismatch in training rollout %s parameter: client=%s, verl=%s. "
+                "This may lead to incorrect importance ratios and corrupt GRPO training."
+            )
+
+            verl_rollout = self.verl_config.get("actor_rollout_ref", {}).get("rollout", {})
+            # NOTE: other sampling parameters (e.g. top_p, top_k) are not used in VERL on-policy training
+            for param in ("temperature", "do_sample"):  
+                if param in kwargs and kwargs[param] != verl_rollout.get(param):
+                    logger.error(err_msg, param, kwargs[param], verl_rollout.get(param))
+
+        return kwargs
 
     async def rollout_async(
         self,
@@ -141,24 +167,21 @@ class AglTrainer(agl.LitAgent, ABC):
         # Otherwise, GRPO groups contain all the spans of the trajectory simultaneously: https://github.com/microsoft/agent-lightning/issues/489
         # Read the blog about trajectory-level aggregation: https://agent-lightning.github.io/posts/trajectory_level_aggregation/
         # Another reason why we should enable it is this: https://github.com/microsoft/agent-lightning/pull/462
-        
+
         if val_dataset is None:
             val_dataset = train_dataset
 
         trainer = agl.Trainer(
             n_runners=self.train_config.n_runners,
-            
             # NOTE: We use our custom VerlTrainer and VerlDaemon to support additional custom metrics
             # and propagate the training step to the rollout function
             algorithm=VERL(config=self.verl_config, trainer_cls=VerlTrainer, daemon_cls=VerlDaemon),
-             
             # NOTE: we explicitly need to use a custom adapter since our conversion
             # function [Trajectories -> Spans] was designed around this adapter.
             adapter=VerlAdapter(),
-            
-            # NOTE: We construct traces manually so no need for auto-instrumentation 
+            # NOTE: We construct traces manually so no need for auto-instrumentation
             # or any sophisticated tracer. We keep this tracer as a dummy tracer.
-            tracer=NullTracer(), # TODO: test this tracer
+            tracer=NullTracer(),  # TODO: test this tracer
         )
 
         try:

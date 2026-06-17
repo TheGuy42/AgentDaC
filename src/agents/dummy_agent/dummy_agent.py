@@ -1,6 +1,7 @@
 from __future__ import annotations
 from src.trajectory import Trajectory
 from src.agents.base import BaseAgent
+from src.configs import DecompConfig
 from src.aliases import Message, UserMessage, Response
 from src.utils.visualize import trajectory_string, message_string
 from src.utils.logging import create_logger
@@ -23,15 +24,20 @@ class DummyAgent(BaseAgent):
         openai_client,
         model_name,
         prompt_config,
-        decomp_config,
         **kwargs,
     ):
+
+        decomp_config = DecompConfig(
+            max_depth=0,
+            max_rounds=1,
+            max_tasks=0,
+        )
 
         super().__init__(
             openai_client,
             model_name,
             prompt_config,
-            decomp_config,
+            decomp_config=decomp_config,
             current_depth=0,
             additional_histories=False,
         )
@@ -40,11 +46,7 @@ class DummyAgent(BaseAgent):
             logger.warning(f"DummyAgent ignores additional kwargs: {kwargs}")
 
         self.metrics.update(
-            {
-                f"{prefix}_{counter}": 0
-                for counter in ("calls", "chats", "responses_completed", "responses_incomplete")
-                for prefix in METRIC_PREFIXES
-            }
+            {f"{prefix}_{counter}": 0 for counter in ("calls", "chats", "responses_completed", "responses_incomplete") for prefix in METRIC_PREFIXES}
         )
         self.metrics["latest_direct_tokens"] = 0
 
@@ -72,7 +74,7 @@ class DummyAgent(BaseAgent):
         for k in self.metrics.keys():
             if k.startswith("latest"):
                 self.metrics[k] = 0
-                
+
         for prefix in METRIC_PREFIXES:
             self.metrics[f"{prefix}_chats"] += 1
 

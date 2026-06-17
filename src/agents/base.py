@@ -67,14 +67,9 @@ class BaseAgent(ABC):
             messages (list[Message]): The list of messages to send to the API.
             **kwargs: Additional keyword arguments to pass to the API call.
         """
-        # NOTE: Required for AGL
-        extra_body = kwargs.setdefault("extra_body", {})
-        extra_body.setdefault("return_token_ids", True)
-
         return await self.openai_client.chat.completions.create(
             model=self.model,
             messages=messages,
-            logprobs=False,  # NOTE: we dont need logprobs for AGL
             **kwargs,
         )
 

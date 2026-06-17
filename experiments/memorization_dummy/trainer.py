@@ -16,7 +16,6 @@ class MemorizationDummyTrainer(AglTrainer):
             model_name=model,
             openai_client=client,
             prompt_config=self.prompt_config,
-            decomp_config=self.decomp_config,
         )
         
     def format_prompt(self, sample: dict[str, Any]) -> str:

@@ -35,8 +35,10 @@ class VerlTrainer(AgentLightningTrainer):
     - https://github.com/microsoft/agent-lightning/issues/492
     - https://github.com/microsoft/agent-lightning/issues/50
 
-    Additionally, it attaches a `custom_meta` dict to every sample handed to the daemon
+    - Additionally, it attaches a `custom_meta` dict to every sample handed to the daemon
     (see `_attach_custom_meta`), carrying dynamic metadata such as the current training step.
+    - Additionally, it logs the fraction of rollout groups that produce no reward-driven policy gradient
+    (see `_compute_degenerate_group_metrics`), which is a critical signal of training health in group-baseline estimators like GRPO.
     """
 
     def _attach_custom_meta(self, non_tensor_batch: dict) -> None:
@@ -51,9 +53,68 @@ class VerlTrainer(AgentLightningTrainer):
         logging). Related: https://github.com/microsoft/agent-lightning/issues/401
         """
         num_samples = len(next(iter(non_tensor_batch.values())))
-        non_tensor_batch["custom_meta"] = np.array(
-            [{"step_number": self.global_steps} for _ in range(num_samples)], dtype=object
-        )
+        non_tensor_batch["custom_meta"] = np.array([{"step_number": self.global_steps} for _ in range(num_samples)], dtype=object)
+
+    # Below this magnitude an advantage is treated as zero (i.e. contributing no gradient).
+    # Genuine group-baseline advantages are O(0.1-1); a zero-variance group yields exactly 0,
+    # so this threshold cleanly separates the two even in bfloat16.
+    _DEGENERATE_ADV_TOL: float = 1e-6
+
+    def _compute_degenerate_group_metrics(self, batch) -> dict:
+        """
+        Log the fraction of rollout groups that produce no reward-driven policy gradient.
+
+        A "group" is the set of rollouts sharing a ``uid`` (the same prompt) — the unit over
+        which group-baseline estimators normalize the reward. Such a group contributes nothing
+        to the policy-gradient loss exactly when *all* of its advantages are zero, which is what
+        happens when every rollout in the group received the same reward (the group baseline then
+        equals each reward, so every advantage is 0). A high ``degenerate_group_rate`` means most
+        of the batch is dead weight and the policy cannot learn (e.g. a collapsed policy that
+        always emits the same answer).
+
+        We measure this on the computed ``advantages`` rather than on the raw rewards, because the
+        advantage is the quantity that actually drives the gradient. This keeps the signal correct
+        across configurations without re-deriving each estimator's math:
+
+        - Note: with ``entropy_coeff > 0`` a degenerate group still yields an entropy (exploration)
+        gradient; "no signal" here means specifically no reward-driven policy gradient.
+        """
+        if "uid" not in batch.non_tensor_batch or "advantages" not in batch.batch:
+            return {}
+
+        uids = batch.non_tensor_batch["uid"]
+        advantages = batch.batch["advantages"]
+        response_mask = batch.batch["response_mask"]
+
+        # Per-rollout signal magnitude: the largest |advantage| over its valid response tokens.
+        # A rollout drives a gradient iff this exceeds the tolerance.
+        per_seq_max_abs_adv = (advantages.abs() * response_mask).amax(dim=-1)
+        has_signal = (per_seq_max_abs_adv > self._DEGENERATE_ADV_TOL).tolist()
+
+        # A group has signal iff any of its rollouts does.
+        group_has_signal: dict = {}
+        for uid, sig in zip(uids, has_signal):
+            group_has_signal[uid] = group_has_signal.get(uid, False) or bool(sig)
+
+        n_groups = len(group_has_signal)
+        if n_groups == 0:
+            return {}
+
+        n_degenerate = sum(1 for has in group_has_signal.values() if not has)
+
+        if n_degenerate == n_groups:
+            logger.warning(
+                f"Step {self.global_steps}: all {n_groups} rollout group(s) are degenerate "
+                "(zero advantage), so this step produces no reward-driven policy gradient. "
+                "This usually means the policy has collapsed to a single output; consider raising "
+                "the rollout temperature / top_p / top_k or adjusting the training parameters."
+            )
+
+        return {
+            "training/n_groups": float(n_groups),
+            "training/n_degenerate_groups": float(n_degenerate),
+            "training/degenerate_group_rate": float(n_degenerate) / float(n_groups),
+        }
 
     # NOTE: exactly the same implementation as the upstream `_validate`, except that
     # the samples are stamped with `custom_meta` (see `_attach_custom_meta`).
@@ -64,7 +125,7 @@ class VerlTrainer(AgentLightningTrainer):
         test_batch = DataProto.from_single_dict(test_data)
 
         self.async_rollout_manager.wake_up()
-        self._attach_custom_meta(test_batch.non_tensor_batch)
+        self._attach_custom_meta(test_batch.non_tensor_batch)  # NOTE: custom invocation
         self.agent_mode_daemon.set_up_data_and_server(
             test_batch.non_tensor_batch,
             self.async_rollout_manager.server_addresses,
@@ -203,6 +264,7 @@ class VerlTrainer(AgentLightningTrainer):
 
             # Calculate the metrics before processing. Refer to the comments of function `compute_data_metrics` for details.
             metrics.update(compute_data_metrics(batch=batch, use_critic=self.use_critic, suffix="_before_processing"))
+            metrics.update(self._compute_degenerate_group_metrics(batch))
 
             # after advantages are assinged, we begin to drop (1) long prompt (2) floor to ppo minisize
             keep_indices = (~batch.batch["is_drop_mask"]).nonzero(as_tuple=True)[0]
