@@ -70,11 +70,6 @@ class CustomPPOTrainer(mps.PPOTrainer):
         add_train_custom_metrics(batch, metrics)
 
 
-# Recover the original (undecorated) TaskRunner so we can subclass it; ``main_ppo_sync.TaskRunner``
-# is a ``@ray.remote`` ActorClass. We override only ``run()`` to build ``AgentDacPPOTrainer``
-# (a ~15-line copy of the stock body, changing one line), then re-wrap with ``ray.remote``.
-
-
 def unwrap_ray_actor_class(actor_cls: type) -> type:
     """Return the original Python class behind a Ray ActorClass.
 

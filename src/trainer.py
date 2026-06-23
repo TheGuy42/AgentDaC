@@ -13,6 +13,7 @@ from src.configs import DecompConfig, PromptConfig, RolloutConfig
 from src.custom import VerlClient, convert_trajectory, degenerate_output
 from src.trajectory import Trajectory
 from src.utils.logging import create_logger
+from src.utils.trajectory_writer import TrajectoryWriter
 
 
 logger = create_logger(__name__)
@@ -36,18 +37,23 @@ class VerlTrainer(AgentLoopBase, ABC):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self._load_custom_configs()
 
-    def _load_custom_configs(self) -> None:
-        """Rebuild the AgentDaC pydantic configs embedded under ``config.agentdac.*``."""
-        self.prompt_config = PromptConfig.model_validate(OmegaConf.to_container(self.config.agentdac.prompt, resolve=True))
-        self.decomp_config = DecompConfig.model_validate(OmegaConf.to_container(self.config.agentdac.decomp, resolve=True))
-        self.rollout_kwargs = RolloutConfig.model_validate(OmegaConf.to_container(self.config.agentdac.rollout, resolve=True))
-        self.extra_config: dict[str, Any] = OmegaConf.to_container(self.config.agentdac.extra)
+        # Rebuild the pydantic configs from the OmegaConf config, so we can use type validation and defaults.
+        custom_configs = self.config.custom_configs
+        self.prompt_config = PromptConfig.model_validate(OmegaConf.to_container(custom_configs.prompt_config, resolve=True))
+        self.decomp_config = DecompConfig.model_validate(OmegaConf.to_container(custom_configs.decomp_config, resolve=True))
+        self.rollout_kwargs = RolloutConfig.model_validate(OmegaConf.to_container(custom_configs.rollout_config, resolve=True))
+        self.extra_config: dict[str, Any] = OmegaConf.to_container(custom_configs.extra_config, resolve=True)
+
+        # Initialize the TrajectoryWriter for logging rollouts to disk.
+        self.trajectory_writer = TrajectoryWriter(
+            custom_configs.traj_writer.dir,
+            enabled=custom_configs.traj_writer.enabled,
+        )
 
     @abstractmethod
     def create_agent(self, client: VerlClient, stage: RolloutStage) -> BaseAgent:
-        """Build the AgentDaC agent for one rollout."""
+        """Build the agent for one rollout."""
 
     @abstractmethod
     def format_prompt(self, sample: dict[str, Any]) -> str:
@@ -65,6 +71,16 @@ class VerlTrainer(AgentLoopBase, ABC):
             chat_kw = self.chat_kwargs(stage, sampling_params)
             trajectory = await self.forward_step(agent, kwargs, stage, chat_kw)
             trajectory = await self.score_trajectory(kwargs, trajectory, stage)
+
+            # UUID assigned per prompt dispatch
+            # session_id is rollout.n sample index: 0, 1, ..., n-1
+            # index is dataset/batch sample index
+            self.trajectory_writer.write(
+                trajectory,
+                rollout_id=f"{kwargs['uid']}-{kwargs['session_id']}-{kwargs['index']}",
+                stage=stage.value,
+                step=kwargs["global_steps"],
+            )
 
             return convert_trajectory(
                 trajectory,

@@ -14,19 +14,10 @@ from experiments.chess_perst.chess_engine import EngineConfig, MoveEvaluator
 
 
 class ChessTrainer(VerlTrainer):
-    """Train a PersistentAgent to pick the next chess move, scored by a local engine.
 
-    Each runner subprocess lazily starts one engine via ``MoveEvaluator.for_process`` and
-    reuses it across all of its rollouts. Engine and reward settings come from the
-    ``engine_config`` embedded under ``config.agentdac.engine`` (the runner reads
-    ``engine_config.json`` and embeds it via ``_embed_configs``).
-    """
-
-    def _load_custom_configs(self) -> None:
-        super()._load_custom_configs()
-        self.engine_config = EngineConfig.model_validate(
-            OmegaConf.to_container(self.config.agentdac.engine, resolve=True)
-        )
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.engine_config = EngineConfig.model_validate(OmegaConf.to_container(self.config.custom_configs.engine_config, resolve=True))
 
     def create_agent(self, client: VerlClient, stage: RolloutStage) -> BaseAgent:
         max_depth = self.decomp_config.max_depth

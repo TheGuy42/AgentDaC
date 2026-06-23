@@ -1,0 +1,7 @@
+{
+    "mode": "path",
+    "system_root": "config_files/prompts/perst/v2_root.txt",
+    "system_inter": "config_files/prompts/perst/v2_inter.txt",
+    "system_leaf": "config_files/prompts/perst/v2_leaf.txt",
+    "tasks_depleted": null
+}

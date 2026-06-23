@@ -67,10 +67,10 @@ def test_config_build() -> None:
     assert entry._target_ == "experiments.math_dummy.trainer.MathDummyTrainer"
     assert int(cfg.actor_rollout_ref.rollout.response_length) == 4128  # 0*..+(1-0)*4096+32*1
     assert int(cfg.actor_rollout_ref.rollout.max_model_len) == 1024 + 4128
-    # full config + agentdac round-trips
+    # full config + custom_configs round-trips
     for key in ("actor_rollout_ref", "algorithm", "trainer", "critic", "data", "transfer_queue"):
         assert key in cfg, key
-    PromptConfig.model_validate(OmegaConf.to_container(cfg.agentdac.prompt, resolve=True))
+    PromptConfig.model_validate(OmegaConf.to_container(cfg.custom_configs.prompt_config, resolve=True))
     print("PASS test_config_build")
 
 

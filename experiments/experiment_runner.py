@@ -82,21 +82,21 @@ class ExperimentRunner(ABC):
             default=self.default_project_name(),
             help="Project name.",
         )
-        
+
         parser.add_argument(
             "--run",
             type=str,
             default="",
             help="Experiment run name.",
         )
-        
+
         parser.add_argument(
             "--resume",
             type=str,
             default=None,
             help="Checkpoint path to resume from.",
         )
-        
+
         parser.add_argument(
             "--gpus",
             type=int,
@@ -104,26 +104,37 @@ class ExperimentRunner(ABC):
             default=[0],
             help="GPU IDs to use.",
         )
-        
+
         parser.add_argument(
             "--config_dir",
             type=str,
             default=self.default_config_dir(),
             help="Config directory.",
         )
+
+        parser.add_argument(
+            "--traj_dir",
+            type=str,
+            default=None,
+            help=(
+                "Base directory for logging full rollout trajectories to disk "
+                "(one JSON file per rollout, grouped by training step). Disabled when not provided."
+            ),
+        )
+
         parser.add_argument(
             "--seed",
             type=int,
             default=random.randint(0, 1000000),
             help="Random seed.",
         )
-        
+
         parser.add_argument(
             "--silent",
             action="store_true",
             help="Disable verbose outputs.",
         )
-        
+
         parser.add_argument(
             "--test_run",
             action="store_true",
@@ -166,14 +177,6 @@ class ExperimentRunner(ABC):
         generated = pathlib.Path(verl.__file__).parent / "trainer" / "config" / "_generated_ppo_trainer.yaml"
         return OmegaConf.load(generated)
 
-    def _embed_configs(self, omega_conf, configs: dict[str, Any]):
-        omega_conf.agentdac = {
-            "prompt": configs["prompt_config"].model_dump(),
-            "decomp": configs["decomp_config"].model_dump(),
-            "rollout": configs["rollout_config"].model_dump(),
-            "extra": configs["extra_config"],
-        }
-
     def _write_agent_loop_yaml(self, name: str, target: str) -> pathlib.Path:
         """Write the verl agent-loop registration to a temp yaml and return its path.
 
@@ -190,21 +193,29 @@ class ExperimentRunner(ABC):
         args = self.args()
         train_config: TrainingConfig = configs["train_config"]
 
-        overrides = dict(configs["verl_config"])
-        config = OmegaConf.merge(self._verl_default_config(), OmegaConf.create(overrides))
-        OmegaConf.set_struct(config, False)
+        overrides = dict(configs.pop("verl_config"))
+        omega_conf = OmegaConf.merge(self._verl_default_config(), OmegaConf.create(overrides))
+        OmegaConf.set_struct(omega_conf, False)
+
+        # Naming, seed, resume.
+        omega_conf.trainer.project_name = args.project
+        omega_conf.trainer.experiment_name = exp_name
+        omega_conf.data.seed = args.seed
+        if args.resume:
+            omega_conf.trainer.resume_mode = "resume_path"
+            omega_conf.trainer.resume_from_path = args.resume
 
         # TransferQueue is required by main_ppo_sync (default enable=False).
-        config.transfer_queue.enable = True
+        omega_conf.transfer_queue.enable = True
 
         # Dataset: verl builds it in-worker via ``data.custom_cls`` (no parquet on disk).
         # ``train_files``/``val_files`` are split markers the dataset class branches on;
         # ``custom_dataset`` carries the load params (the dataset only sees ``config.data``).
         cls = self.dataset_class()
-        config.data.custom_cls = {"path": f"pkg://{cls.__module__}", "name": cls.__name__}
-        config.data.train_files = "train"
-        config.data.val_files = "val"
-        config.data.custom_dataset = {
+        omega_conf.data.custom_cls = {"path": f"pkg://{cls.__module__}", "name": cls.__name__}
+        omega_conf.data.train_files = "train"
+        omega_conf.data.val_files = "val"
+        omega_conf.data.custom_dataset = {
             **self.dataset_args(),
             "train_size": train_config.train_size,
             "val_size": train_config.val_size,
@@ -217,33 +228,27 @@ class ExperimentRunner(ABC):
         trainer_cls = self.trainer_class()
         agent_name = trainer_cls.__name__
         agent_loop_path = self._write_agent_loop_yaml(agent_name, f"{trainer_cls.__module__}.{trainer_cls.__qualname__}")
-        config.actor_rollout_ref.rollout.agent.agent_loop_config_path = str(agent_loop_path)
-        config.actor_rollout_ref.rollout.agent.default_agent_loop = agent_name
+        omega_conf.actor_rollout_ref.rollout.agent.agent_loop_config_path = str(agent_loop_path)
+        omega_conf.actor_rollout_ref.rollout.agent.default_agent_loop = agent_name
 
         # On-policy + agent-loop engine invariants.
-        config.actor_rollout_ref.rollout.mode = "async"  # AsyncLLM engine (NOT an off-policy switch)
-        if int(config.actor_rollout_ref.rollout.nnodes) != 0:
-            raise ValueError(f"rollout.nnodes must be 0 (colocated rollout) for on-policy training; got {config.actor_rollout_ref.rollout.nnodes}.")
+        omega_conf.actor_rollout_ref.rollout.mode = "async"  # AsyncLLM engine (NOT an off-policy switch)
+        if int(omega_conf.actor_rollout_ref.rollout.nnodes) != 0:
+            raise ValueError(
+                f"rollout.nnodes must be 0 (colocated rollout) for on-policy training; got {omega_conf.actor_rollout_ref.rollout.nnodes}."
+            )
 
-        # Embed the AgentDaC configs so the per-sample VerlTrainer can rebuild them.
-        self._embed_configs(config, configs)
+        # Embed the custom configs so the per-sample VerlTrainer can rebuild them.
+        omega_conf.custom_configs = {k: (v.model_dump() if hasattr(v, "model_dump") else v) for k, v in configs.items()}
 
-        # Naming, seed, resume.
-        config.trainer.project_name = args.project
-        config.trainer.experiment_name = exp_name
-        config.data.seed = args.seed
-        if args.resume:
-            config.trainer.resume_mode = "resume_path"
-            config.trainer.resume_from_path = args.resume
-
-        self._patch_lengths(config, configs["decomp_config"])
+        self._patch_lengths(omega_conf, configs["decomp_config"])
 
         if args.test_run:
-            self._patch_test_run(config)
+            self._patch_test_run(omega_conf)
 
         # Make the repo importable inside Ray workers (for the agent-loop `_target_` FQDNs).
-        OmegaConf.update(config, "ray_kwargs.ray_init.runtime_env.env_vars.PYTHONPATH", str(REPO_ROOT), force_add=True)
-        return config
+        OmegaConf.update(omega_conf, "ray_kwargs.ray_init.runtime_env.env_vars.PYTHONPATH", str(REPO_ROOT), force_add=True)
+        return omega_conf
 
     def _patch_lengths(self, config: Any, decomp_config: DecompConfig) -> None:
         """Size the rollout/model lengths for the worst-case multi-turn trajectory.
@@ -309,7 +314,14 @@ class ExperimentRunner(ABC):
         os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, args.gpus))
 
         configs = self._load_configs(args.config_dir)
-        train_config: TrainingConfig = configs["train_config"]
+        
+        # Inject the trajectory writer config
+        configs["traj_writer"] = {
+            "dir": args.traj_dir or "",
+            "enabled": args.traj_dir is not None,
+        }
+        
+        train_config = configs["train_config"]
         if args.test_run:
             train_config.train_size = 20
             train_config.val_size = 10

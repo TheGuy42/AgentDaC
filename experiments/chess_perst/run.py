@@ -35,10 +35,6 @@ class Runner(ExperimentRunner):
         configs["engine_config"] = EngineConfig.load_from_path(pathlib.Path(dir) / "engine_config.json", do_raise=True)
         return configs
 
-    def _embed_configs(self, omega_conf, configs: dict[str, Any]):
-        super()._embed_configs(omega_conf, configs)
-        omega_conf.agentdac.engine = configs["engine_config"].model_dump()
-
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument(
             "--datasets", nargs="+", choices=SUPPORTED_DATASETS, default=[ChessDataset.PUZZLES.value],
