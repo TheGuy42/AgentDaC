@@ -76,14 +76,59 @@ class ExperimentRunner(ABC):
 
     def _parse_args(self) -> argparse.Namespace:
         parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-        parser.add_argument("--project", type=str, default=self.default_project_name(), help="Project name.")
-        parser.add_argument("--run", type=str, default="", help="Experiment run name.")
-        parser.add_argument("--resume", type=str, default=None, help="Checkpoint path to resume from.")
-        parser.add_argument("--gpus", type=int, nargs="+", default=[0], help="GPU IDs to use.")
-        parser.add_argument("--config_dir", type=str, default=self.default_config_dir(), help="Config directory.")
-        parser.add_argument("--seed", type=int, default=random.randint(0, 1000000), help="Random seed.")
-        parser.add_argument("--silent", action="store_true", help="Disable verbose outputs.")
-        parser.add_argument("--test_run", action="store_true", help="Quick minimal run for debugging.")
+        parser.add_argument(
+            "--project",
+            type=str,
+            default=self.default_project_name(),
+            help="Project name.",
+        )
+        
+        parser.add_argument(
+            "--run",
+            type=str,
+            default="",
+            help="Experiment run name.",
+        )
+        
+        parser.add_argument(
+            "--resume",
+            type=str,
+            default=None,
+            help="Checkpoint path to resume from.",
+        )
+        
+        parser.add_argument(
+            "--gpus",
+            type=int,
+            nargs="+",
+            default=[0],
+            help="GPU IDs to use.",
+        )
+        
+        parser.add_argument(
+            "--config_dir",
+            type=str,
+            default=self.default_config_dir(),
+            help="Config directory.",
+        )
+        parser.add_argument(
+            "--seed",
+            type=int,
+            default=random.randint(0, 1000000),
+            help="Random seed.",
+        )
+        
+        parser.add_argument(
+            "--silent",
+            action="store_true",
+            help="Disable verbose outputs.",
+        )
+        
+        parser.add_argument(
+            "--test_run",
+            action="store_true",
+            help="Quick minimal run for debugging.",
+        )
 
         self.add_arguments(parser)
         self._parser_args = parser.parse_args()

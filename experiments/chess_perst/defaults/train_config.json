@@ -1,5 +1,5 @@
 {
-    "train_size": 100,
-    "val_size": 100,
-    "n_runners": 16
+    "train_size": null,
+    "val_size": null,
+    "test_size": null
 }
