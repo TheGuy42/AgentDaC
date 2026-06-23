@@ -1,29 +1,27 @@
-from src.trajectory import Trajectory
+from typing import Any
+
 from src.agents import BaseAgent, DummyAgent
-from src.trainer import AglTrainer, RolloutStage
+from src.custom import VerlClient
+from src.trainer import RolloutStage, VerlTrainer
+from src.trajectory import Trajectory
 
 from experiments.math.format import format_prompt
 from experiments.math.rewards import answer_reward
 
-from openai import AsyncOpenAI
-from typing import Any
 
-
-class MathDummyTrainer(AglTrainer):
-    def create_agent(self, client: AsyncOpenAI, model: str, stage: RolloutStage) -> BaseAgent:
-
+class MathDummyTrainer(VerlTrainer):
+    def create_agent(self, client: VerlClient, stage: RolloutStage) -> BaseAgent:
         return DummyAgent(
-            model_name=model,
-            openai_client=client,
+            client=client,
             prompt_config=self.prompt_config,
         )
-        
+
     def format_prompt(self, sample: dict[str, Any]) -> str:
         return format_prompt(sample)
 
     async def score_trajectory(
         self,
-        sample: dict,
+        sample: dict[str, Any],
         trajectory: Trajectory,
         stage: RolloutStage,
     ) -> Trajectory:

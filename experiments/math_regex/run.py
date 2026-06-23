@@ -7,8 +7,8 @@ if str(module_dir) not in sys.path:
     sys.path.append(str(module_dir))
 
 
-from experiments.math_regex.trainer import MathRegexTrainer
 from experiments.math.run import Runner as MathRunner
+from experiments.math_regex.trainer import MathRegexTrainer
 
 
 class Runner(MathRunner):
@@ -18,8 +18,9 @@ class Runner(MathRunner):
     def default_config_dir(self) -> str:
         return "experiments/math_regex/defaults"
 
-    def create_trainer(self, **kwargs) -> MathRegexTrainer: 
-        return MathRegexTrainer(**kwargs)
+    def trainer_class(self) -> type:
+        return MathRegexTrainer
+
 
 
 if __name__ == "__main__":

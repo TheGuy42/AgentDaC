@@ -4,12 +4,13 @@ from typing import Any, cast
 import dataclasses
 
 from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
-from src.aliases import Message, Response
+from src.aliases import Message
+from src.inference import InferenceResponse
 
 
 @dataclasses.dataclass
 class Trajectory:
-    messages_and_responses: list[Message | Response]
+    messages_and_responses: list[Message | InferenceResponse]
     tools: list[ChatCompletionToolParam] | None = None
     histories: list[Trajectory] = dataclasses.field(default_factory=list)
     reward: float = 0.0
@@ -42,18 +43,17 @@ class Trajectory:
 
         # add field "trainable" to each message dict
         for msg, item in zip(result_dict["messages"], self.messages_and_responses):
-            msg["trainable"] = isinstance(item, Response)
+            msg["trainable"] = isinstance(item, InferenceResponse)
 
         return result_dict
 
 
-def get_messages(messages_and_responses: list[Message | Response]) -> list[Message]:
+def get_messages(messages_and_responses: list[Message | InferenceResponse]) -> list[Message]:
     messages: list[Message] = []
     for message_or_response in messages_and_responses:
-        if isinstance(message_or_response, Response):
-            choice = message_or_response.choices[0]
-            content = choice.message.content or ""
-            tool_calls = choice.message.tool_calls or []
+        if isinstance(message_or_response, InferenceResponse):
+            content = message_or_response.content or ""
+            tool_calls = message_or_response.tool_calls or []
             assistant_message: Message = cast(
                 Message,
                 {

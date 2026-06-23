@@ -1,8 +1,7 @@
 from argparse import ArgumentParser
 import sys
 import pathlib
-
-from datasets import Dataset, load_dataset, DatasetDict
+from typing import Any
 
 # set pythonpath to the main module directory
 module_dir = pathlib.Path(__file__).parent.parent.parent.resolve()
@@ -11,9 +10,9 @@ if str(module_dir) not in sys.path:
 
 
 from experiments.experiment_runner import ExperimentRunner
+from experiments.bbeh.dataset import BbehDataset
 from experiments.bbeh.trainer import BbehTrainer
 from experiments.bbeh.tasks import SupportedTasks
-from src.trainer import AglTrainer
 
 
 class Runner(ExperimentRunner):
@@ -33,23 +32,14 @@ class Runner(ExperimentRunner):
             help=f"Which tasks of the BBEH dataset to use. Available tasks: {SupportedTasks.list_values()}",
         )
 
-    def load_data(self) -> tuple[Dataset, Dataset, Dataset]:
-        data: Dataset = load_dataset(
-            path="BBEH/bbeh",
-            split="train",
-        )  # type: ignore
+    def dataset_class(self) -> type:
+        return BbehDataset
 
-        # Filter by tasks
-        data = data.map(lambda sample: {"task": sample["task"].replace(" ", "_")})
-        data = data.filter(lambda sample: sample["task"] in self.args().tasks)
+    def trainer_class(self) -> type:
+        return BbehTrainer
 
-        split_dict = data.train_test_split(test_size=0.25, seed=0)
-        ds_train = split_dict["train"]
-        ds_eval = split_dict["test"]
-        return ds_train, ds_eval, ds_eval
-
-    def create_trainer(self, **kwargs) -> AglTrainer:
-        return BbehTrainer(**kwargs)
+    def dataset_args(self) -> dict[str, Any]:
+        return {"tasks": self.args().tasks}
 
 
 if __name__ == "__main__":

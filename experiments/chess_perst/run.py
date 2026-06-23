@@ -5,20 +5,18 @@ import pathlib
 import sys
 from typing import Any
 
-from datasets import Dataset
-
 # set pythonpath to the main module directory
 module_dir = pathlib.Path(__file__).parent.parent.parent.resolve()
 if str(module_dir) not in sys.path:
     sys.path.append(str(module_dir))
 
 
-from src.trainer import AglTrainer
 from src.utils.logging import create_logger
 from experiments.experiment_runner import ExperimentRunner
+from experiments.chess_perst.dataset import ChessPerstDataset
 from experiments.chess_perst.trainer import ChessTrainer
 from experiments.chess_perst.chess_engine import EngineConfig
-from experiments.chess_perst.data import ChessDataset, SUPPORTED_DATASETS, load_dataset
+from experiments.chess_perst.data import ChessDataset, SUPPORTED_DATASETS
 
 
 logger = create_logger(__name__)
@@ -37,6 +35,10 @@ class Runner(ExperimentRunner):
         configs["engine_config"] = EngineConfig.load_from_path(pathlib.Path(dir) / "engine_config.json", do_raise=True)
         return configs
 
+    def _embed_configs(self, omega_conf, configs: dict[str, Any]):
+        super()._embed_configs(omega_conf, configs)
+        omega_conf.agentdac.engine = configs["engine_config"].model_dump()
+
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument(
             "--datasets", nargs="+", choices=SUPPORTED_DATASETS, default=[ChessDataset.PUZZLES.value],
@@ -48,20 +50,22 @@ class Runner(ExperimentRunner):
         parser.add_argument("--min_rating", type=int, default=None, help="Minimum puzzle rating (lichess-puzzles only).")
         parser.add_argument("--max_rating", type=int, default=None, help="Maximum puzzle rating (lichess-puzzles only).")
 
-    def load_data(self) -> tuple[Dataset, Dataset, Dataset]:
-        args = self.args()
-        train, val = load_dataset(
-            args.datasets,
-            num_train=args.num_train,
-            num_val=args.num_val,
-            seed=args.data_seed,
-            min_rating=args.min_rating,
-            max_rating=args.max_rating,
-        )
-        return train, val, val
+    def dataset_class(self) -> type:
+        return ChessPerstDataset
 
-    def create_trainer(self, **kwargs) -> AglTrainer:
-        return ChessTrainer(**kwargs)
+    def trainer_class(self) -> type:
+        return ChessTrainer
+
+    def dataset_args(self) -> dict[str, Any]:
+        args = self.args()
+        return {
+            "datasets": args.datasets,
+            "num_train": args.num_train,
+            "num_val": args.num_val,
+            "data_seed": args.data_seed,
+            "min_rating": args.min_rating,
+            "max_rating": args.max_rating,
+        }
 
 
 if __name__ == "__main__":

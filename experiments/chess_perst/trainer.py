@@ -1,29 +1,34 @@
 from typing import Any
 import random
-from openai import AsyncOpenAI
+
+from omegaconf import OmegaConf
 
 from src.trajectory import Trajectory
 from src.agents import BaseAgent, PersistentAgent
-from src.trainer import AglTrainer, RolloutStage
+from src.trainer import RolloutStage, VerlTrainer
+from src.custom import VerlClient
 from src.configs import DecompConfig
 
 from experiments.chess_perst.format import format_prompt
 from experiments.chess_perst.chess_engine import EngineConfig, MoveEvaluator
 
 
-class ChessTrainer(AglTrainer):
+class ChessTrainer(VerlTrainer):
     """Train a PersistentAgent to pick the next chess move, scored by a local engine.
 
     Each runner subprocess lazily starts one engine via ``MoveEvaluator.for_process`` and
-    reuses it across all of its rollouts. Engine and reward settings come from
-    ``engine_config`` (loaded from ``engine_config.json`` in the config directory).
+    reuses it across all of its rollouts. Engine and reward settings come from the
+    ``engine_config`` embedded under ``config.agentdac.engine`` (the runner reads
+    ``engine_config.json`` and embeds it via ``_embed_configs``).
     """
 
-    def __init__(self, *, engine_config: EngineConfig, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self.engine_config = engine_config
+    def _load_custom_configs(self) -> None:
+        super()._load_custom_configs()
+        self.engine_config = EngineConfig.model_validate(
+            OmegaConf.to_container(self.config.agentdac.engine, resolve=True)
+        )
 
-    def create_agent(self, client: AsyncOpenAI, model: str, stage: RolloutStage) -> BaseAgent:
+    def create_agent(self, client: VerlClient, stage: RolloutStage) -> BaseAgent:
         max_depth = self.decomp_config.max_depth
         max_tasks = self.decomp_config.max_tasks
         max_rounds = self.decomp_config.max_rounds
@@ -43,8 +48,7 @@ class ChessTrainer(AglTrainer):
         )
 
         return PersistentAgent(
-            model_name=model,
-            openai_client=client,
+            client=client,
             prompt_config=self.prompt_config,
             decomp_config=decomp_config,
             additional_histories=self.extra_config.get("additional_histories", False),

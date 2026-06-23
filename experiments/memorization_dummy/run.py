@@ -7,8 +7,8 @@ if str(module_dir) not in sys.path:
     sys.path.append(str(module_dir))
 
 
-from experiments.memorization_dummy.trainer import MemorizationDummyTrainer
 from experiments.memorization.run import Runner as MemorizationRunner
+from experiments.memorization_dummy.trainer import MemorizationDummyTrainer
 
 
 class Runner(MemorizationRunner):
@@ -18,8 +18,9 @@ class Runner(MemorizationRunner):
     def default_config_dir(self) -> str:
         return "experiments/memorization_dummy/defaults"
 
-    def create_trainer(self, **kwargs) -> MemorizationDummyTrainer:
-        return MemorizationDummyTrainer(**kwargs)
+    def trainer_class(self) -> type:
+        return MemorizationDummyTrainer
+
 
 
 if __name__ == "__main__":

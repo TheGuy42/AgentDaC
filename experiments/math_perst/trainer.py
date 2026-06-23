@@ -1,18 +1,18 @@
 from src.trajectory import Trajectory
 from src.agents import BaseAgent, PersistentAgent
-from src.trainer import AglTrainer, RolloutStage
+from src.trainer import RolloutStage, VerlTrainer
+from src.custom import VerlClient
 from src.configs import DecompConfig
 
 from experiments.math.format import format_prompt
 from experiments.math.rewards import answer_reward
 
-from openai import AsyncOpenAI
 import random
 from typing import Any
 
 
-class MathPerstTrainer(AglTrainer):
-    def create_agent(self, client: AsyncOpenAI, model: str, stage: RolloutStage) -> BaseAgent:
+class MathPerstTrainer(VerlTrainer):
+    def create_agent(self, client: VerlClient, stage: RolloutStage) -> BaseAgent:
         max_depth = self.decomp_config.max_depth
         max_tasks = self.decomp_config.max_tasks
         max_rounds = self.decomp_config.max_rounds
@@ -32,8 +32,7 @@ class MathPerstTrainer(AglTrainer):
         )
 
         return PersistentAgent(
-            model_name=model,
-            openai_client=client,
+            client=client,
             prompt_config=self.prompt_config,
             decomp_config=decomp_config,
             additional_histories=self.extra_config.get("additional_histories", False),

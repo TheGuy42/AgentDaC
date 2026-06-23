@@ -1,20 +1,19 @@
 from src.trajectory import Trajectory
 from src.agents import BaseAgent, DummyAgent
-from src.trainer import AglTrainer, RolloutStage
+from src.trainer import RolloutStage, VerlTrainer
+from src.custom import VerlClient
 
 from experiments.memorization.format import format_prompt
 from experiments.memorization.rewards import answer_reward
 
-from openai import AsyncOpenAI
 from typing import Any
 
 
-class MemorizationDummyTrainer(AglTrainer):
-    def create_agent(self, client: AsyncOpenAI, model: str, stage: RolloutStage) -> BaseAgent:
+class MemorizationDummyTrainer(VerlTrainer):
+    def create_agent(self, client: VerlClient, stage: RolloutStage) -> BaseAgent:
 
         return DummyAgent(
-            model_name=model,
-            openai_client=client,
+            client=client,
             prompt_config=self.prompt_config,
         )
         

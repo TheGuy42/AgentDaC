@@ -7,8 +7,8 @@ if str(module_dir) not in sys.path:
     sys.path.append(str(module_dir))
 
 
-from experiments.math_dummy.trainer import MathDummyTrainer
 from experiments.math.run import Runner as MathRunner
+from experiments.math_dummy.trainer import MathDummyTrainer
 
 
 class Runner(MathRunner):
@@ -18,8 +18,8 @@ class Runner(MathRunner):
     def default_config_dir(self) -> str:
         return "experiments/math_dummy/defaults"
 
-    def create_trainer(self, **kwargs) -> MathDummyTrainer:
-        return MathDummyTrainer(**kwargs)
+    def trainer_class(self) -> type:
+        return MathDummyTrainer
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 from src.trajectory import Trajectory
 from src.agents import BaseAgent, MarkerAgent
-from src.trainer import AglTrainer, RolloutStage
+from src.trainer import RolloutStage, VerlTrainer
+from src.custom import VerlClient
 from src.aliases import UserMessage
 from src.agents.marker_agent.markers import Markers, extract_between
 from src.configs import DecompConfig
@@ -9,13 +10,12 @@ from experiments.general_rewards import format_reward, behavior_reward
 from experiments.bbeeh.rewards import answer_reward
 from experiments.bbeeh.format import format_prompt
 
-from openai import AsyncOpenAI
 import random
 from typing import Any
 
 
-class BbeehTrainer(AglTrainer):
-    def create_agent(self, client: AsyncOpenAI, model: str, stage: RolloutStage) -> BaseAgent:
+class BbeehTrainer(VerlTrainer):
+    def create_agent(self, client: VerlClient, stage: RolloutStage) -> BaseAgent:
         max_depth = self.decomp_config.max_depth
         max_tasks = self.decomp_config.max_tasks
         max_rounds = self.decomp_config.max_rounds
@@ -35,8 +35,7 @@ class BbeehTrainer(AglTrainer):
         )
 
         return MarkerAgent(
-            openai_client=client,
-            model_name=model,
+            client=client,
             prompt_config=self.prompt_config,
             decomp_config=decomp_config,
         )

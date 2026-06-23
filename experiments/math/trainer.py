@@ -1,20 +1,20 @@
-from src.trajectory import Trajectory
-from src.agents import BaseAgent, MarkerAgent
-from src.trainer import AglTrainer, RolloutStage
-from src.agents.marker_agent.markers import Markers, extract_between
-from src.configs import DecompConfig
-
-from experiments.general_rewards import format_reward, behavior_reward
-from experiments.math.rewards import answer_reward
-from experiments.math.format import format_prompt
-
-from openai import AsyncOpenAI
 import random
 from typing import Any
 
+from src.agents import BaseAgent, MarkerAgent
+from src.agents.marker_agent.markers import Markers, extract_between
+from src.configs import DecompConfig
+from src.custom import VerlClient
+from src.trainer import RolloutStage, VerlTrainer
+from src.trajectory import Trajectory
 
-class MathTrainer(AglTrainer):
-    def create_agent(self, client: AsyncOpenAI, model: str, stage: RolloutStage) -> BaseAgent:
+from experiments.general_rewards import behavior_reward, format_reward
+from experiments.math.format import format_prompt
+from experiments.math.rewards import answer_reward
+
+
+class MathTrainer(VerlTrainer):
+    def create_agent(self, client: VerlClient, stage: RolloutStage) -> BaseAgent:
         max_depth = self.decomp_config.max_depth
         max_tasks = self.decomp_config.max_tasks
         max_rounds = self.decomp_config.max_rounds
@@ -35,8 +35,7 @@ class MathTrainer(AglTrainer):
         )
 
         return MarkerAgent(
-            openai_client=client,
-            model_name=model,
+            client=client,
             prompt_config=self.prompt_config,
             decomp_config=decomp_config,
         )

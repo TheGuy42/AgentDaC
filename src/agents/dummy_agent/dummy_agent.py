@@ -2,7 +2,8 @@ from __future__ import annotations
 from src.trajectory import Trajectory
 from src.agents.base import BaseAgent
 from src.configs import DecompConfig
-from src.aliases import Message, UserMessage, Response
+from src.aliases import Message, UserMessage
+from src.inference import InferenceResponse
 from src.utils.visualize import trajectory_string, message_string
 from src.utils.logging import create_logger
 
@@ -21,8 +22,7 @@ class DummyAgent(BaseAgent):
 
     def __init__(
         self,
-        openai_client,
-        model_name,
+        client,
         prompt_config,
         **kwargs,
     ):
@@ -34,8 +34,7 @@ class DummyAgent(BaseAgent):
         )
 
         super().__init__(
-            openai_client,
-            model_name,
+            client,
             prompt_config,
             decomp_config=decomp_config,
             current_depth=0,
@@ -50,9 +49,8 @@ class DummyAgent(BaseAgent):
         )
         self.metrics["latest_direct_tokens"] = 0
 
-    async def call(self, messages: list[Message], **kwargs) -> Response:
-        extra_body: dict = kwargs.setdefault("extra_body", {})
-        extra_body.setdefault("include_stop_str_in_output", True)
+    async def call(self, messages: list[Message], **kwargs) -> InferenceResponse:
+        kwargs.setdefault("include_stop_str_in_output", True)
         return await super().call(messages, **kwargs)
 
     async def chat(
@@ -85,8 +83,8 @@ class DummyAgent(BaseAgent):
         # Update metrics
         for prefix in METRIC_PREFIXES:
             self.metrics[f"{prefix}_calls"] += 1
-        if completion.usage is not None:
-            self.metrics["latest_direct_tokens"] = completion.usage.total_tokens
+        if completion.total_tokens is not None:
+            self.metrics["latest_direct_tokens"] = completion.total_tokens
 
         if verbose:
             print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
@@ -94,7 +92,7 @@ class DummyAgent(BaseAgent):
         self.decomp_config.update_round(num_tasks=0)
 
         # Update final stats
-        completed = int(completion.choices[0].finish_reason != "length")
+        completed = int(completion.finish_reason != "length")
         incomplete = 1 - completed
 
         # This agent's own response completion (direct only; no subtree)

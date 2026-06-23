@@ -5,7 +5,10 @@ from dataclasses import dataclass
 from src.trajectory import Trajectory
 from src.agents.base import BaseAgent
 from src.agents.regex_agent.actions import TurnAction
-from src.aliases import Message, UserMessage, Response
+from vllm.sampling_params import StructuredOutputsParams
+
+from src.aliases import Message, UserMessage
+from src.inference import InferenceResponse
 from src.utils.visualize import trajectory_string, message_string
 from src.utils.logging import create_logger
 import re
@@ -98,17 +101,15 @@ class RegexAgent(BaseAgent):
 
         return GuidedRegex(*allowed)
 
-    async def call(self, messages: list[Message], **kwargs) -> Response:
+    async def call(self, messages: list[Message], **kwargs) -> InferenceResponse:
         regex: GuidedRegex = kwargs.pop("regex")
-        extra_body: dict = kwargs.setdefault("extra_body", {})
-        extra_body.setdefault("include_stop_str_in_output", True)
-        extra_body["guided_regex"] = regex.model_pattern
+        kwargs.setdefault("include_stop_str_in_output", True)
+        kwargs["structured_outputs"] = StructuredOutputsParams(regex=regex.model_pattern)
         return await super().call(messages, **kwargs)
 
     def _create_subagent(self) -> BaseAgent:
         return RegexAgent(
-            openai_client=self.openai_client,
-            model_name=self.model,
+            client=self.client,
             prompt_config=self.prompt_config,
             decomp_config=self.decomp_config,
             current_depth=self.current_depth + 1,
@@ -147,8 +148,8 @@ class RegexAgent(BaseAgent):
             # Update metrics
             for prefix in METRIC_PREFIXES:
                 self.metrics[f"{prefix}_calls"] += 1
-            if completion.usage is not None:
-                self.metrics["latest_direct_tokens"] = completion.usage.total_tokens
+            if completion.total_tokens is not None:
+                self.metrics["latest_direct_tokens"] = completion.total_tokens
 
             if verbose:
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
@@ -200,7 +201,7 @@ class RegexAgent(BaseAgent):
                 raise ValueError(f"Unhandled action: {turn.action}")
 
         # Update final stats
-        completed = int((completion.choices[0].finish_reason != "length") and (turn.action == TurnAction.ANSWER))
+        completed = int((completion.finish_reason != "length") and (turn.action == TurnAction.ANSWER))
         incomplete = 1 - completed
 
         # This agent's own response completion, counted across all four quadrants

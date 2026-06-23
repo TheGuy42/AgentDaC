@@ -8,7 +8,8 @@ from src.utils.visualize import trajectory_string, message_string
 import src.agents.marker_agent.markers as markers
 from src.agents.marker_agent.markers import Markers
 from src.utils.logging import create_logger
-from src.aliases import Message, UserMessage, Response
+from src.aliases import Message, UserMessage
+from src.inference import InferenceResponse
 
 
 logger = create_logger(__name__)
@@ -40,18 +41,16 @@ class MarkerAgent(BaseAgent):
 
     def _create_subagent(self) -> MarkerAgent:
         return MarkerAgent(
-            openai_client=self.openai_client,
-            model_name=self.model,
+            client=self.client,
             prompt_config=self.prompt_config,
             decomp_config=self.decomp_config,
             current_depth=self.current_depth + 1,
             additional_histories=False,  # NOTE: no support for recursive histories yet
         )
 
-    async def call(self, messages: list[Message], **kwargs) -> Response:
+    async def call(self, messages: list[Message], **kwargs) -> InferenceResponse:
         # By default allow only a single task and answer in the response
-        extra_body = kwargs.setdefault("extra_body", {})
-        extra_body.setdefault("include_stop_str_in_output", True)
+        kwargs.setdefault("include_stop_str_in_output", True)
         kwargs.setdefault("stop", [Markers.TASK_END, Markers.ANS_END])
         return await super().call(messages, **kwargs)
 
@@ -110,8 +109,8 @@ class MarkerAgent(BaseAgent):
             # Update metrics
             for prefix in METRIC_PREFIXES:
                 self.metrics[f"{prefix}_calls"] += 1
-            if completion.usage is not None:
-                self.metrics["latest_direct_tokens"] = completion.usage.total_tokens
+            if completion.total_tokens is not None:
+                self.metrics["latest_direct_tokens"] = completion.total_tokens
 
             if verbose:
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
@@ -173,7 +172,7 @@ class MarkerAgent(BaseAgent):
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
 
         # Update final stats
-        completed = int(completion.choices[0].finish_reason != "length")
+        completed = int(completion.finish_reason != "length")
         incomplete = 1 - completed
 
         # This agent's own response completion, counted across all four quadrants

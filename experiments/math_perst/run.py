@@ -7,8 +7,8 @@ if str(module_dir) not in sys.path:
     sys.path.append(str(module_dir))
 
 
-from experiments.math_perst.trainer import MathPerstTrainer
 from experiments.math.run import Runner as MathRunner
+from experiments.math_perst.trainer import MathPerstTrainer
 
 
 class Runner(MathRunner):
@@ -18,8 +18,9 @@ class Runner(MathRunner):
     def default_config_dir(self) -> str:
         return "experiments/math_perst/defaults"
 
-    def create_trainer(self, **kwargs) -> MathPerstTrainer: 
-        return MathPerstTrainer(**kwargs)
+    def trainer_class(self) -> type:
+        return MathPerstTrainer
+
 
 
 if __name__ == "__main__":

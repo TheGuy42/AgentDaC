@@ -1,6 +1,7 @@
 from src.trajectory import Trajectory
 from src.agents import BaseAgent, MarkerAgent
-from src.trainer import AglTrainer, RolloutStage
+from src.trainer import RolloutStage, VerlTrainer
+from src.custom import VerlClient
 from src.aliases import UserMessage
 from src.agents.marker_agent.markers import Markers, extract_between
 
@@ -8,15 +9,13 @@ from experiments.general_rewards import format_reward, behavior_reward
 from experiments.mmlu_pro.rewards import answer_reward
 from experiments.mmlu_pro.format import format_prompt
 
-from openai import AsyncOpenAI
 from typing import Any
 
 
-class MmluProTrainer(AglTrainer):
-    def create_agent(self, client: AsyncOpenAI, model: str, stage: RolloutStage) -> BaseAgent:
+class MmluProTrainer(VerlTrainer):
+    def create_agent(self, client: VerlClient, stage: RolloutStage) -> BaseAgent:
         return MarkerAgent(
-            openai_client=client,
-            model_name=model,
+            client=client,
             prompt_config=self.prompt_config,
             decomp_config=self.decomp_config,
         )

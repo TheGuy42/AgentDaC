@@ -1,11 +1,11 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 
-from openai import AsyncOpenAI
+from src.inference import InferenceClient, InferenceResponse
 from src.trajectory import Trajectory
 from src.utils.visualize import trajectory_string
 from src.utils.logging import create_logger
-from src.aliases import Message, SystemMessage, Response
+from src.aliases import Message, SystemMessage
 from src.configs import PromptConfig, DecompConfig
 
 
@@ -15,15 +15,13 @@ logger = create_logger(__name__)
 class BaseAgent(ABC):
     def __init__(
         self,
-        openai_client: AsyncOpenAI,
-        model_name: str,
+        client: InferenceClient,
         prompt_config: PromptConfig,
         decomp_config: DecompConfig,
         current_depth: int = 0,
         additional_histories: bool = False,
     ):
-        self.openai_client = openai_client
-        self.model = model_name
+        self.client = client
         self.prompt_config = prompt_config.initialize()
         self.decomp_config = decomp_config.clone()
         self.current_depth = current_depth
@@ -58,20 +56,16 @@ class BaseAgent(ABC):
 
         return None
 
-    async def call(self, messages: list[Message], **kwargs) -> Response:
+    async def call(self, messages: list[Message], **kwargs) -> InferenceResponse:
         """
-        Call the OpenAI API to get a chat completion.
+        Generate an assistant response via the inference client.
         Should not be used directly; use `chat` instead.
 
         Args:
-            messages (list[Message]): The list of messages to send to the API.
-            **kwargs: Additional keyword arguments to pass to the API call.
+            messages (list[Message]): The list of messages to send.
+            **kwargs: Additional keyword arguments forwarded to the client.
         """
-        return await self.openai_client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            **kwargs,
-        )
+        return await self.client.chat(messages, **kwargs)
 
     async def answer(self, prompt: Message, verbose: bool = False, **kwargs) -> str:
         """

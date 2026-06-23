@@ -2,13 +2,14 @@ from __future__ import annotations
 from typing import Any
 from dataclasses import dataclass
 
-from openai import AsyncOpenAI
-
 from src.trajectory import Trajectory
 from src.agents.base import BaseAgent
 from src.agents.perst_agent.actions import TurnAction
-from src.aliases import Message, UserMessage, Response
+from src.aliases import Message, UserMessage
 from src.configs import PromptConfig, DecompConfig
+from src.inference import InferenceClient, InferenceResponse
+
+from vllm.sampling_params import StructuredOutputsParams
 from src.utils.visualize import trajectory_string, message_string
 from src.utils.logging import create_logger
 import re
@@ -61,16 +62,14 @@ class GuidedRegex:
 class PersistentAgent(BaseAgent):
     def __init__(
         self,
-        openai_client: AsyncOpenAI,
-        model_name: str,
+        client: InferenceClient,
         prompt_config: PromptConfig,
         decomp_config: DecompConfig,
         current_depth: int = 0,
         additional_histories: bool = False,
     ):
         super().__init__(
-            openai_client=openai_client,
-            model_name=model_name,
+            client=client,
             prompt_config=prompt_config,
             decomp_config=decomp_config,
             current_depth=current_depth,
@@ -124,17 +123,15 @@ class PersistentAgent(BaseAgent):
 
         return GuidedRegex(*allowed)
 
-    async def call(self, messages: list[Message], **kwargs) -> Response:
+    async def call(self, messages: list[Message], **kwargs) -> InferenceResponse:
         regex: GuidedRegex = kwargs.pop("regex")
-        extra_body: dict = kwargs.setdefault("extra_body", {})
-        extra_body.setdefault("include_stop_str_in_output", True)
-        extra_body["guided_regex"] = regex.model_pattern
+        kwargs.setdefault("include_stop_str_in_output", True)
+        kwargs["structured_outputs"] = StructuredOutputsParams(regex=regex.model_pattern)
         return await super().call(messages, **kwargs)
 
     def _create_subagent(self) -> PersistentAgent:
         return PersistentAgent(
-            openai_client=self.openai_client,
-            model_name=self.model,
+            client=self.client,
             prompt_config=self.prompt_config,
             decomp_config=self.decomp_config,
             current_depth=self.current_depth + 1,
@@ -173,8 +170,8 @@ class PersistentAgent(BaseAgent):
             # Update metrics
             for prefix in METRIC_PREFIXES:
                 self.metrics[f"{prefix}_calls"] += 1
-            if completion.usage is not None:
-                self.metrics["latest_direct_tokens"] = completion.usage.total_tokens
+            if completion.total_tokens is not None:
+                self.metrics["latest_direct_tokens"] = completion.total_tokens
 
             if verbose:
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
@@ -232,7 +229,7 @@ class PersistentAgent(BaseAgent):
                 self.decomp_config.update_round(num_tasks=1)
 
         # Update final stats
-        completed = int((completion.choices[0].finish_reason != "length") and (turn.action == TurnAction.ANSWER))
+        completed = int((completion.finish_reason != "length") and (turn.action == TurnAction.ANSWER))
         incomplete = 1 - completed
 
         # This agent's own response completion, counted across all four quadrants

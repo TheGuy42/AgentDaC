@@ -1,28 +1,31 @@
-import sys
-import os
-import torch
-import pathlib
+from __future__ import annotations
+
 import argparse
+import atexit
 import logging
-from typing import Any, Tuple
-from abc import ABC, abstractmethod
+import os
+import pathlib
 import random
-
-import json
-import pydantic
-from datasets import Dataset
+import sys
+import tempfile
+from abc import ABC, abstractmethod
 from datetime import datetime
+from typing import Any
 
+import torch
+from omegaconf import OmegaConf
+
+from src.configs import DecompConfig, PromptConfig, RolloutConfig, TrainingConfig
 from src.utils.env import prepare_environment, set_seed
-from src.utils.logging import create_logger, setup_logging
 from src.utils.io import load_object
-from src.utils.dicts import get_dict_value, set_dict_value
-from src.configs import TrainingConfig, PromptConfig, DecompConfig, RolloutConfig
-from src.trainer import AglTrainer
-from src.trajectory_writer import TrajectoryWriter
+from src.utils.logging import create_logger, setup_logging
 
 
 logger = create_logger(__name__)
+
+# Repo root, so the Ray workers can import experiment `_target_` FQDNs (e.g.
+# ``experiments.math.trainer.MathTrainer``).
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 class ExperimentRunner(ABC):
@@ -37,296 +40,246 @@ class ExperimentRunner(ABC):
     @abstractmethod
     def default_project_name(self) -> str:
         """Override to specify default project name."""
-        pass
 
     @abstractmethod
     def default_config_dir(self) -> str:
-        """Override to specify default config directory."""
-        pass
+        """Override to specify the experiment's config directory (holds the JSON configs)."""
 
     @abstractmethod
-    def load_data(self) -> Tuple[Dataset, Dataset, Dataset]:
-        """Load and return (train_dataset, val_dataset, test_data)."""
-        pass
+    def dataset_class(self) -> type:
+        """Return the experiment's ``DynamicDataset`` subclass.
+
+        verl builds it in-worker via ``data.custom_cls`` (see ``_build_verl_config``);
+        the class implements ``load_split`` to load + filter its source."""
 
     @abstractmethod
-    def create_trainer(self, **kwargs) -> AglTrainer:
-        """Return the trainer class to use."""
-        pass
+    def trainer_class(self) -> type:
+        """Return the experiment's ``VerlTrainer`` subclass — the verl agent-loop ``_target_``.
+
+        Used to generate the agent-loop registration at runtime (see ``_write_agent_loop_yaml``),
+        replacing a committed ``agent_loop.yaml``."""
+
+    def dataset_args(self) -> dict[str, Any]:
+        """Override to provide experiment-specific dataset params.
+
+        Embedded under ``config.data.custom_dataset`` and read by the dataset class's
+        ``load_split`` (e.g. ``{"min_level": ..., "max_level": ...}``)."""
+        return {}
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         """Override to add custom command line arguments."""
-        pass
-
-    def _create_trajectory_writer(self, configs: dict[str, Any]) -> TrajectoryWriter:
-        """Build the trajectory writer."""
-        args = self.args()
-        exp_name, _ = get_dict_value(configs["verl_config"], "trainer", "experiment_name", raise_missing=True)
-        output_dir = pathlib.Path(args.traj_dir or "trajectories") / args.project / exp_name
-
-        if args.traj_dir is not None:
-            logger.info(f"Logging full rollout trajectories to '{output_dir}'.")
-
-        return TrajectoryWriter(output_dir, enabled=args.traj_dir is not None)
 
     def _generate_run_name(self, base_model: str) -> str:
-        """
-        Generate a run name based on the model name and current date.
-        """
         base_model = base_model.split("/")[-1]
         date_str = datetime.now().strftime("%m_%d_%H_%M")
         return f"{base_model}_{date_str}"
 
     def _parse_args(self) -> argparse.Namespace:
-        """Parse command line arguments."""
         parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
-        parser.add_argument(
-            "--project",
-            type=str,
-            default=self.default_project_name(),
-            help="The name of the project for saving results.",
-        )
-
-        parser.add_argument(
-            "--run",
-            type=str,
-            default="",
-            help="The name of the experiment run.",
-        )
-
-        parser.add_argument(
-            "--resume",
-            type=str,
-            default=None,
-            help="Whether to resume from a previous checkpoint. Provide the checkpoint path.",
-        )
-
-        parser.add_argument(
-            "--gpus",
-            type=int,
-            nargs="+",
-            default=[0],
-            help=f"The ID of the GPU(s) to use (e.g., 0 or 0 1). Available GPUs: {list(range(torch.cuda.device_count()))}",
-        )
-
-        parser.add_argument(
-            "--config_dir",
-            type=str,
-            default=self.default_config_dir(),
-            help="Directory containing experiment configuration files.",
-        )
-
-        parser.add_argument(
-            "--traj_dir",
-            type=str,
-            default=None,
-            help=(
-                "Base directory for logging full rollout trajectories to disk "
-                "(one JSON file per rollout, grouped by training step). Disabled when not provided."
-            ),
-        )
-
-        parser.add_argument(
-            "--seed",
-            type=int,
-            default=random.randint(0, 1000000),
-            help="Random seed for reproducibility (default: random).",
-        )
-
-        parser.add_argument(
-            "--silent",
-            action="store_true",
-            help="Disable verbose outputs.",
-        )
-
-        parser.add_argument(
-            "--test_run",
-            action="store_true",
-            help="Perform a quick test run with minimal training for debugging purposes.",
-        )
+        parser.add_argument("--project", type=str, default=self.default_project_name(), help="Project name.")
+        parser.add_argument("--run", type=str, default="", help="Experiment run name.")
+        parser.add_argument("--resume", type=str, default=None, help="Checkpoint path to resume from.")
+        parser.add_argument("--gpus", type=int, nargs="+", default=[0], help="GPU IDs to use.")
+        parser.add_argument("--config_dir", type=str, default=self.default_config_dir(), help="Config directory.")
+        parser.add_argument("--seed", type=int, default=random.randint(0, 1000000), help="Random seed.")
+        parser.add_argument("--silent", action="store_true", help="Disable verbose outputs.")
+        parser.add_argument("--test_run", action="store_true", help="Quick minimal run for debugging.")
 
         self.add_arguments(parser)
         self._parser_args = parser.parse_args()
         args = self.args()
 
-        # verify valid GPU IDs
         if not all(0 <= gpu < torch.cuda.device_count() for gpu in args.gpus):
-            raise ValueError(f"Invalid GPU IDs provided: {args.gpus}. Available GPUs: {list(range(torch.cuda.device_count()))}")
+            raise ValueError(f"Invalid GPU IDs {args.gpus}. Available: {list(range(torch.cuda.device_count()))}")
 
-        # print the parsed arguments
-        print()
-        print("Parsed arguments:")
+        print("\nParsed arguments:")
         for arg, value in vars(args).items():
             print(f"  {arg}: {value}")
         print()
-
         return args
 
     def _load_configs(self, dir: str | pathlib.Path) -> dict[str, Any]:
-        """Load all configuration files."""
-        if isinstance(dir, str):
-            dir = pathlib.Path(dir)
-
+        dir = pathlib.Path(dir)
         return {
             "train_config": TrainingConfig.load_from_path(dir / "train_config.json", do_raise=True),
             "prompt_config": PromptConfig.load_from_path(dir / "prompt_config.json", do_raise=True),
             "decomp_config": DecompConfig.load_from_path(dir / "decomp_config.json", do_raise=True),
             "rollout_config": RolloutConfig.load_from_path(dir / "rollout_config.json", do_raise=True),
-            "verl_config": load_object(dir / "verl_config.json", do_raise=True),
-            "extra_config": load_object(dir / "extra_config.json", do_raise=False),
+            "verl_config": load_object(dir / "verl_config.json", do_raise=True),  # OVERRIDES onto verl defaults
+            "extra_config": load_object(dir / "extra_config.json", do_raise=False) or {},
         }
 
-    def _update_configs_test(self, configs: dict[str, Any]):
-        train_config = configs["train_config"]
-        train_config.n_runners = 1
-        train_config.train_size = 20
-        train_config.val_size = 10
+    def _verl_default_config(self) -> Any:
+        """The complete flattened verl ``ppo_trainer`` default config (our merge base).
 
-        verl_config = configs["verl_config"]
-        set_dict_value(verl_config, "trainer", "logger", value=["console"])
-        set_dict_value(verl_config, "trainer", "nnodes", value=1)
-        set_dict_value(verl_config, "trainer", "n_gpus_per_node", value=1)
-        set_dict_value(verl_config, "trainer", "test_freq", value=1)
-        set_dict_value(verl_config, "trainer", "save_freq", value=-1)
-        set_dict_value(verl_config, "trainer", "total_epochs", value=1)
-        set_dict_value(verl_config, "trainer", "total_training_steps", value=2)
-        set_dict_value(verl_config, "data", "train_batch_size", value=6)
-        set_dict_value(verl_config, "actor_rollout_ref", "rollout", "n", value=2)
-        set_dict_value(verl_config, "actor_rollout_ref", "actor", "ppo_mini_batch_size", value=2)
-        set_dict_value(verl_config, "actor_rollout_ref", "actor", "ppo_micro_batch_size_per_gpu", value=2)
-        set_dict_value(verl_config, "actor_rollout_ref", "ref", "log_prob_micro_batch_size_per_gpu", value=2)
-
-    def _patch_lengths(self, configs: dict[str, Any]) -> None:
+        ``main_ppo_sync`` reads the whole schema, so a partial ``verl_config.json`` is not enough.
+        We load verl's shipped flattened default and merge the experiment overrides onto it.
+        (Equivalent canonical form: ``hydra.compose(config_name="ppo_trainer")``.)
         """
-        Patch the prompt and response lengths in the VERL config to ensure they fit within the model's context window.
-        Utilizes `DecompConfig` to compute a conservative upper bound on the maximum cumulative response length of a trajectory.
+        import verl
+
+        generated = pathlib.Path(verl.__file__).parent / "trainer" / "config" / "_generated_ppo_trainer.yaml"
+        return OmegaConf.load(generated)
+
+    def _embed_configs(self, omega_conf, configs: dict[str, Any]):
+        omega_conf.agentdac = {
+            "prompt": configs["prompt_config"].model_dump(),
+            "decomp": configs["decomp_config"].model_dump(),
+            "rollout": configs["rollout_config"].model_dump(),
+            "extra": configs["extra_config"],
+        }
+
+    def _write_agent_loop_yaml(self, name: str, target: str) -> pathlib.Path:
+        """Write the verl agent-loop registration to a temp yaml and return its path.
+
+        verl's ``AgentLoopWorker`` loads this via ``OmegaConf.load(agent_loop_config_path)``, so it
+        must be a real file; we generate it from ``trainer_class()`` instead of committing one."""
+        entries = OmegaConf.create([{"name": name, "_target_": target}])
+        fd, path = tempfile.mkstemp(prefix=f"agent_loop_{name}_", suffix=".yaml")
+        os.close(fd)
+        OmegaConf.save(entries, path)
+        atexit.register(lambda: pathlib.Path(path).unlink(missing_ok=True))
+        return pathlib.Path(path)
+
+    def _build_verl_config(self, configs: dict[str, Any], exp_name: str) -> Any:
+        args = self.args()
+        train_config: TrainingConfig = configs["train_config"]
+
+        overrides = dict(configs["verl_config"])
+        overrides.pop("agentlightning", None)  # AGL-only; not in verl's schema
+
+        config = OmegaConf.merge(self._verl_default_config(), OmegaConf.create(overrides))
+        OmegaConf.set_struct(config, False)
+
+        # TransferQueue is required by main_ppo_sync (default enable=False).
+        config.transfer_queue.enable = True
+
+        # Dataset: verl builds it in-worker via ``data.custom_cls`` (no parquet on disk).
+        # ``train_files``/``val_files`` are split markers the dataset class branches on;
+        # ``custom_dataset`` carries the load params (the dataset only sees ``config.data``).
+        cls = self.dataset_class()
+        config.data.custom_cls = {"path": f"pkg://{cls.__module__}", "name": cls.__name__}
+        config.data.train_files = "train"
+        config.data.val_files = "val"
+        config.data.custom_dataset = {
+            **self.dataset_args(),
+            "train_size": train_config.train_size,
+            "val_size": train_config.val_size,
+            "seed": args.seed,
+            "data_source": args.project,
+        }
+
+        # Agent-loop registration: generated at runtime from ``trainer_class()`` (verl loads it
+        # via OmegaConf.load, so it must be a real file).
+        trainer_cls = self.trainer_class()
+        agent_name = trainer_cls.__name__
+        agent_loop_path = self._write_agent_loop_yaml(agent_name, f"{trainer_cls.__module__}.{trainer_cls.__qualname__}")
+        config.actor_rollout_ref.rollout.agent.agent_loop_config_path = str(agent_loop_path)
+        config.actor_rollout_ref.rollout.agent.default_agent_loop = agent_name
+
+        # On-policy + agent-loop engine invariants.
+        config.actor_rollout_ref.rollout.mode = "async"  # AsyncLLM engine (NOT an off-policy switch)
+        if int(config.actor_rollout_ref.rollout.nnodes) != 0:
+            raise ValueError(f"rollout.nnodes must be 0 (colocated rollout) for on-policy training; got {config.actor_rollout_ref.rollout.nnodes}.")
+
+        # Embed the AgentDaC configs so the per-sample VerlTrainer can rebuild them.
+        self._embed_configs(config, configs)
+
+        # Naming, seed, resume.
+        config.trainer.project_name = args.project
+        config.trainer.experiment_name = exp_name
+        config.data.seed = args.seed
+        if args.resume:
+            config.trainer.resume_mode = "resume_path"
+            config.trainer.resume_from_path = args.resume
+
+        self._patch_lengths(config, configs["decomp_config"])
+
+        if args.test_run:
+            self._patch_test_run(config)
+
+        # Make the repo importable inside Ray workers (for the agent-loop `_target_` FQDNs).
+        OmegaConf.update(config, "ray_kwargs.ray_init.runtime_env.env_vars.PYTHONPATH", str(REPO_ROOT), force_add=True)
+        return config
+
+    def _patch_lengths(self, config: Any, decomp_config: DecompConfig) -> None:
+        """Size the rollout/model lengths for the worst-case multi-turn trajectory.
+
+        - ``rollout.response_length`` = the cumulative response budget (what ``convert_trajectory``
+          truncates to and what padding uses). This is the key length for the agent loop.
+        - ``data.max_response_length`` stays the per-turn cap (the vLLM ``max_new_tokens`` knob is
+          set per turn via the experiment's rollout chat kwargs).
         """
+        single_resp_len = int(config.data.max_response_length)
+        traj_resp_len = (
+            decomp_config.max_tasks * (2 * single_resp_len)
+            + (decomp_config.max_rounds - decomp_config.max_tasks) * single_resp_len
+            + 32 * decomp_config.max_rounds  # chat-template buffer per round
+        )
+        inp_len = int(config.data.max_prompt_length)  # initial system+user prompt cap
+        model_len = inp_len + traj_resp_len
 
-        # NOTE: Index:
-        # - agentlightning.trace_aggregator.trajectory_max_prompt_length is the length of the initial prompt fed to the model, which includes the user question and the system instructions
-        # - agentlightning.trace_aggregator.trajectory_max_response_length is the cumulative length of the rest of the conversation without the initial prompt over the entire trajectory rollout, which includes all model responses and tool responses.
-        # - data.max_response_length is the length of single model response. Controls vllm max_new_tokens in SamplingParams
-        # - data.max_prompt_length is the maximum length of the prompt fed to the model during any stage of the trajectory rollout, which includes the initial prompt and the conversation history.
-        # - actor_rollout_ref.rollout.max_model_len is the maximum overall length of the entire trajectory
+        config.data.max_prompt_length = inp_len
+        config.actor_rollout_ref.rollout.prompt_length = inp_len
+        config.actor_rollout_ref.rollout.response_length = traj_resp_len
+        config.actor_rollout_ref.rollout.max_model_len = model_len
 
-        verl_config = configs["verl_config"]
-        decomp_config: DecompConfig = configs["decomp_config"]
+        logger.info(f"Lengths: prompt_length={inp_len}, response_length(cumulative)={traj_resp_len}, max_model_len={model_len}")
 
-        # Compute the maximum possible cumulative response length of a trajectory based on the number of rounds and tasks,
-        # assuming the worst case where every task is decomposed until the max rounds, and every model response is as long as the max_response_length.
-        # This is a conservative upper bound to ensure we never exceed the model context window, even in edge cases.
-        sing_resp_len, _ = get_dict_value(verl_config, "data", "max_response_length", raise_missing=True)
-        traj_resp_len = decomp_config.max_tasks * (2 * sing_resp_len) + (decomp_config.max_rounds - decomp_config.max_tasks) * sing_resp_len
-        traj_resp_len += 32 * decomp_config.max_rounds  # Add extra buffer chat template
+    def _patch_test_run(self, config: Any) -> None:
+        logger.info("Test run: overriding verl config for a quick run.")
+        config.trainer.logger = ["console"]
+        config.trainer.nnodes = 1
+        config.trainer.n_gpus_per_node = 1
+        config.trainer.test_freq = 1
+        config.trainer.save_freq = -1
+        config.trainer.total_epochs = 1
+        config.trainer.total_training_steps = 2
+        config.data.train_batch_size = 6
+        config.actor_rollout_ref.rollout.n = 2
+        config.actor_rollout_ref.actor.ppo_mini_batch_size = 2
+        config.actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu = 2
+        config.actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu = 2
 
-        inp_len = 1024  # Max length of the input first system + user prompt
-        if get_dict_value(verl_config, "agentlightning", "trace_aggregator", "level") == "trajectory":
-            inp_len, _ = get_dict_value(verl_config, "agentlightning", "trace_aggregator", "trajectory_max_prompt_length", raise_missing=True)
+    def _launch(self, config: Any) -> None:
+        """Replicate ``main_ppo_sync.main`` (we bypass its @hydra.main entrypoint)."""
+        from verl.trainer.main_ppo import run_ppo
+        from verl.trainer.ppo.utils import need_critic, need_reference_policy
+        from verl.utils.config import validate_config
+        from verl.utils.device import auto_set_device
+        from src.custom.ppo import CustomTaskRunner
 
-        model_len = inp_len + traj_resp_len # Overall model context length needed to fit the entire trajectory
-        prompt_len = model_len - sing_resp_len
-
-        set_dict_value(verl_config, "agentlightning", "trace_aggregator", "trajectory_max_response_length", value=traj_resp_len)
-        set_dict_value(verl_config, "data", "max_prompt_length", value=prompt_len)
-        set_dict_value(verl_config, "actor_rollout_ref", "rollout", "max_model_len", value=model_len)
-
-        logger.info(f"Setting `agentlightning.trace_aggregator.trajectory_max_response_length` to {traj_resp_len}")
-        logger.info(f"Setting `data.max_prompt_length` to {prompt_len}")
-        logger.info(f"Setting `actor_rollout_ref.rollout.max_model_len` to {model_len}")
-
-    def _patch_configs(self, configs: dict[str, Any]) -> dict[str, Any]:
-        verl_config = configs["verl_config"]
-        
-        model_name, _ = get_dict_value(verl_config, "actor_rollout_ref", "model", "path", raise_missing=True)
-        exp_name = self.args().run or self._generate_run_name(model_name)
-        
-        logger.info(f"Experiment name set to '{exp_name}'")
-        set_dict_value(verl_config, "trainer", "project_name", value=self.args().project)
-        set_dict_value(verl_config, "trainer", "experiment_name", value=exp_name)
-
-        logger.info(f"Setting VERL seed to {self.args().seed}")
-        set_dict_value(verl_config, "data", "seed", value=self.args().seed)
-
-        self._patch_lengths(configs)
-            
-        if resume_path := self.args().resume:
-            logger.info(f"Resuming from checkpoint: {resume_path}")
-            set_dict_value(verl_config, "trainer", "resume_mode", value="resume_path")
-            set_dict_value(verl_config, "trainer", "resume_from_path", value=resume_path)
-
-        if self.args().test_run:
-            logger.info("Test run enabled: Overriding configs for a quick test run.")
-            self._update_configs_test(configs)
-
-        return configs
-
-    def _print_configs(self, configs: dict[str, Any]) -> None:
-        for cfg_name, cfg_obj in configs.items():
-            try:
-                if isinstance(cfg_obj, (pydantic.BaseModel)):
-                    cfg_str = cfg_obj.model_dump_json(indent=2)
-                else:
-                    cfg_str = json.dumps(cfg_obj, indent=2)
-            except Exception:
-                cfg_str = str(cfg_obj)
-
-            logger.info(f"Configuration for {cfg_name} ({type(cfg_obj).__name__}): {cfg_str}")
+        auto_set_device(config)
+        config.transfer_queue.enable = True
+        validate_config(
+            config=config,
+            use_reference_policy=need_reference_policy(config),
+            use_critic=need_critic(config),
+        )
+        run_ppo(config, task_runner_class=CustomTaskRunner)
 
     def _main(self) -> None:
-        """Main experiment execution logic."""
-
         args = self.args()
         logger.info(f"Current working directory: {os.getcwd()}")
 
-        # Set random seed
         set_seed(args.seed)
-        logger.info(f"Random seed set to {args.seed}")
-
-        # Set the GPU environment variable
         os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, args.gpus))
 
-        # Load configurations
         configs = self._load_configs(args.config_dir)
-        configs = self._patch_configs(configs)
         train_config: TrainingConfig = configs["train_config"]
+        if args.test_run:
+            train_config.train_size = 20
+            train_config.val_size = 10
 
-        # Print all configurations
-        if not args.silent:
-            self._print_configs(configs)
+        model_name = str(configs["verl_config"]["actor_rollout_ref"]["model"]["path"])
+        exp_name = args.run or self._generate_run_name(model_name)
+        logger.info(f"Experiment name: {exp_name}")
 
-        # Load dataset
-        logger.info("Loading data...")
-        train_dataset, val_dataset, test_dataset = self.load_data()
-        logger.info(f"Train dataset size: {len(train_dataset)}")
-        logger.info(f"Validation dataset size: {len(val_dataset)}")
-
-        train_dataset = train_dataset.shuffle(0).to_list()
-        val_dataset = val_dataset.shuffle(1).to_list()
-        test_dataset = test_dataset.shuffle(2).to_list()
-
-        if train_config.train_size is not None:
-            train_dataset = train_dataset[: train_config.train_size]
-            logger.info(f"Truncated train dataset to size: {len(train_dataset)}")
-
-        if train_config.val_size is not None:
-            val_dataset = val_dataset[: train_config.val_size]
-            logger.info(f"Truncated val dataset to size: {len(val_dataset)}")
-
-        if train_config.test_size is not None:
-            test_dataset = test_dataset[: train_config.test_size]
-            logger.info(f"Truncated test dataset to size: {len(test_dataset)}")
-
-        # Create and configure the trainer
-        writer = self._create_trajectory_writer(configs)
-        trainer = self.create_trainer(**configs, trajectory_writer=writer)
-
-        # Start training
-        logger.info("Starting training...")
-        trainer.train(train_dataset=train_dataset, val_dataset=val_dataset)
+        config = self._build_verl_config(configs, exp_name)
+        logger.info("Starting training (main_ppo_sync)...")
+        self._launch(config)
 
     def run(self) -> None:
-        """Entry point to run the experiment."""
         try:
             self._parse_args()
             prepare_environment()
