@@ -100,16 +100,10 @@
             "enable_gradient_checkpointing": true,
             "lora_rank": 32,
             "lora_alpha": 32,
-            "target_modules": "all-linear"
-        }
-    },
-    "agentlightning": {
-        "trace_aggregator": {
-            "level": "trajectory",
-            "trajectory_max_prompt_length": 2048,
-            "trajectory_max_response_length": 16384,
-            "debug": false,
-            "mismatch_log_dir": "./mismatch_cases"
+            "target_modules": "all-linear",
+            "override_config": {
+                "attn_implementation": "sdpa"
+            }
         }
     }
 }

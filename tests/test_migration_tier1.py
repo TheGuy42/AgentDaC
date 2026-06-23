@@ -48,7 +48,6 @@ def test_config_build() -> None:
     r = _runner()
     configs = r._load_configs(CFG_DIR)
     cfg = r._build_verl_config(configs, "unit")
-    assert "agentlightning" not in cfg
     assert cfg.transfer_queue.enable is True
     # In-worker dataset wiring (no parquet): split markers + custom_cls + embedded args.
     assert cfg.data.train_files == "train" and cfg.data.val_files == "val"

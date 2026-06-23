@@ -146,8 +146,6 @@ class ExperimentRunner(ABC):
         train_config: TrainingConfig = configs["train_config"]
 
         overrides = dict(configs["verl_config"])
-        overrides.pop("agentlightning", None)  # AGL-only; not in verl's schema
-
         config = OmegaConf.merge(self._verl_default_config(), OmegaConf.create(overrides))
         OmegaConf.set_struct(config, False)
 
