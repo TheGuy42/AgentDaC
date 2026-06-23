@@ -1,5 +1,5 @@
 {
-    "train_size": null,
-    "val_size": null,
+    "train_size": 2000,
+    "val_size": 200,
     "test_size": null
 }

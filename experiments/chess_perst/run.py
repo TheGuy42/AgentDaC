@@ -37,14 +37,33 @@ class Runner(ExperimentRunner):
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument(
-            "--datasets", nargs="+", choices=SUPPORTED_DATASETS, default=[ChessDataset.PUZZLES.value],
+            "--datasets",
+            nargs="+",
+            choices=SUPPORTED_DATASETS,
+            default=[ChessDataset.PUZZLES.value],
             help="Which chess dataset(s) to load positions from (pooled when more than one).",
         )
-        parser.add_argument("--num_train", type=int, default=2000, help="Number of training positions.")
-        parser.add_argument("--num_val", type=int, default=200, help="Number of validation positions.")
-        parser.add_argument("--data_seed", type=int, default=1234, help="Seed for reproducible data loading/shuffling.")
-        parser.add_argument("--min_rating", type=int, default=None, help="Minimum puzzle rating (lichess-puzzles only).")
-        parser.add_argument("--max_rating", type=int, default=None, help="Maximum puzzle rating (lichess-puzzles only).")
+
+        parser.add_argument(
+            "--data_seed",
+            type=int,
+            default=1234,
+            help="Seed for reproducible data loading/shuffling.",
+        )
+
+        parser.add_argument(
+            "--min_rating",
+            type=int,
+            default=None,
+            help="Minimum puzzle rating (lichess-puzzles only).",
+        )
+
+        parser.add_argument(
+            "--max_rating",
+            type=int,
+            default=None,
+            help="Maximum puzzle rating (lichess-puzzles only).",
+        )
 
     def dataset_class(self) -> type:
         return ChessPerstDataset
@@ -56,8 +75,6 @@ class Runner(ExperimentRunner):
         args = self.args()
         return {
             "datasets": args.datasets,
-            "num_train": args.num_train,
-            "num_val": args.num_val,
             "data_seed": args.data_seed,
             "min_rating": args.min_rating,
             "max_rating": args.max_rating,

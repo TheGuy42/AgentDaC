@@ -19,6 +19,8 @@ dependencies = [
     "chess>=1.11.2",
     "transferqueue>=0.1.8",
     "trl>=1.6.0",
+    "transformers>=4.57.6",
+    "huggingface-hub[cli]>=0.36.2",
 ]
 
 # VERL 0.8.0 requires numpy<2 but its over-conservative
