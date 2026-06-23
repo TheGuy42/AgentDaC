@@ -19,6 +19,7 @@ from src.configs import DecompConfig, PromptConfig, RolloutConfig, TrainingConfi
 from src.utils.env import prepare_environment, set_seed
 from src.utils.io import load_object
 from src.utils.logging import create_logger, setup_logging
+from src.custom.chat_template import resolve_chat_template
 
 
 logger = create_logger(__name__)
@@ -241,6 +242,7 @@ class ExperimentRunner(ABC):
         # Embed the custom configs so the per-sample VerlTrainer can rebuild them.
         omega_conf.custom_configs = {k: (v.model_dump() if hasattr(v, "model_dump") else v) for k, v in configs.items()}
 
+        # Patch the rollout/model lengths for the worst-case multi-turn trajectory (cumulative response length).
         self._patch_lengths(omega_conf, configs["decomp_config"])
 
         if args.test_run:
@@ -248,7 +250,28 @@ class ExperimentRunner(ABC):
 
         # Make the repo importable inside Ray workers (for the agent-loop `_target_` FQDNs).
         OmegaConf.update(omega_conf, "ray_kwargs.ray_init.runtime_env.env_vars.PYTHONPATH", str(REPO_ROOT), force_add=True)
+
+        # Verify (and patch, if possible) the chat template before training starts.
+        self._ensure_prefix_preserving_chat_template(omega_conf)
+
         return omega_conf
+
+    def _ensure_prefix_preserving_chat_template(self, omega_conf: Any) -> None:
+        """Verify (and patch, if possible) the chat template before training starts.
+
+        ``convert_trajectory`` reconstructs the trajectory from per-turn prompt tokens and
+        requires a prefix-preserving chat template. Resolve it here -- against the *effective*
+        template verl will use -- and inject any patched template via ``custom_chat_template``
+        so ``HFModelConfig`` applies it to the tokenizer the rollout shares. Raises if unsafe.
+        """
+        model = omega_conf.actor_rollout_ref.model
+        resolved = resolve_chat_template(
+            model_path=model.path,
+            manual_template=model.get("custom_chat_template", None),
+            trust_remote_code=bool(model.get("trust_remote_code", False)),
+        )
+        if resolved is not None:
+            model.custom_chat_template = resolved
 
     def _patch_lengths(self, config: Any, decomp_config: DecompConfig) -> None:
         """Size the rollout/model lengths for the worst-case multi-turn trajectory.
@@ -314,13 +337,7 @@ class ExperimentRunner(ABC):
         os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, args.gpus))
 
         configs = self._load_configs(args.config_dir)
-        
-        # Inject the trajectory writer config
-        configs["traj_writer"] = {
-            "dir": args.traj_dir or "",
-            "enabled": args.traj_dir is not None,
-        }
-        
+
         train_config = configs["train_config"]
         if args.test_run:
             train_config.train_size = 20
@@ -329,6 +346,12 @@ class ExperimentRunner(ABC):
         model_name = str(configs["verl_config"]["actor_rollout_ref"]["model"]["path"])
         exp_name = args.run or self._generate_run_name(model_name)
         logger.info(f"Experiment name: {exp_name}")
+
+        # Inject the trajectory writer config
+        configs["traj_writer"] = {
+            "dir": (pathlib.Path(args.traj_dir or "trajectories") / args.project / exp_name).as_posix(),
+            "enabled": args.traj_dir is not None,
+        }
 
         config = self._build_verl_config(configs, exp_name)
         logger.info("Starting training (main_ppo_sync)...")

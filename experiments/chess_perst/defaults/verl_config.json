@@ -53,7 +53,7 @@
             "name": "vllm",
             "dtype": "bfloat16",
             "load_format": "safetensors",
-            "gpu_memory_utilization": 0.8,
+            "gpu_memory_utilization": 0.75,
             "engine_kwargs": {
                 "vllm": {
                     "generation_config": "auto",
@@ -95,7 +95,7 @@
             }
         },
         "model": {
-            "path": "OpenPipe/Qwen3-14B-Instruct",
+            "path": "Qwen/Qwen3.5-9B",
             "use_remove_padding": true,
             "enable_gradient_checkpointing": true,
             "lora_rank": 32,
