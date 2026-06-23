@@ -27,8 +27,6 @@
         "max_response_length": 4096,
         "truncation": "error",
         "shuffle": true,
-        "train_files": null,
-        "val_files": null,
         "apply_chat_template_kwargs": {
             "enable_thinking": false
         }

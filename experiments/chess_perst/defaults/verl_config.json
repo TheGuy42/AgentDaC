@@ -28,8 +28,8 @@
         "max_response_length": 1024,
         "truncation": "error",
         "shuffle": true,
-        "train_files": null,
-        "val_files": null,
+        "train_files": "train",
+        "val_files": "val",
         "apply_chat_template_kwargs": {
             "enable_thinking": false
         }
@@ -95,7 +95,7 @@
             }
         },
         "model": {
-            "path": "Qwen/Qwen3-1.7B",
+            "path": "OpenPipe/Qwen3-14B-Instruct",
             "use_remove_padding": true,
             "enable_gradient_checkpointing": true,
             "lora_rank": 32,
