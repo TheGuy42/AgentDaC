@@ -23,7 +23,7 @@ class VerlResponse(OAIResponse):
 class VerlClient(InferenceClient):
     """
     Text-only client over VERL's token-in/token-out rollout API.
-    This client is non-openai based, it is rather based on plain ``.generate()`` calls.
+    This client is non-openai based, it is rather based on plain `.generate()` calls.
     """
 
     def __init__(self, verl_agent: AgentLoopBase, client_id: str | None = None) -> None:

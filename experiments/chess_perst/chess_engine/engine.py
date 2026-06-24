@@ -12,7 +12,7 @@ logger = create_logger(__name__)
 class LocalEngine:
     """A single persistent local UCI engine process (e.g. Stockfish).
 
-    A thin wrapper over python-chess's synchronous ``SimpleEngine`` that exposes one async
+    A thin wrapper over python-chess's synchronous `SimpleEngine` that exposes one async
     method, :meth:`evaluate`, returning the raw analysis. All scoring/reward logic lives in
     :class:`MoveEvaluator`. The engine can be shared across concurrent rollouts within a
     runner: access is serialized and the blocking search runs off the event loop.
@@ -25,7 +25,7 @@ class LocalEngine:
         self._lock = asyncio.Lock()
 
     async def evaluate(self, board: chess.Board) -> InfoDict:
-        """Return the engine's raw analysis of ``board`` (a single, serialized search)."""
+        """Return the engine's raw analysis of `board` (a single, serialized search)."""
 
         # Lock: a UCI engine is one serial pipe — a second analyse() would cancel the
         # running search, so only one is ever in flight.

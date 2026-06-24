@@ -18,17 +18,17 @@ class InferenceResponse(ABC):
     @property
     @abstractmethod
     def tool_calls(self) -> list[Any] | None:
-        """Assistant tool calls, or ``None``/empty when there are none."""
+        """Assistant tool calls, or `None`/empty when there are none."""
 
     @property
     @abstractmethod
     def finish_reason(self) -> str | None:
-        """Why generation stopped (e.g. ``"stop"`` / ``"length"``)."""
+        """Why generation stopped (e.g. `"stop"` / `"length"`)."""
 
     @property
     @abstractmethod
     def total_tokens(self) -> int | None:
-        """Total prompt+completion tokens, or ``None`` if unavailable."""
+        """Total prompt+completion tokens, or `None` if unavailable."""
 
 
 class OAIResponse(InferenceResponse):

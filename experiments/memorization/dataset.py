@@ -10,10 +10,10 @@ LABEL_KINDS = ["random", "const"]
 
 
 class MemorizationDataset(DynamicDataset):
-    """Synthetic memorization data: ``num_samples`` rows with fixed labels.
+    """Synthetic memorization data: `num_samples` rows with fixed labels.
 
     All splits return the same deterministic set (the task is to memorize), seeded by
-    ``config.data.custom_dataset.seed`` so train/val are identical across instantiations.
+    `config.data.custom_dataset.seed` so train/val are identical across instantiations.
     """
 
     def load_split(self, split: str):

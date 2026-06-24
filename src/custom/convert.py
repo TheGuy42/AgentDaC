@@ -51,7 +51,7 @@ def convert_trajectory(
     response_length: int,
 ) -> AgentLoopOutput:
     """
-    Convert a finished ``Trajectory`` to a VERL ``AgentLoopOutput``.
+    Convert a finished `Trajectory` to a VERL `AgentLoopOutput`.
 
     Args:
         trajectory (Trajectory): The finished trajectory to convert.

@@ -1,6 +1,6 @@
 """Tier-1 offline checks for the AGL -> verl (main_ppo_sync) migration.
 
-Runnable directly (pytest is not installed in this env):  ``python tests/test_migration_tier1.py``
+Runnable directly (pytest is not installed in this env):  `python tests/test_migration_tier1.py`
 Covers: config build (incl. in-worker dataset wiring), chat_kwargs temperature/n guards,
 metric-schema consistency, the degenerate path, and convert_trajectory round-trips.
 No GPU / Ray / vLLM needed.

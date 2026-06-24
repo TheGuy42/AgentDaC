@@ -6,7 +6,7 @@ from src.custom.dataset import DynamicDataset
 
 
 class BbehDataset(DynamicDataset):
-    """BBEH, filtered to the selected tasks. Params from ``config.data.custom_dataset``."""
+    """BBEH, filtered to the selected tasks. Params from `config.data.custom_dataset`."""
 
     def load_split(self, split: str):
         cfg = self.config.custom_dataset

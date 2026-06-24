@@ -25,7 +25,7 @@ from src.custom.chat_template import resolve_chat_template
 logger = create_logger(__name__)
 
 # Repo root, so the Ray workers can import experiment `_target_` FQDNs (e.g.
-# ``experiments.math.trainer.MathTrainer``).
+# `experiments.math.trainer.MathTrainer`).
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
@@ -48,23 +48,23 @@ class ExperimentRunner(ABC):
 
     @abstractmethod
     def dataset_class(self) -> type:
-        """Return the experiment's ``DynamicDataset`` subclass.
+        """Return the experiment's `DynamicDataset` subclass.
 
-        verl builds it in-worker via ``data.custom_cls`` (see ``_build_verl_config``);
-        the class implements ``load_split`` to load + filter its source."""
+        verl builds it in-worker via `data.custom_cls` (see `_build_verl_config`);
+        the class implements `load_split` to load + filter its source."""
 
     @abstractmethod
     def trainer_class(self) -> type:
-        """Return the experiment's ``VerlTrainer`` subclass — the verl agent-loop ``_target_``.
+        """Return the experiment's `VerlTrainer` subclass — the verl agent-loop `_target_`.
 
-        Used to generate the agent-loop registration at runtime (see ``_write_agent_loop_yaml``),
-        replacing a committed ``agent_loop.yaml``."""
+        Used to generate the agent-loop registration at runtime (see `_write_agent_loop_yaml`),
+        replacing a committed `agent_loop.yaml`."""
 
     def dataset_args(self) -> dict[str, Any]:
         """Override to provide experiment-specific dataset params.
 
-        Embedded under ``config.data.custom_dataset`` and read by the dataset class's
-        ``load_split`` (e.g. ``{"min_level": ..., "max_level": ...}``)."""
+        Embedded under `config.data.custom_dataset` and read by the dataset class's
+        `load_split` (e.g. `{"min_level": ..., "max_level": ...}`)."""
         return {}
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
@@ -167,11 +167,11 @@ class ExperimentRunner(ABC):
         }
 
     def _verl_default_config(self) -> Any:
-        """The complete flattened verl ``ppo_trainer`` default config (our merge base).
+        """The complete flattened verl `ppo_trainer` default config (our merge base).
 
-        ``main_ppo_sync`` reads the whole schema, so a partial ``verl_config.json`` is not enough.
+        `main_ppo_sync` reads the whole schema, so a partial `verl_config.json` is not enough.
         We load verl's shipped flattened default and merge the experiment overrides onto it.
-        (Equivalent canonical form: ``hydra.compose(config_name="ppo_trainer")``.)
+        (Equivalent canonical form: `hydra.compose(config_name="ppo_trainer")`.)
         """
         import verl
 
@@ -181,8 +181,8 @@ class ExperimentRunner(ABC):
     def _write_agent_loop_yaml(self, name: str, target: str) -> pathlib.Path:
         """Write the verl agent-loop registration to a temp yaml and return its path.
 
-        verl's ``AgentLoopWorker`` loads this via ``OmegaConf.load(agent_loop_config_path)``, so it
-        must be a real file; we generate it from ``trainer_class()`` instead of committing one."""
+        verl's `AgentLoopWorker` loads this via `OmegaConf.load(agent_loop_config_path)`, so it
+        must be a real file; we generate it from `trainer_class()` instead of committing one."""
         entries = OmegaConf.create([{"name": name, "_target_": target}])
         fd, path = tempfile.mkstemp(prefix=f"agent_loop_{name}_", suffix=".yaml")
         os.close(fd)
@@ -209,9 +209,9 @@ class ExperimentRunner(ABC):
         # TransferQueue is required by main_ppo_sync (default enable=False).
         omega_conf.transfer_queue.enable = True
 
-        # Dataset: verl builds it in-worker via ``data.custom_cls`` (no parquet on disk).
-        # ``train_files``/``val_files`` are split markers the dataset class branches on;
-        # ``custom_dataset`` carries the load params (the dataset only sees ``config.data``).
+        # Dataset: verl builds it in-worker via `data.custom_cls` (no parquet on disk).
+        # `train_files`/`val_files` are split markers the dataset class branches on;
+        # `custom_dataset` carries the load params (the dataset only sees `config.data`).
         cls = self.dataset_class()
         omega_conf.data.custom_cls = {"path": f"pkg://{cls.__module__}", "name": cls.__name__}
         omega_conf.data.train_files = "train"
@@ -224,7 +224,7 @@ class ExperimentRunner(ABC):
             "data_source": args.project,
         }
 
-        # Agent-loop registration: generated at runtime from ``trainer_class()`` (verl loads it
+        # Agent-loop registration: generated at runtime from `trainer_class()` (verl loads it
         # via OmegaConf.load, so it must be a real file).
         trainer_cls = self.trainer_class()
         agent_name = trainer_cls.__name__
@@ -259,10 +259,10 @@ class ExperimentRunner(ABC):
     def _ensure_prefix_preserving_chat_template(self, omega_conf: Any) -> None:
         """Verify (and patch, if possible) the chat template before training starts.
 
-        ``convert_trajectory`` reconstructs the trajectory from per-turn prompt tokens and
+        `convert_trajectory` reconstructs the trajectory from per-turn prompt tokens and
         requires a prefix-preserving chat template. Resolve it here -- against the *effective*
-        template verl will use -- and inject any patched template via ``custom_chat_template``
-        so ``HFModelConfig`` applies it to the tokenizer the rollout shares. Raises if unsafe.
+        template verl will use -- and inject any patched template via `custom_chat_template`
+        so `HFModelConfig` applies it to the tokenizer the rollout shares. Raises if unsafe.
         """
         model = omega_conf.actor_rollout_ref.model
         resolved = resolve_chat_template(
@@ -276,9 +276,9 @@ class ExperimentRunner(ABC):
     def _patch_lengths(self, config: Any, decomp_config: DecompConfig) -> None:
         """Size the rollout/model lengths for the worst-case multi-turn trajectory.
 
-        - ``rollout.response_length`` = the cumulative response budget (what ``convert_trajectory``
+        - `rollout.response_length` = the cumulative response budget (what `convert_trajectory`
           truncates to and what padding uses). This is the key length for the agent loop.
-        - ``data.max_response_length`` stays the per-turn cap (the vLLM ``max_new_tokens`` knob is
+        - `data.max_response_length` stays the per-turn cap (the vLLM `max_new_tokens` knob is
           set per turn via the experiment's rollout chat kwargs).
         """
         single_resp_len = int(config.data.max_response_length)
@@ -313,7 +313,7 @@ class ExperimentRunner(ABC):
         config.actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu = 2
 
     def _launch(self, config: Any) -> None:
-        """Replicate ``main_ppo_sync.main`` (we bypass its @hydra.main entrypoint)."""
+        """Replicate `main_ppo_sync.main` (we bypass its @hydra.main entrypoint)."""
         from verl.trainer.main_ppo import run_ppo
         from verl.trainer.ppo.utils import need_critic, need_reference_policy
         from verl.utils.config import validate_config

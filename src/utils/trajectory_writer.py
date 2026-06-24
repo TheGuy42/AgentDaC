@@ -16,7 +16,7 @@ class TrajectoryWriter:
     """
     Writes full rollout trajectories to disk as readable JSON, grouped by training step.
 
-    Layout: ``{output_dir}/step_{step:05d}/{stage}/{rollout_id}.json``
+    Layout: `{output_dir}/step_{step:05d}/{stage}/{rollout_id}.json`
 
     One file per trajectory means concurrent writers (e.g. multiple runner processes)
     never contend on the same file, so no synchronization is needed beyond the filesystem.

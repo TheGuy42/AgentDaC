@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 
 
 class DynamicDataset(RLHFDataset, ABC):
-    """``RLHFDataset`` that builds its rows in-worker from a source instead of parquet.
+    """`RLHFDataset` that builds its rows in-worker from a source instead of parquet.
 
     Subclasses implement :meth:`load_split`; this base handles the split marker, the
     deterministic shuffle + size slice, the AgentLoop carrier columns, and the
@@ -65,9 +65,9 @@ class DynamicDataset(RLHFDataset, ABC):
 
     @abstractmethod
     def load_split(self, split: str) -> datasets.Dataset:
-        """Return the raw source rows for ``split`` ("train" or "val" or "test").
+        """Return the raw source rows for `split` ("train" or "val" or "test").
 
         Subclasses load from their source (e.g. HuggingFace) and apply any
-        experiment-specific filtering, reading params from ``self.config.custom_dataset``.
+        experiment-specific filtering, reading params from `self.config.custom_dataset`.
         """
         raise NotImplementedError

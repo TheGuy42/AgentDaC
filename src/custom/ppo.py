@@ -1,14 +1,14 @@
-"""custom-category metrics for the ``main_ppo_sync`` trainer.
+"""custom-category metrics for the `main_ppo_sync` trainer.
 
-verl auto-averages per-key ``reward_extra_info`` into logged metrics only at *validation*
-(``val-core/...``), never during training. This module adds, purely additively:
+verl auto-averages per-key `reward_extra_info` into logged metrics only at *validation*
+(`val-core/...`), never during training. This module adds, purely additively:
 
-- ``train-custom/<key>/mean`` — averaged every training step (via the ``_compute_metrics`` seam).
-- ``val-custom/<key>``       — aliased from the native ``val-core/...`` means (via ``_validate``).
+- `train-custom/<key>/mean` — averaged every training step (via the `_compute_metrics` seam).
+- `val-custom/<key>`       — aliased from the native `val-core/...` means (via `_validate`).
 
-It rides verl's intended extension points only: an overridable ``PPOTrainer`` subclass plus the
-``run_ppo(config, task_runner_class=...)`` recipe hook. No ``fit()`` copy, no monkeypatch — the
-overrides call ``super()`` and only *add* keys to the metrics dict.
+It rides verl's intended extension points only: an overridable `PPOTrainer` subclass plus the
+`run_ppo(config, task_runner_class=...)` recipe hook. No `fit()` copy, no monkeypatch — the
+overrides call `super()` and only *add* keys to the metrics dict.
 """
 
 from __future__ import annotations
@@ -30,11 +30,11 @@ logger = create_logger(__name__)
 
 
 def add_train_custom_metrics(batch, metrics: dict) -> None:
-    """Average each ``reward_extra_info`` key over the non-padding samples of this step.
+    """Average each `reward_extra_info` key over the non-padding samples of this step.
 
-    ``reward_extra_info`` is stored nested in the per-sample ``extra_fields`` field in
+    `reward_extra_info` is stored nested in the per-sample `extra_fields` field in
     TransferQueue (written by the rollout postprocess), so we read it back the same way
-    verl's own validation path does (``main_ppo_sync.py:932-945``).
+    verl's own validation path does (`main_ppo_sync.py:932-945`).
     """
     non_padding = np.array([not tag.get("is_padding", False) for tag in batch.tags], dtype=bool)
     data = tq.kv_batch_get(
@@ -63,7 +63,7 @@ def add_train_custom_metrics(batch, metrics: dict) -> None:
 
 
 class CustomPPOTrainer(mps.PPOTrainer):
-    """``main_ppo_sync.PPOTrainer`` with additive ``train-custom/`` + ``val-custom/`` metrics."""
+    """`main_ppo_sync.PPOTrainer` with additive `train-custom/` + `val-custom/` metrics."""
 
     def _compute_metrics(self, batch, metrics, timing_raw, global_steps, epoch):
         super()._compute_metrics(batch, metrics, timing_raw, global_steps, epoch)

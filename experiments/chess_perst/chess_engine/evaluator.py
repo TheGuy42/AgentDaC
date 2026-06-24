@@ -16,26 +16,29 @@ logger = create_logger(__name__)
 
 @dataclass(frozen=True)
 class MoveResult:
-    """Outcome of evaluating one proposed move from a FEN.
-    ``fen`` is the starting position, ``parse_success`` indicates whether the move was legal and parseable,
-    ``score`` is the engine eval of the resulting position from the mover's POV, 
-    and ``cp`` is the centipawn score (or None if illegal).
-    """
-
     fen: str
+    """Starting position in FEN notation."""
+
     parse_success: bool
+    """Whether the move was legal and parseable."""
+
     agent_move: str | None = None
+    """The move in UCI notation, or None if illegal/unparseable."""
+
     score: Score | None = None
+    """The engine evaluation of the resulting position. Evaluated at opponent's turn but from the mover's POV (higher = better). None if illegal/unparseable."""
+
     cp: int | None = None
+    """The centipawn score of the resulting position, from the mover's POV."""
 
 
 def parse_move(text: str, board: chess.Board) -> chess.Move | None:
     """Extract a single legal move from free-form model text.
 
-    Parsing and legality are delegated to python-chess (``parse_uci``/``parse_san``). We
-    only clean up the model output: strip an optional ``\\boxed{...}`` wrapper, then try the
+    Parsing and legality are delegated to python-chess (`parse_uci`/`parse_san`). We
+    only clean up the model output: strip an optional `\\boxed{...}` wrapper, then try the
     whole answer and each token (in case the move is embedded in a sentence). Returns the
-    legal :class:`chess.Move`, or ``None`` if none can be recovered.
+    legal :class:`chess.Move`, or `None` if none can be recovered.
     """
     if not isinstance(text, str) or not text.strip():
         return None
@@ -71,7 +74,6 @@ class MoveEvaluator:
 
     def __init__(self, config: EngineConfig, engine: LocalEngine | None = None) -> None:
         self.engine: LocalEngine = engine if engine is not None else LocalEngine(config)
-        
 
     @property
     def config(self) -> EngineConfig:
@@ -82,7 +84,7 @@ class MoveEvaluator:
         """
         Return the per-process shared evaluator, starting its engine on first use.
         The engine is started lazily and closed at interpreter exit. The first call's
-        ``config`` wins for the lifetime of the process.
+        `config` wins for the lifetime of the process.
         """
         if cls._process_instance is None:
             cls._process_instance = cls(config)
@@ -96,21 +98,16 @@ class MoveEvaluator:
         return cls._process_instance
 
     async def score(self, fen: str, answer_text: str) -> MoveResult:
-        """Evaluate ``answer_text`` as a move from ``fen`` via the resulting position's eval.
+        """
+        Evaluate `answer_text` as a move from `fen` via the resulting position's eval.
 
-        The move is applied and the resulting board is evaluated from the moving side's
-        perspective (higher = better for the side that moved). An illegal/unparseable move has
-        no resulting position, so its ``score`` is ``None``. Turning a :class:`MoveResult`
-        into a scalar reward is left to ``rewards.compute_reward``.
-        
         Returns:
-            MoveResult: the outcome of the evaluation, including the resulting score and
-            centipawn value (or None if illegal). 
-            - The returned ```Score``` is from the mover's perspective
-            - The returned ```cp``` is always negative since it is from the mover's perspective (higher is better)
+            MoveResult: the outcome of the evaluation.
+            The returned `score` is at opponents turn but from our POV (higher = better).
+            `score` and `cp` are None if the move was illegal or unparseable.
         """
         board = chess.Board(fen)
-        color = board.turn
+        turn = board.turn
         move = parse_move(answer_text, board)
         if move is None:
             return MoveResult(fen=fen, parse_success=False)
@@ -121,14 +118,14 @@ class MoveEvaluator:
         if (score := info.get("score")) is None:
             raise RuntimeError(f"Engine analysis did not return a score: {info}")
 
-        # After push(), board.turn is the opponent; score from the mover's POV (higher = better).
-        mover_score = score.pov(color)
+        # After push(), board.turn is the opponent; score from our POV (higher = better).
+        mover_score = score.pov(turn)
         return MoveResult(
             fen=fen,
             parse_success=True,
             agent_move=move.uci(),
             score=mover_score,
-            cp=mover_score.score(mate_score=self.config.mate_score),  # for logging/metadata
+            cp=mover_score.score(mate_score=self.config.mate_score),
         )
 
     def close(self) -> None:

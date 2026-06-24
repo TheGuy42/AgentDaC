@@ -21,7 +21,7 @@ logger = create_logger(__name__)
 
 class RolloutStage(str, Enum):
     """
-    Rollout stage, inferred from the dataset's ``training_stage`` column.
+    Rollout stage, inferred from the dataset's `training_stage` column.
     """
 
     TRAIN = "train"
@@ -31,8 +31,8 @@ class RolloutStage(str, Enum):
 
 class VerlTrainer(AgentLoopBase, ABC):
     """
-    Abstract verl ``AgentLoop`` = a single rollout. Subclass per experiment.
-    Subclasses implement ``create_agent`` / ``format_prompt`` / ``score_trajectory``.
+    Abstract verl `AgentLoop` = a single rollout. Subclass per experiment.
+    Subclasses implement `create_agent` / `format_prompt` / `score_trajectory`.
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -57,11 +57,11 @@ class VerlTrainer(AgentLoopBase, ABC):
 
     @abstractmethod
     def format_prompt(self, sample: dict[str, Any]) -> str:
-        """Build the user-prompt string from the dataset row (``kwargs``)."""
+        """Build the user-prompt string from the dataset row (`kwargs`)."""
 
     @abstractmethod
     async def score_trajectory(self, sample: dict[str, Any], trajectory: Trajectory, stage: RolloutStage) -> Trajectory:
-        """Score the trajectory, updating its ``reward`` / ``metrics`` / ``metadata``."""
+        """Score the trajectory, updating its `reward` / `metrics` / `metadata`."""
 
     async def run(self, sampling_params: dict[str, Any], **kwargs: Any) -> AgentLoopOutput:
         try:

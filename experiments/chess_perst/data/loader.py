@@ -34,7 +34,7 @@ MAX_SHUFFLE_BUFFER = 100_000
 
 
 def _shuffle_buffer(limit: int) -> int:
-    """A bounded shuffle-buffer size — never larger than ``MAX_SHUFFLE_BUFFER``."""
+    """A bounded shuffle-buffer size — never larger than `MAX_SHUFFLE_BUFFER`."""
     return min(max(limit, 10_000), MAX_SHUFFLE_BUFFER)
 
 
@@ -49,7 +49,7 @@ def _materialize(
     map_fn: Callable[[dict], dict | None],
     desc: str,
 ) -> list[dict]:
-    """Stream rows through ``map_fn`` (which returns None to skip) until ``limit`` collected."""
+    """Stream rows through `map_fn` (which returns None to skip) until `limit` collected."""
     rows: list[dict] = []
     with tqdm(total=limit, desc=desc) as pbar:
         for example in it_ds:
@@ -71,7 +71,7 @@ def _rating_suffix(min_rating: int | None, max_rating: int | None) -> str:
 
 
 def _build_and_cache(rows: list[dict], cache_path: pathlib.Path) -> Dataset:
-    """Wrap materialized rows in a ``Dataset``, save it to ``cache_path``, and return it."""
+    """Wrap materialized rows in a `Dataset`, save it to `cache_path`, and return it."""
     ds = Dataset.from_list(rows)
     ds.save_to_disk(str(cache_path))
     logger.info(f"Saved {len(ds)} positions to disk at {cache_path}")
@@ -80,8 +80,8 @@ def _build_and_cache(rows: list[dict], cache_path: pathlib.Path) -> Dataset:
 
 def load_puzzles(limit: int, seed: int, min_rating: int | None = None, max_rating: int | None = None) -> Dataset:
     """
-    Tactical positions from ``Lichess/chess-puzzles``. The dataset's ``FEN`` is the position
-    *before* the opponent's setup move, so we apply ``Moves[0]`` to reach the position the
+    Tactical positions from `Lichess/chess-puzzles`. The dataset's `FEN` is the position
+    *before* the opponent's setup move, so we apply `Moves[0]` to reach the position the
     solver actually faces. Optionally filtered to a Glicko-2 rating range.
     """
     cache_path = CACHE_DIR / f"lichess-puzzles_n{limit}_s{seed}{_rating_suffix(min_rating, max_rating)}"
@@ -111,7 +111,7 @@ def load_puzzles(limit: int, seed: int, min_rating: int | None = None, max_ratin
 
 def load_openings(limit: int, seed: int) -> Dataset:
     """
-    Opening positions from ``Lichess/chess-openings`` (the ECO book). We replay the ``uci``
+    Opening positions from `Lichess/chess-openings` (the ECO book). We replay the `uci`
     line from the start so the FEN carries correct move counters and ply.
     """
     cache_path = CACHE_DIR / f"lichess-openings_n{limit}_s{seed}"
@@ -128,7 +128,7 @@ def load_openings(limit: int, seed: int) -> Dataset:
         return _board_row(board)
 
     ds: IterableDataset = datasets.load_dataset("Lichess/chess-openings", split="train", streaming=True)  # type: ignore[assignment]
-    ds = ds.select_columns(["uci"])  # skip the heavy ``img`` column
+    ds = ds.select_columns(["uci"])  # skip the heavy `img` column
     ds = ds.shuffle(seed=seed, buffer_size=_shuffle_buffer(limit))
     items = _materialize(ds, limit, map_fn, "Loading lichess-openings")
     return _build_and_cache(items, cache_path)
@@ -136,9 +136,9 @@ def load_openings(limit: int, seed: int) -> Dataset:
 
 def load_evals(limit: int, seed: int) -> Dataset:
     """
-    Stockfish-analyzed positions from ``Lichess/chess-position-evaluations`` (~342M unique).
-    Its ``fen`` is an EPD (no move counters), so we pad it to a full FEN; ``ply`` therefore
-    only reflects the side to move, not the true game ply. We just stream ``limit`` of them.
+    Stockfish-analyzed positions from `Lichess/chess-position-evaluations` (~342M unique).
+    Its `fen` is an EPD (no move counters), so we pad it to a full FEN; `ply` therefore
+    only reflects the side to move, not the true game ply. We just stream `limit` of them.
     """
     cache_path = CACHE_DIR / f"lichess-evals_n{limit}_s{seed}"
     if cache_path.exists():
@@ -162,7 +162,7 @@ def load_evals(limit: int, seed: int) -> Dataset:
 
 
 def load_raw_dataset(name: str, *, limit: int, seed: int, min_rating: int | None = None, max_rating: int | None = None) -> Dataset:
-    """Load (and cache) up to ``limit`` normalized rows from a single supported dataset."""
+    """Load (and cache) up to `limit` normalized rows from a single supported dataset."""
     if name not in SUPPORTED_DATASETS:
         raise ValueError(f"Unsupported dataset: {name}. Supported datasets are: {SUPPORTED_DATASETS}")
 
@@ -191,18 +191,18 @@ def load_dataset(
     """
     Load chess positions from one or more datasets and return disjoint train/val splits.
 
-    Each row has a ``fen`` (the non-terminal position to move in) and the ``ply`` it occurs
+    Each row has a `fen` (the non-terminal position to move in) and the `ply` it occurs
     at. When multiple datasets are given they are pooled together, deduplicated by FEN, and
     shuffled before splitting, so a split mixes positions from all of them.
 
     Args:
-        names: A dataset name (or list of names) from ``SUPPORTED_DATASETS``.
+        names: A dataset name (or list of names) from `SUPPORTED_DATASETS`.
         num_train / num_val: Sizes of the (disjoint) train and validation splits.
         seed: Seed for reproducible streaming/shuffling.
-        min_rating / max_rating: Puzzle rating bounds (``lichess-puzzles`` only).
+        min_rating / max_rating: Puzzle rating bounds (`lichess-puzzles` only).
 
     Returns:
-        tuple[Dataset, Dataset]: The train and validation ``Dataset`` splits.
+        tuple[Dataset, Dataset]: The train and validation `Dataset` splits.
     """
     if isinstance(names, str):
         names = [names]
@@ -211,7 +211,7 @@ def load_dataset(
 
     total = num_train + num_val
 
-    # Pull up to ``total`` rows from each dataset (each loader caches its own) so a single
+    # Pull up to `total` rows from each dataset (each loader caches its own) so a single
     # source can fill the request.
     pool: list[dict] = []
     for i, name in enumerate(names):

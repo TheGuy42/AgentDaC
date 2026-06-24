@@ -8,8 +8,8 @@ from src.custom.dataset import DynamicDataset
 class MathDataset(DynamicDataset):
     """Hendrycks MATH benchmark, filtered by difficulty level.
 
-    Load params are read from ``config.data.custom_dataset`` (embedded by
-    ``ExperimentRunner._build_verl_config`` from the experiment's CLI args).
+    Load params are read from `config.data.custom_dataset` (embedded by
+    `ExperimentRunner._build_verl_config` from the experiment's CLI args).
     """
 
     def load_split(self, split: str):

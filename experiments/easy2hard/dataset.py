@@ -6,10 +6,10 @@ from src.custom.dataset import DynamicDataset
 
 
 class Easy2HardDataset(DynamicDataset):
-    """Easy2Hard-Bench (E2H-AMC), filtered by difficulty. Params from ``config.data.custom_dataset``.
+    """Easy2Hard-Bench (E2H-AMC), filtered by difficulty. Params from `config.data.custom_dataset`.
 
-    NOTE: the dataset's ``eval`` split is larger, so it is used for training (matching the
-    original ``load_data``); the ``train`` split is used for validation.
+    NOTE: the dataset's `eval` split is larger, so it is used for training (matching the
+    original `load_data`); the `train` split is used for validation.
     """
 
     def load_split(self, split: str):

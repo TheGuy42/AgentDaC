@@ -15,7 +15,7 @@ def resolve_chat_template(
     """
     Resolve the chat template to use for training, or raise if none is safe.
 
-    Raises ``ValueError`` when the template is not prefix-preserving and TRL cannot
+    Raises `ValueError` when the template is not prefix-preserving and TRL cannot
     patch it (unknown template).
     """
 
@@ -25,9 +25,9 @@ def resolve_chat_template(
 
     source = "manual custom_chat_template" if manual_template is not None else f"model default ({model_path})"
 
-    # NOTE: we gate on TRL's ``is_chat_template_prefix_preserving`` rather than calling
-    # ``get_training_chat_template`` directly, because the latter also requires
-    # ``{% generation %}`` markers and would raise on an already-prefix-preserving template that merely lacks them.
+    # NOTE: we gate on TRL's `is_chat_template_prefix_preserving` rather than calling
+    # `get_training_chat_template` directly, because the latter also requires
+    # `{% generation %}` markers and would raise on an already-prefix-preserving template that merely lacks them.
     if is_chat_template_prefix_preserving(tokenizer):
         logger.debug(f"Chat template is prefix-preserving ({source}); no patch needed.")
         return manual_template
