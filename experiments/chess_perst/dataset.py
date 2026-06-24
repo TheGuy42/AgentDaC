@@ -1,7 +1,5 @@
 from __future__ import annotations
-
 from src.custom.dataset import DynamicDataset
-
 from experiments.chess_perst.data import load_dataset
 
 

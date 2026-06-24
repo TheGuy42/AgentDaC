@@ -15,3 +15,9 @@ class EngineConfig(BaseConfig):
     illegal_score: float = 0.0
     mate_score: int = 10_000
     """Centipawn magnitude a forced mate maps to (scaled down by distance to mate)."""
+    win_scale: float = 600.0
+    """Logistic scale for the win_prob reward; larger = less saturation (400 ~ Elo expectancy)."""
+    mate_margin: float = 0.05
+    """Width of the reserved end-bands that keep mate rewards distinct from any centipawn eval."""
+    mate_decay: float = 0.005
+    """Per-ply reward step within a mate band, so a faster mate scores higher."""

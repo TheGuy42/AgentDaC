@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import ClassVar
 
 import chess
+from chess.engine import Score
 from src.utils.logging import create_logger
 from experiments.chess_perst.chess_engine.config import EngineConfig
 from experiments.chess_perst.chess_engine.engine import LocalEngine
@@ -14,16 +15,17 @@ logger = create_logger(__name__)
 
 
 @dataclass(frozen=True)
-class MoveScore:
-    """Outcome of scoring one proposed move.
-
-    ``cp``/``agent_move`` are ``None`` for an illegal or unparseable move, which has no
-    resulting position to evaluate.
+class MoveResult:
+    """Outcome of evaluating one proposed move from a FEN.
+    ``fen`` is the starting position, ``parse_success`` indicates whether the move was legal and parseable,
+    ``score`` is the engine eval of the resulting position from the mover's POV, 
+    and ``cp`` is the centipawn score (or None if illegal).
     """
 
-    reward: float
+    fen: str
     parse_success: bool
     agent_move: str | None = None
+    score: Score | None = None
     cp: int | None = None
 
 
@@ -93,20 +95,18 @@ class MoveEvaluator:
 
         return cls._process_instance
 
-    async def score(self, fen: str, answer_text: str) -> MoveScore:
-        """Score ``answer_text`` as a move from ``fen`` via the resulting position's eval.
+    async def score(self, fen: str, answer_text: str) -> MoveResult:
+        """Evaluate ``answer_text`` as a move from ``fen`` via the resulting position's eval.
 
         The move is applied and the resulting board is evaluated from the moving side's
-        perspective (higher = better for the side that moved). An illegal/unparseable move
-        has no resulting position and scores ``config.illegal_score``.
+        perspective (higher = better for the side that moved). An illegal/unparseable move has
+        no resulting position, so its ``score`` is ``None``. Turning a :class:`MoveResult`
+        into a scalar reward is left to ``rewards.compute_reward``.
         """
         board = chess.Board(fen)
         move = parse_move(answer_text, board)
         if move is None:
-            return MoveScore(
-                reward=self.config.illegal_score,
-                parse_success=False,
-            )
+            return MoveResult(fen=fen, parse_success=False)
 
         board.push(move)
         info = await self.engine.evaluate(board)
@@ -114,24 +114,15 @@ class MoveEvaluator:
         if (score := info.get("score")) is None:
             raise RuntimeError(f"Engine analysis did not return a score: {info}")
 
-        cp = score.pov(board.turn).score(mate_score=self.config.mate_score)
-        # TODO: i think the cp is automatically negative whenever its black's turn
-        # and in that case lower score means actually a better position.
-        # Since we preform RL then we need better-position => higher score.
-        # But maybe not because we use .pov()
-
-        return MoveScore(
-            reward=self._reward(cp),
+        # After push(), board.turn is the opponent; score from the mover's POV (higher = better).
+        mover_score = score.pov(not board.turn)
+        return MoveResult(
+            fen=fen,
             parse_success=True,
             agent_move=move.uci(),
-            cp=cp,
+            score=mover_score,
+            cp=mover_score.score(mate_score=self.config.mate_score),  # for logging/metadata
         )
-
-    def _reward(self, cp: int) -> float:
-        """Shape a mover-POV centipawn score into a reward per ``config.reward``."""
-        if self.config.reward == "win_prob":
-            return 1.0 / (1.0 + 10.0 ** (-cp / 400.0))  # expected score in [0, 1]
-        return float(cp)
 
     def close(self) -> None:
         if self.engine is None:

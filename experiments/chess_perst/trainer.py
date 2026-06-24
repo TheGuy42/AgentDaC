@@ -10,6 +10,7 @@ from src.custom import VerlClient
 from src.configs import DecompConfig
 
 from experiments.chess_perst.format import format_prompt
+from experiments.chess_perst.rewards import compute_reward
 from experiments.chess_perst.chess_engine import EngineConfig, MoveEvaluator
 
 
@@ -57,13 +58,14 @@ class ChessTrainer(VerlTrainer):
         agent_answer = PersistentAgent.parse_answer(ans_message)
 
         evaluator = MoveEvaluator.for_process(self.engine_config)
-        score = await evaluator.score(sample["fen"], agent_answer)
-        trajectory.reward = score.reward
+        result = await evaluator.score(sample["fen"], agent_answer)
+        reward = compute_reward(result, self.engine_config)
+        trajectory.reward = reward
 
         trajectory.metrics.update(
             {
-                "reward": score.reward,
-                "parse_success": score.parse_success,
+                "reward": reward,
+                "parse_success": result.parse_success,
             }
         )
 
@@ -71,8 +73,8 @@ class ChessTrainer(VerlTrainer):
             {
                 "fen": sample["fen"],
                 "ply": sample.get("ply"),
-                "cp": score.cp,
-                "agent_move": score.agent_move,
+                "cp": result.cp,
+                "agent_move": result.agent_move,
             }
         )
 

@@ -2,9 +2,10 @@ from __future__ import annotations
 import datasets
 
 from verl.utils.dataset.rl_dataset import RLHFDataset
+from abc import ABC, abstractmethod
 
 
-class DynamicDataset(RLHFDataset):
+class DynamicDataset(RLHFDataset, ABC):
     """``RLHFDataset`` that builds its rows in-worker from a source instead of parquet.
 
     Subclasses implement :meth:`load_split`; this base handles the split marker, the
@@ -40,9 +41,12 @@ class DynamicDataset(RLHFDataset):
         # AgentLoop carrier columns (stamped non-destructively: never clobber a source column).
         def _add_columns(row: dict) -> dict:
             return {
-                "training_stage": self.split_name,  # read by VerlTrainer._stage()
-                "data_source": cfg.data_source,     # verl namespaces val metrics: val-core/<data_source>/...
-                self.prompt_key: row.get(self.prompt_key, [{"role": "user", "content": ""}]), # Placeholder only so RLHFDataset.__getitem__ can build raw_prompt without a KeyError
+                # read by VerlTrainer._stage()
+                "training_stage": self.split_name,
+                # verl namespaces val metrics: val-core/<data_source>/...
+                "data_source": cfg.data_source,
+                # Placeholder only so RLHFDataset.__getitem__ can build raw_prompt without a KeyError
+                self.prompt_key: row.get(self.prompt_key, [{"role": "user", "content": ""}]),
             }
 
         ds = ds.map(_add_columns)
@@ -50,7 +54,7 @@ class DynamicDataset(RLHFDataset):
         self.dataframe = ds
         print(f"dataset len: {len(self.dataframe)}")
 
-    def maybe_filter_out_long_prompts(self, dataframe: datasets.Dataset = None):
+    def maybe_filter_out_long_prompts(self, dataframe: datasets.Dataset | None = None):
         # The rollout prompt is built at agent-loop time (VerlTrainer.format_prompt), not from the
         # dataset 'prompt' column, so length-filtering rows here is meaningless. Forbid it so it is
         # never silently run (it would also require the prompt column to be a list[dict] chat).
@@ -59,6 +63,7 @@ class DynamicDataset(RLHFDataset):
             "agent-loop time (VerlTrainer.format_prompt), not from the dataset 'prompt' column."
         )
 
+    @abstractmethod
     def load_split(self, split: str) -> datasets.Dataset:
         """Return the raw source rows for ``split`` ("train" or "val" or "test").
 

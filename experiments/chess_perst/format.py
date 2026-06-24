@@ -2,11 +2,11 @@ import chess
 
 
 INSTRUCTION = (
-    "You are playing as {side}. Choose the single strongest legal move for {side}.\n"
-    "Reply with the move in UCI long-algebraic notation: the source square followed by the "
-    "destination square, plus a promotion piece letter if the move promotes a pawn "
-    "(e.g. g1f3, e2e4, or e7e8q).\n"
-    "Your final answer's Text must contain ONLY that move and nothing else."
+    "You are given a chess position. Find the best move for your side to play. Analyze thoroughly the position and consider different strategies."
+)
+
+ANSWER_FORMAT = (
+    "Reply with the move in UCI long-algebraic notation. When You answer, your final Text must contain ONLY the best move and nothing else."
 )
 
 
@@ -21,14 +21,22 @@ def format_prompt(sample: dict) -> str:
     legal_moves = " ".join(sorted(move.uci() for move in board.legal_moves))
 
     parts = [
-        f"You are given a chess position. It is {side} to move.",
+        "Task:",
+        INSTRUCTION,
+        "",
+        "Current FEN:",
+        sample["fen"],
+        "",
+        "Side to move:",
+        side,
         "",
         "Board (uppercase = White, lowercase = Black, '.' = empty square):",
         render_board(board),
         "",
-        f"FEN: {board.fen()}",
-        f"Legal moves (UCI): {legal_moves}",
+        "Legal moves (UCI):",
+        legal_moves,
         "",
-        INSTRUCTION.format(side=side),
+        "Answer format:",
+        ANSWER_FORMAT,
     ]
     return "\n".join(parts)
