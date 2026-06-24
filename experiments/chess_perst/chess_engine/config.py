@@ -9,7 +9,7 @@ class EngineConfig(BaseConfig):
 
     limit: Limit
     engine_path: str = "stockfish"
-    threads: int = 1
+    threads: int = 3
     hash_mb: int = 64
     reward: Literal["win_prob", "centipawns"] = "win_prob"
     illegal_score: float = 0.0

@@ -32,9 +32,7 @@ class LocalEngine:
         # to_thread: analyse() blocks until the search finishes; run it off-loop so other
         # rollouts keep progressing. (SimpleEngine is affinity-free, so any pool thread is fine.)
         async with self._lock:
-            # Fresh game id each call -> ucinewgame -> clean transposition table -> reproducible,
-            # order-independent eval (the persistent engine would otherwise reuse stale TT entries).
-            return await asyncio.to_thread(self.engine.analyse, board, self.config.limit, game=object())
+            return await asyncio.to_thread(self.engine.analyse, board, limit=self.config.limit)
 
     def close(self) -> None:
         if self.engine is None:

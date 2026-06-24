@@ -102,8 +102,15 @@ class MoveEvaluator:
         perspective (higher = better for the side that moved). An illegal/unparseable move has
         no resulting position, so its ``score`` is ``None``. Turning a :class:`MoveResult`
         into a scalar reward is left to ``rewards.compute_reward``.
+        
+        Returns:
+            MoveResult: the outcome of the evaluation, including the resulting score and
+            centipawn value (or None if illegal). 
+            - The returned ```Score``` is from the mover's perspective
+            - The returned ```cp``` is always negative since it is from the mover's perspective (higher is better)
         """
         board = chess.Board(fen)
+        color = board.turn
         move = parse_move(answer_text, board)
         if move is None:
             return MoveResult(fen=fen, parse_success=False)
@@ -115,7 +122,7 @@ class MoveEvaluator:
             raise RuntimeError(f"Engine analysis did not return a score: {info}")
 
         # After push(), board.turn is the opponent; score from the mover's POV (higher = better).
-        mover_score = score.pov(not board.turn)
+        mover_score = score.pov(color)
         return MoveResult(
             fen=fen,
             parse_success=True,
