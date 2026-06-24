@@ -14,7 +14,6 @@ from experiments.chess_perst.chess_engine import EngineConfig, MoveEvaluator
 
 
 class ChessTrainer(VerlTrainer):
-
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.engine_config = EngineConfig.model_validate(OmegaConf.to_container(self.config.custom_configs.engine_config, resolve=True))
@@ -59,18 +58,20 @@ class ChessTrainer(VerlTrainer):
 
         evaluator = MoveEvaluator.for_process(self.engine_config)
         score = await evaluator.score(sample["fen"], agent_answer)
-
         trajectory.reward = score.reward
 
-        metrics = {"reward": score.reward, "parse_success": score.parse_success}
-        if score.cp is not None:  # no resulting position to score for an illegal move
-            metrics["cp"] = score.cp
-        trajectory.metrics.update(metrics)
+        trajectory.metrics.update(
+            {
+                "reward": score.reward,
+                "parse_success": score.parse_success,
+            }
+        )
 
         trajectory.metadata.update(
             {
                 "fen": sample["fen"],
                 "ply": sample.get("ply"),
+                "cp": score.cp,
                 "agent_move": score.agent_move,
             }
         )

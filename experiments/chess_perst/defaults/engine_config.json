@@ -1,6 +1,6 @@
 {
     "limit": {
-        "depth": 12
+        "time": 0.5
     },
     "engine_path": "stockfish",
     "threads": 1,

@@ -16,7 +16,6 @@
         "total_epochs": 10,
         "max_actor_ckpt_to_keep": 1,
         "max_critic_ckpt_to_keep": 1,
-        "log_val_generations": 50,
         "logger": [
             "console",
             "wandb"
