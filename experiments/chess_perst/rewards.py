@@ -11,7 +11,7 @@ def compute_cp(chess_score: Score, config: EngineConfig) -> float:
 
     Args:
         chess_score (Score): The chess score to convert.
-            Should be at opponents turn but our perspective (i.e. positive = good for mover).
+            Should be from our perspective (i.e. positive = good for us).
         config (EngineConfig): The engine configuration.
 
     Returns:
@@ -35,7 +35,7 @@ def compute_wp(chess_score: Score, config: EngineConfig) -> float:
 
     Args:
         chess_score (Score): The chess score to convert to win probability.
-            Should be at opponents turn but our perspective (i.e. positive = good for mover).
+            Should be from our perspective (i.e. positive = good for us).
         config (EngineConfig): The engine configuration.
 
     Returns:
@@ -55,7 +55,7 @@ def compute_wp(chess_score: Score, config: EngineConfig) -> float:
             return min(max(0.0, mate_decay * (plies - 1)), mate_margin - 1e-6)
 
     cp = chess_score.score(mate_score=config.mate_score)
-    wp = 1.0 / (1.0 + 10.0 ** (-cp / win_scale))  # expected score in [0, 1]
+    wp = 1.0 / (1.0 + 10.0 ** (-cp / win_scale))
     return mate_margin + (1.0 - 2.0 * mate_margin) * wp
 
 

@@ -5,14 +5,14 @@ from dataclasses import dataclass
 from typing import ClassVar
 
 import chess
-from chess.engine import Score
+from chess.engine import Score, PovScore
 from src.utils.logging import create_logger
 from experiments.chess_perst.chess_engine.config import EngineConfig
 from experiments.chess_perst.chess_engine.engine import LocalEngine
+from experiments.chess_perst.chess_engine.cache import RootCache
 
 
 logger = create_logger(__name__)
-
 
 @dataclass(frozen=True)
 class MoveResult:
@@ -26,7 +26,7 @@ class MoveResult:
     """The move in UCI notation, or None if illegal/unparseable."""
 
     score: Score | None = None
-    """The engine evaluation of the resulting position. Evaluated at opponent's turn but from the mover's POV (higher = better). None if illegal/unparseable."""
+    """The engine evaluation of the resulting position, from the mover's POV (higher = better). None if illegal."""
 
     cp: int | None = None
     """The centipawn score of the resulting position, from the mover's POV."""
@@ -74,6 +74,7 @@ class MoveEvaluator:
 
     def __init__(self, config: EngineConfig, engine: LocalEngine | None = None) -> None:
         self.engine: LocalEngine = engine if engine is not None else LocalEngine(config)
+        self.root_cache = RootCache(self.engine, cache_size=4096)
 
     @property
     def config(self) -> EngineConfig:
@@ -107,25 +108,30 @@ class MoveEvaluator:
             `score` and `cp` are None if the move was illegal or unparseable.
         """
         board = chess.Board(fen)
-        turn = board.turn
         move = parse_move(answer_text, board)
         if move is None:
             return MoveResult(fen=fen, parse_success=False)
 
-        board.push(move)
-        info = await self.engine.evaluate(board)
+        pov_score: PovScore | None = None
+        if self.config.eval_mode == "root_multipv":
+            score_cache = await self.root_cache.build(fen)
+            pov_score = score_cache.get(move.uci())
 
-        if (score := info.get("score")) is None:
-            raise RuntimeError(f"Engine analysis did not return a score: {info}")
+        if pov_score is None:
+            info = await self.engine.analyse(board, root_moves=[move])
+            pov_score = info.get("score")
 
-        # After push(), board.turn is the opponent; score from our POV (higher = better).
-        mover_score = score.pov(turn)
+        if pov_score is None:
+            raise RuntimeError("Engine analysis did not return a score for the move.")
+
+        score = pov_score.pov(board.turn)
+
         return MoveResult(
             fen=fen,
             parse_success=True,
             agent_move=move.uci(),
-            score=mover_score,
-            cp=mover_score.score(mate_score=self.config.mate_score),
+            score=score,
+            cp=score.score(mate_score=self.config.mate_score),
         )
 
     def close(self) -> None:

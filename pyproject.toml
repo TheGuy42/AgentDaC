@@ -21,6 +21,8 @@ dependencies = [
     "trl>=1.6.0",
     "transformers>=4.57.6",
     "huggingface-hub[cli]>=0.36.2",
+    "pytest>=9.1.1",
+    "pytest-async>=0.1.1",
 ]
 
 # VERL 0.8.0 requires numpy<2 but its over-conservative
