@@ -4,16 +4,13 @@
         "use_kl_in_reward": false
     },
     "trainer": {
-        "project_name": "math_regex_dac",
-        "experiment_name": "math_regex",
-        "resume_from_path": null,
         "nnodes": 1,
         "n_gpus_per_node": 1,
         "val_before_train": true,
         "critic_warmup": 0,
-        "test_freq": 32,
+        "test_freq": 5,
         "save_freq": 1,
-        "total_epochs": 10,
+        "total_epochs": 20,
         "max_actor_ckpt_to_keep": 1,
         "max_critic_ckpt_to_keep": 1,
         "logger": [
@@ -23,12 +20,10 @@
     },
     "data": {
         "train_batch_size": 10,
-        "max_prompt_length": 4096,
-        "max_response_length": 1024,
+        "max_prompt_length": 2048,
+        "max_response_length": 2048,
         "truncation": "error",
         "shuffle": true,
-        "train_files": "train",
-        "val_files": "val",
         "apply_chat_template_kwargs": {
             "enable_thinking": false
         }
@@ -48,7 +43,7 @@
                 "top_k": 20
             },
             "tensor_model_parallel_size": 1,
-            "log_prob_micro_batch_size_per_gpu": 4,
+            "log_prob_micro_batch_size_per_gpu": 5,
             "name": "vllm",
             "dtype": "bfloat16",
             "load_format": "safetensors",
@@ -59,6 +54,9 @@
                     "max_lora_rank": 64
                 }
             },
+            "agent": {
+                "num_workers": 16
+            },
             "multi_turn": {
                 "enable": true,
                 "format": "hermes"
@@ -66,7 +64,7 @@
         },
         "actor": {
             "ppo_mini_batch_size": 10,
-            "ppo_micro_batch_size_per_gpu": 4,
+            "ppo_micro_batch_size_per_gpu": 5,
             "optim": {
                 "lr": 5e-6
             },

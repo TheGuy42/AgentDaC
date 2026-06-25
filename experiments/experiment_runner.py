@@ -28,6 +28,10 @@ logger = create_logger(__name__)
 # `experiments.math.trainer.MathTrainer`).
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 
+# TODO: clean up this overall file, we need to make it more clean
+# and better structured / more maintainable 
+# but also overall code readability is important, and things shouldnt be scattered around too much
+
 
 class ExperimentRunner(ABC):
     def __init__(self) -> None:

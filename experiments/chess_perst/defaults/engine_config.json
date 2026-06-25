@@ -1,11 +1,14 @@
 {
     "limit": {
-        "time": 0.5
+        "time": 2.0
     },
     "engine_path": "stockfish",
-    "threads": 1,
-    "hash_mb": 64,
+    "threads": 2,
+    "hash_mb": 128,
+    "eval_mode": "root_multipv",
     "reward": "win_prob",
-    "illegal_score": 0.0,
-    "mate_score": 10000
+    "mate_score": 10000,
+    "win_scale": 600.0,
+    "mate_margin": 0.05,
+    "mate_decay": 0.005
 }
