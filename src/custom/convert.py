@@ -119,20 +119,23 @@ def convert_trajectory(
         reward_score=float(trajectory.reward),
         num_turns=len(responses),
         metrics=AgentLoopMetrics(),
-        extra_fields={"reward_extra_info": metrics},
+        extra_fields={"custom_metrics": metrics},
     )
 
 
-def degenerate_output(tokenizer) -> AgentLoopOutput:
+def degenerate_output(trajectory: Trajectory, tokenizer) -> AgentLoopOutput:
     prompt_ids = tokenizer.encode("dummy input")
     response_ids = tokenizer.encode("dummy output")
+
+    responses = [r for r in trajectory.messages_and_responses if isinstance(r, OAIResponse)]
+    metrics = {"is_degenerate": 1.0}
     
     return AgentLoopOutput(
         prompt_ids=prompt_ids,
         response_ids=response_ids,
         response_mask=[0] * len(response_ids),
         reward_score=0.0,
-        num_turns=0,
+        num_turns=len(responses),
         metrics=AgentLoopMetrics(),
-        extra_fields={"reward_extra_info": {"is_degenerate": 1.0}},
+        extra_fields={"custom_metrics": metrics},
     )

@@ -64,11 +64,13 @@ class VerlTrainer(AgentLoopBase, ABC):
         """Score the trajectory, updating its `reward` / `metrics` / `metadata`."""
 
     async def run(self, sampling_params: dict[str, Any], **kwargs: Any) -> AgentLoopOutput:
+        
+        stage = self._stage(kwargs)
+        client = VerlClient(self)
+        agent = self.create_agent(client, stage)
+        chat_kw = self.chat_kwargs(stage, sampling_params)
+
         try:
-            stage = self._stage(kwargs)
-            client = VerlClient(self)
-            agent = self.create_agent(client, stage)
-            chat_kw = self.chat_kwargs(stage, sampling_params)
             trajectory = await self.forward_step(agent, kwargs, stage, chat_kw)
             trajectory = await self.score_trajectory(kwargs, trajectory, stage)
 
@@ -90,7 +92,16 @@ class VerlTrainer(AgentLoopBase, ABC):
 
         except Exception as e:
             logger.error("Rollout failed; emitting degenerate AgentLoopOutput: %s", e, exc_info=True)
-            return degenerate_output(self.tokenizer)
+            
+            trajectory = agent.trajectory.finish()
+            self.trajectory_writer.write(
+                trajectory,
+                rollout_id=f"degenerate/{kwargs['uid']}-{kwargs['session_id']}-{kwargs['index']}",
+                stage=stage,
+                step=kwargs["global_steps"],
+            )
+            
+            return degenerate_output(trajectory, self.tokenizer)
 
     async def forward_step(
         self,
