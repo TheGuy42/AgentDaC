@@ -102,6 +102,6 @@ def behavior_reward(trajectory: Trajectory) -> float:
     total_reward = 0.0
 
     # penalize for number of task created
-    num_tasks = trajectory.metrics["latest_direct_tasks"]
+    num_tasks = trajectory.metrics["direct_tasks"]
     total_reward -= _hill_func(num_tasks, steepness=4, midpoint=3.5)
     return total_reward

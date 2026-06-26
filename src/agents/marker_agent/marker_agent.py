@@ -15,7 +15,7 @@ from src.inference import InferenceResponse
 logger = create_logger(__name__)
 
 
-METRIC_PREFIXES = ("total_direct", "total_subtree", "latest_direct", "latest_subtree")
+METRIC_PREFIXES = ("direct", "subtree")
 
 
 class MarkerAgent(BaseAgent):
@@ -31,11 +31,8 @@ class MarkerAgent(BaseAgent):
         )
         self.metrics.update(
             {
-                "total_direct_chats": 0,
-                "total_subtree_chats": 0,
-                "total_subtree_depth": 0,
-                "latest_subtree_depth": 0,
-                "latest_direct_tokens": 0,
+                "subtree_depth": 0,
+                "direct_tokens": 0,
             }
         )
 
@@ -91,9 +88,9 @@ class MarkerAgent(BaseAgent):
         if verbose:
             print(trajectory_string(self.trajectory, indent=self.current_depth))
 
-        # Reset metrics of the latest run
+        # Reset metrics of the run
         for k in self.metrics.keys():
-            if k.startswith("latest"):
+            if any(k.startswith(prefix) for prefix in METRIC_PREFIXES):
                 self.metrics[k] = 0
 
         should_break = False
@@ -110,7 +107,7 @@ class MarkerAgent(BaseAgent):
             for prefix in METRIC_PREFIXES:
                 self.metrics[f"{prefix}_calls"] += 1
             if completion.total_tokens is not None:
-                self.metrics["latest_direct_tokens"] = completion.total_tokens
+                self.metrics["direct_tokens"] = completion.total_tokens
 
             if verbose:
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
@@ -142,12 +139,10 @@ class MarkerAgent(BaseAgent):
 
                     # Fold in the sub-agent's subtree contribution from this single invocation
                     for q in ("calls", "tasks", "chats", "responses_completed", "responses_incomplete"):
-                        self.metrics[f"total_subtree_{q}"] += sub_agent.metrics[f"latest_subtree_{q}"]
-                        self.metrics[f"latest_subtree_{q}"] += sub_agent.metrics[f"latest_subtree_{q}"]
+                        self.metrics[f"subtree_{q}"] += sub_agent.metrics[f"subtree_{q}"]
 
-                    child_depth = 1 + sub_agent.metrics["latest_subtree_depth"]
-                    self.metrics["total_subtree_depth"] = max(self.metrics["total_subtree_depth"], child_depth)
-                    self.metrics["latest_subtree_depth"] = max(self.metrics["latest_subtree_depth"], child_depth)
+                    child_depth = 1 + sub_agent.metrics["subtree_depth"]
+                    self.metrics["subtree_depth"] = max(self.metrics["subtree_depth"], child_depth)
                     return answer
 
                 tasks_answers = await asyncio.gather(*[subagent_forward(task) for task in tasks_inputs])

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from omegaconf import OmegaConf
@@ -19,7 +19,7 @@ from src.utils.trajectory_writer import TrajectoryWriter
 logger = create_logger(__name__)
 
 
-class RolloutStage(str, Enum):
+class RolloutStage(StrEnum):
     """
     Rollout stage, inferred from the dataset's `training_stage` column.
     """
@@ -78,7 +78,7 @@ class VerlTrainer(AgentLoopBase, ABC):
             self.trajectory_writer.write(
                 trajectory,
                 rollout_id=f"{kwargs['uid']}-{kwargs['session_id']}-{kwargs['index']}",
-                stage=stage.value,
+                stage=stage,
                 step=kwargs["global_steps"],
             )
 
@@ -108,7 +108,7 @@ class VerlTrainer(AgentLoopBase, ABC):
         return RolloutStage.TRAIN if raw is None else RolloutStage(str(raw))
 
     def chat_kwargs(self, stage: RolloutStage, sampling_params: dict[str, Any]) -> dict[str, Any]:
-        extra = self.rollout_kwargs.get_kwargs(stage.value)
+        extra = self.rollout_kwargs.get_kwargs(stage)
         if "n" in extra:
             raise ValueError("rollout_kwargs must not set 'n'; verl controls the number of rollouts per prompt.")
 

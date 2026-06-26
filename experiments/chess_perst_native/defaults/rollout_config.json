@@ -1,0 +1,10 @@
+{
+    "kwargs": {
+        "min_tokens": 5,
+        "presence_penalty": 1.5,
+        "repetition_penalty": 1.0
+    },
+    "train_kwargs": {},
+    "val_kwargs": {},
+    "test_kwargs": {}
+}

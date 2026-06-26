@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pathlib
 import random
-from enum import Enum
+from enum import StrEnum
 from typing import Callable
 
 import chess
@@ -19,13 +19,13 @@ logger = create_logger(__name__)
 CACHE_DIR = pathlib.Path(__file__).parent / "cache"
 
 
-class ChessDataset(str, Enum):
+class ChessDataset(StrEnum):
     PUZZLES = "lichess-puzzles"
     OPENINGS = "lichess-openings"
     EVALS = "lichess-evals"
 
 
-SUPPORTED_DATASETS = [e.value for e in ChessDataset]
+SUPPORTED_DATASETS = [e for e in ChessDataset]
 
 # Cap for the streaming shuffle window. The buffer holds this many fully-streamed rows in
 # memory at once, so it must stay bounded regardless of how many rows we ultimately want; a

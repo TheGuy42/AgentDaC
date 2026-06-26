@@ -1,0 +1,7 @@
+{
+    "mode": "path",
+    "system_root": "config_files/prompts/perst/v3_root_nothink.txt",
+    "system_inter": "config_files/prompts/perst/v3_root_nothink.txt",
+    "system_leaf": "config_files/prompts/perst/v3_leaf_nothink.txt",
+    "tasks_depleted": null
+}

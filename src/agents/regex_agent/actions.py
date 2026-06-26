@@ -1,10 +1,7 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class TurnAction(str, Enum):
+class TurnAction(StrEnum):
     THINK = "think"
     ISSUE_TASK = "issue_task"
     ANSWER = "answer"
-
-    def __str__(self) -> str:
-        return self.value

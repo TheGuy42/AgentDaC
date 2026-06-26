@@ -1,10 +1,9 @@
 from __future__ import annotations
-from typing import Any
-from dataclasses import dataclass
 
 from src.trajectory import Trajectory
 from src.agents.base import BaseAgent
 from src.agents.perst_agent.actions import TurnAction
+from src.agents.regex_agent.regex_agent import GuidedRegex
 from src.aliases import Message, UserMessage
 from src.configs import PromptConfig, DecompConfig
 from src.inference import InferenceClient, InferenceResponse
@@ -12,51 +11,12 @@ from src.inference import InferenceClient, InferenceResponse
 from vllm.sampling_params import StructuredOutputsParams
 from src.utils.visualize import trajectory_string, message_string
 from src.utils.logging import create_logger
-import re
 
 
 logger = create_logger(__name__)
 
 
-METRIC_PREFIXES = ("total_direct", "total_subtree", "latest_direct", "latest_subtree")
-
-
-@dataclass
-class AgentTurn:
-    action: TurnAction
-    text: str
-    raw: str
-
-
-class GuidedRegex:
-    def __init__(self, *actions: TurnAction) -> None:
-        if not actions:
-            raise ValueError("At least one allowed action must be provided.")
-        self.actions = actions
-
-        alt = "|".join(re.escape(act.value) for act in self.actions)
-        self.model_pattern = rf"^\s?Action: (?:{alt})\r?\nText: [\s\S]*$"
-        self.parse_pattern = rf"^\s?Action: (?P<action>{alt})\r?\nText: (?P<text>[\s\S]*)$"
-        self.regex = re.compile(self.parse_pattern)
-
-    def parse(self, content: Any) -> AgentTurn:
-        if not isinstance(content, str):
-            raise ValueError("Content to parse must be a string.")
-
-        m = self.regex.match(content)
-        if not m:
-            logger.debug(f"Failed to match content against regex: {self.parse_pattern}")
-            logger.debug(f"Raw content was: {content}")
-            raise ValueError(f"Content does not match the required pattern: {self.parse_pattern}")
-
-        action_val = m.group("action").strip()
-        text_val = m.group("text").strip()
-
-        action = TurnAction(action_val)
-        if action not in self.actions:
-            raise ValueError(f"Action {action} is not allowed for this turn. Allowed: {self.actions}")
-
-        return AgentTurn(action=action, text=text_val, raw=content)
+METRIC_PREFIXES = ("direct", "subtree")
 
 
 class PersistentAgent(BaseAgent):
@@ -67,6 +27,7 @@ class PersistentAgent(BaseAgent):
         decomp_config: DecompConfig,
         current_depth: int = 0,
         additional_histories: bool = False,
+        force_thinking: bool = False,
     ):
         super().__init__(
             client=client,
@@ -75,6 +36,8 @@ class PersistentAgent(BaseAgent):
             current_depth=current_depth,
             additional_histories=additional_histories,
         )
+
+        self.force_thinking = force_thinking
 
         self.metrics.update(
             {
@@ -85,9 +48,8 @@ class PersistentAgent(BaseAgent):
         )
         self.metrics.update(
             {
-                "total_subtree_depth": 0,
-                "latest_subtree_depth": 0,
-                "latest_direct_tokens": 0,
+                "subtree_depth": 0,
+                "direct_tokens": 0,
             }
         )
 
@@ -97,21 +59,21 @@ class PersistentAgent(BaseAgent):
     def _create_regex(self) -> GuidedRegex:
         """
         Rules for allowed actions:
-        0) If sub_agent is None: cannot ISSUE_TASK.
-        1) If at a leaf (depth >= max_depth): cannot ISSUE_FRESH_TASK or ISSUE_TASK.
-        2) If rounds remain (total_rounds < max_rounds): may THINK.
-        3) If no rounds remain: must ANSWER.
-        4) If tasks exhausted (total_tasks >= max_tasks): cannot ISSUE_FRESH_TASK or ISSUE_TASK.
-        5) ANSWER is always allowed.
+        0) If force_thinking is True and this is the first round: must THINK.
+        1) If sub_agent is None: cannot ISSUE_TASK.
+        2) If at a leaf (depth >= max_depth): cannot ISSUE_FRESH_TASK or ISSUE_TASK.
+        3) If rounds remain (total_rounds < max_rounds): may THINK.
+        4) If no rounds remain: must ANSWER.
+        5) If tasks exhausted (total_tasks >= max_tasks): cannot ISSUE_FRESH_TASK or ISSUE_TASK.
+        6) ANSWER is always allowed.
         """
-        # TODO: testing disabling this rule
-        # if self.current_depth >= self.decomp_config.max_depth:
-            # self.decomp_config.max_rounds = 1  # Force only one round at leaf nodes
-
         dc = self.decomp_config
         is_leaf = self.current_depth >= dc.max_depth
         has_rounds = dc.total_rounds < dc.max_rounds
         tasks_available = dc.total_tasks < dc.max_tasks
+
+        if self.force_thinking and dc.total_rounds == 0:
+            return GuidedRegex(TurnAction.THINK)
 
         allowed = [TurnAction.ANSWER]
         if has_rounds:
@@ -136,6 +98,7 @@ class PersistentAgent(BaseAgent):
             decomp_config=self.decomp_config,
             current_depth=self.current_depth + 1,
             additional_histories=False,  # NOTE: no support for recursive histories yet
+            force_thinking=self.force_thinking,
         )
 
     async def chat(
@@ -153,9 +116,9 @@ class PersistentAgent(BaseAgent):
         if verbose:
             print(trajectory_string(self.trajectory, indent=self.current_depth))
 
-        # Reset metrics of the latest run
+        # Reset metrics of the run
         for k in self.metrics.keys():
-            if k.startswith("latest"):
+            if any(k.startswith(prefix) for prefix in METRIC_PREFIXES):
                 self.metrics[k] = 0
 
         for prefix in METRIC_PREFIXES:
@@ -171,7 +134,7 @@ class PersistentAgent(BaseAgent):
             for prefix in METRIC_PREFIXES:
                 self.metrics[f"{prefix}_calls"] += 1
             if completion.total_tokens is not None:
-                self.metrics["latest_direct_tokens"] = completion.total_tokens
+                self.metrics["direct_tokens"] = completion.total_tokens
 
             if verbose:
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
@@ -182,6 +145,7 @@ class PersistentAgent(BaseAgent):
 
             # Finish if the model chose to answer
             if turn.action == TurnAction.ANSWER:
+                self.decomp_config.update_round(num_tasks=0)
                 break
 
             # If the model chose to think, continue
@@ -219,12 +183,10 @@ class PersistentAgent(BaseAgent):
 
                 # Fold in the sub-agent's subtree contribution from this single invocation.
                 for q in ("calls", "tasks", "thinks", "agents", "chats", "responses_completed", "responses_incomplete"):
-                    self.metrics[f"total_subtree_{q}"] += self.sub_agent.metrics[f"latest_subtree_{q}"]
-                    self.metrics[f"latest_subtree_{q}"] += self.sub_agent.metrics[f"latest_subtree_{q}"]
+                    self.metrics[f"subtree_{q}"] += self.sub_agent.metrics[f"subtree_{q}"]
 
-                child_depth = 1 + self.sub_agent.metrics["latest_subtree_depth"]
-                self.metrics["total_subtree_depth"] = max(self.metrics["total_subtree_depth"], child_depth)
-                self.metrics["latest_subtree_depth"] = max(self.metrics["latest_subtree_depth"], child_depth)
+                child_depth = 1 + self.sub_agent.metrics["subtree_depth"]
+                self.metrics["subtree_depth"] = max(self.metrics["subtree_depth"], child_depth)
 
                 self.decomp_config.update_round(num_tasks=1)
 

@@ -4,6 +4,7 @@ from src.agents.marker_agent.marker_agent import MarkerAgent
 from src.agents.json_agent.json_agent import JsonAgent
 from src.agents.regex_agent.regex_agent import RegexAgent
 from src.agents.perst_agent.perst_agent import PersistentAgent
+from src.agents.perst_agent.native_perst_agent import NativePersistentAgent
 
 __all__ = [
     "BaseAgent",
@@ -12,4 +13,5 @@ __all__ = [
     "JsonAgent",
     "RegexAgent",
     "PersistentAgent",
+    "NativePersistentAgent",
 ]

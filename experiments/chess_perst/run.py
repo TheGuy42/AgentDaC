@@ -40,7 +40,7 @@ class Runner(ExperimentRunner):
             "--datasets",
             nargs="+",
             choices=SUPPORTED_DATASETS,
-            default=[ChessDataset.PUZZLES.value],
+            default=[ChessDataset.PUZZLES],
             help="Which chess dataset(s) to load positions from (pooled when more than one).",
         )
 

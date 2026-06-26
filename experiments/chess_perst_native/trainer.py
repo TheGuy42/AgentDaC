@@ -1,17 +1,24 @@
+from typing import Any
+import random
+
+from omegaconf import OmegaConf
+
 from src.trajectory import Trajectory
-from src.agents import BaseAgent, PersistentAgent
+from src.agents import BaseAgent, NativePersistentAgent
 from src.trainer import RolloutStage, VerlTrainer
 from src.custom import VerlClient
 from src.configs import DecompConfig
 
-from experiments.math.format import format_prompt
-from experiments.math.rewards import answer_reward
-
-import random
-from typing import Any
+from experiments.chess_perst.format import format_prompt
+from experiments.chess_perst.rewards import compute_reward
+from experiments.chess_perst.chess_engine import EngineConfig, MoveEvaluator
 
 
-class MathPerstTrainer(VerlTrainer):
+class ChessNativeTrainer(VerlTrainer):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.engine_config = EngineConfig.model_validate(OmegaConf.to_container(self.config.custom_configs.engine_config, resolve=True))
+
     def create_agent(self, client: VerlClient, stage: RolloutStage) -> BaseAgent:
         max_depth = self.decomp_config.max_depth
         max_tasks = self.decomp_config.max_tasks
@@ -31,14 +38,13 @@ class MathPerstTrainer(VerlTrainer):
             max_rounds=max_rounds,
         )
 
-        return PersistentAgent(
+        return NativePersistentAgent(
             client=client,
             prompt_config=self.prompt_config,
             decomp_config=decomp_config,
             additional_histories=self.extra_config.get("additional_histories", False),
-            force_thinking=self.extra_config.get("force_thinking", False)
         )
-        
+
     def format_prompt(self, sample: dict[str, Any]) -> str:
         return format_prompt(sample)
 
@@ -49,30 +55,26 @@ class MathPerstTrainer(VerlTrainer):
         stage: RolloutStage,
     ) -> Trajectory:
         ans_message = trajectory.messages()[-1]
-        agent_answer = PersistentAgent.parse_answer(ans_message)
+        agent_answer = NativePersistentAgent.parse_answer(ans_message)
 
-        # Compute rewards
-        trajectory.reward = 0.0
-        ans_reward, parse_success = answer_reward(sample, agent_answer)
-        trajectory.reward += ans_reward
+        evaluator = MoveEvaluator.for_process(self.engine_config)
+        result = await evaluator.score(sample["fen"], agent_answer)
+        reward = compute_reward(result, self.engine_config)
+        trajectory.reward = reward
 
-        # Update metrics
         trajectory.metrics.update(
             {
-                "answer_reward": ans_reward,
-                "is_correct": ans_reward > 0.0,
-                "parse_success": parse_success,
+                "reward": reward,
+                "parse_success": result.parse_success,
             }
         )
 
-        # Update metadata
         trajectory.metadata.update(
             {
-                "answer": sample["answer"],
-                "agent_answer": agent_answer,
-                "subject": sample["subject"],
-                "level": sample["level"],
-                "unique_id": sample["unique_id"],
+                "fen": sample["fen"],
+                "ply": sample.get("ply"),
+                "cp": result.cp,
+                "agent_move": result.agent_move,
             }
         )
 

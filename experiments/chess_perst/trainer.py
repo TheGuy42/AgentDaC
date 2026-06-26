@@ -43,6 +43,7 @@ class ChessTrainer(VerlTrainer):
             prompt_config=self.prompt_config,
             decomp_config=decomp_config,
             additional_histories=self.extra_config.get("additional_histories", False),
+            force_thinking=self.extra_config.get("force_thinking", False)
         )
 
     def format_prompt(self, sample: dict[str, Any]) -> str:

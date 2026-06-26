@@ -1,16 +1,14 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class SupportedTasks(str, Enum):
+class SupportedTasks(StrEnum):
     BOOLEAN_EXPRESSIONS = "boolean_expressions"
     MULTISTEP_ARITHMETIC = "multistep_arithmetic"
     
-    def __str__(self) -> str:
-        return self.value
 
     @staticmethod
     def list_values() -> list[str]:
-        return [task.value for task in SupportedTasks]
+        return [task for task in SupportedTasks]
 
 
 def verify_task(sample: dict, expected_task: SupportedTasks, do_raise: bool = True) -> bool:

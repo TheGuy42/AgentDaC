@@ -11,7 +11,7 @@ from src.utils.logging import create_logger
 logger = create_logger(__name__)
 
 
-METRIC_PREFIXES = ("total_direct", "latest_direct")
+METRIC_PREFIXES = ("direct",)
 
 
 class DummyAgent(BaseAgent):
@@ -47,7 +47,7 @@ class DummyAgent(BaseAgent):
         self.metrics.update(
             {f"{prefix}_{counter}": 0 for counter in ("calls", "chats", "responses_completed", "responses_incomplete") for prefix in METRIC_PREFIXES}
         )
-        self.metrics["latest_direct_tokens"] = 0
+        self.metrics["direct_tokens"] = 0
 
     async def call(self, messages: list[Message], **kwargs) -> InferenceResponse:
         kwargs.setdefault("include_stop_str_in_output", True)
@@ -68,9 +68,9 @@ class DummyAgent(BaseAgent):
         if verbose:
             print(trajectory_string(self.trajectory, indent=self.current_depth))
 
-        # Reset metrics of the latest run
+        # Reset metrics of the run
         for k in self.metrics.keys():
-            if k.startswith("latest"):
+            if any(k.startswith(prefix) for prefix in METRIC_PREFIXES):
                 self.metrics[k] = 0
 
         for prefix in METRIC_PREFIXES:
@@ -84,7 +84,7 @@ class DummyAgent(BaseAgent):
         for prefix in METRIC_PREFIXES:
             self.metrics[f"{prefix}_calls"] += 1
         if completion.total_tokens is not None:
-            self.metrics["latest_direct_tokens"] = completion.total_tokens
+            self.metrics["direct_tokens"] = completion.total_tokens
 
         if verbose:
             print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))

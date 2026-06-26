@@ -17,23 +17,23 @@ import re
 logger = create_logger(__name__)
 
 
-METRIC_PREFIXES = ("total_direct", "total_subtree", "latest_direct", "latest_subtree")
+METRIC_PREFIXES = ("direct", "subtree")
 
 
 @dataclass
 class AgentTurn:
-    action: TurnAction
+    action: str
     text: str
     raw: str
 
 
 class GuidedRegex:
-    def __init__(self, *actions: TurnAction) -> None:
+    def __init__(self, *actions: str) -> None:
         if not actions:
             raise ValueError("At least one allowed action must be provided.")
         self.actions = actions
 
-        alt = "|".join(re.escape(act.value) for act in self.actions)
+        alt = "|".join(re.escape(act) for act in self.actions)
         self.model_pattern = rf"^\s?Action: (?:{alt})\r?\nText: [\s\S]*$"
         self.parse_pattern = rf"^\s?Action: (?P<action>{alt})\r?\nText: (?P<text>[\s\S]*)$"
         self.regex = re.compile(self.parse_pattern)
@@ -51,11 +51,10 @@ class GuidedRegex:
         action_val = m.group("action").strip()
         text_val = m.group("text").strip()
 
-        action = TurnAction(action_val)
-        if action not in self.actions:
-            raise ValueError(f"Action {action} is not allowed for this turn. Allowed: {self.actions}")
+        if action_val not in self.actions:
+            raise ValueError(f"Action {action_val} is not allowed for this turn. Allowed: {self.actions}")
 
-        return AgentTurn(action=action, text=text_val, raw=content)
+        return AgentTurn(action=action_val, text=text_val, raw=content)
 
 
 class RegexAgent(BaseAgent):
@@ -70,9 +69,8 @@ class RegexAgent(BaseAgent):
         )
         self.metrics.update(
             {
-                "total_subtree_depth": 0,
-                "latest_subtree_depth": 0,
-                "latest_direct_tokens": 0,
+                "subtree_depth": 0,
+                "direct_tokens": 0,
             }
         )
 
@@ -131,9 +129,9 @@ class RegexAgent(BaseAgent):
         if verbose:
             print(trajectory_string(self.trajectory, indent=self.current_depth))
 
-        # Reset metrics of the latest run
+        # Reset metrics of the run
         for k in self.metrics.keys():
-            if k.startswith("latest"):
+            if any(k.startswith(prefix) for prefix in METRIC_PREFIXES):
                 self.metrics[k] = 0
 
         for prefix in METRIC_PREFIXES:
@@ -149,7 +147,7 @@ class RegexAgent(BaseAgent):
             for prefix in METRIC_PREFIXES:
                 self.metrics[f"{prefix}_calls"] += 1
             if completion.total_tokens is not None:
-                self.metrics["latest_direct_tokens"] = completion.total_tokens
+                self.metrics["direct_tokens"] = completion.total_tokens
 
             if verbose:
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
@@ -188,12 +186,10 @@ class RegexAgent(BaseAgent):
 
                 # Fold in the sub-agent's subtree contribution from this single invocation
                 for q in ("calls", "tasks", "thinks", "chats", "responses_completed", "responses_incomplete"):
-                    self.metrics[f"total_subtree_{q}"] += sub_agent.metrics[f"latest_subtree_{q}"]
-                    self.metrics[f"latest_subtree_{q}"] += sub_agent.metrics[f"latest_subtree_{q}"]
+                    self.metrics[f"subtree_{q}"] += sub_agent.metrics[f"subtree_{q}"]
 
-                child_depth = 1 + sub_agent.metrics["latest_subtree_depth"]
-                self.metrics["total_subtree_depth"] = max(self.metrics["total_subtree_depth"], child_depth)
-                self.metrics["latest_subtree_depth"] = max(self.metrics["latest_subtree_depth"], child_depth)
+                child_depth = 1 + sub_agent.metrics["subtree_depth"]
+                self.metrics["subtree_depth"] = max(self.metrics["subtree_depth"], child_depth)
 
                 self.decomp_config.update_round(num_tasks=1)
 
