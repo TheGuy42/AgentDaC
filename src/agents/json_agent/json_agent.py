@@ -22,13 +22,13 @@ METRIC_PREFIXES = ("direct", "subtree")
 
 @dataclass
 class AgentTurn:
-    action: TurnAction
+    action: str | None
     text: str
     raw: dict[str, Any]
 
 
 class GuidedJson:
-    def __init__(self, *actions: TurnAction) -> None:
+    def __init__(self, *actions: str) -> None:
         self.actions = actions
 
     def build(self) -> dict[str, Any]:
@@ -158,7 +158,7 @@ class JsonAgent(BaseAgent):
         for k in self.metrics.keys():
             if any(k.startswith(prefix) for prefix in METRIC_PREFIXES):
                 self.metrics[k] = 0
-                
+
         for prefix in METRIC_PREFIXES:
             self.metrics[f"{prefix}_chats"] += 1
 
@@ -223,8 +223,10 @@ class JsonAgent(BaseAgent):
 
                 self.decomp_config.update_round(num_tasks=1)
 
+            # Unrecognized action, stop the agent loop
             else:
-                raise ValueError(f"Unhandled action: {turn.action}")
+                logger.info(f"Unhandled action: {turn.action}")
+                break
 
         # Update final stats
         completed = int((completion.finish_reason != "length") and (turn.action == TurnAction.ANSWER))

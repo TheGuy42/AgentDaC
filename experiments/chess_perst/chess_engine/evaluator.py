@@ -32,33 +32,7 @@ class MoveResult:
     """The centipawn score of the resulting position, from the mover's POV."""
 
 
-def parse_move(text: str, board: chess.Board) -> chess.Move | None:
-    """Extract a single legal move from free-form model text.
 
-    Parsing and legality are delegated to python-chess (`parse_uci`/`parse_san`). We
-    only clean up the model output: strip an optional `\\boxed{...}` wrapper, then try the
-    whole answer and each token (in case the move is embedded in a sentence). Returns the
-    legal :class:`chess.Move`, or `None` if none can be recovered.
-    """
-    if not isinstance(text, str) or not text.strip():
-        return None
-
-    raw = text.strip()
-    boxed = re.search(r"\\boxed\{([^{}]*)\}", raw)
-    if boxed:
-        raw = boxed.group(1).strip()
-
-    for token in [raw, *raw.replace(",", " ").split()]:
-        token = token.strip().strip(".")
-        if not token:
-            continue
-        for parse in (board.parse_uci, board.parse_san):
-            try:
-                return parse(token)
-            except ValueError:
-                continue
-
-    return None
 
 
 class MoveEvaluator:
@@ -98,17 +72,20 @@ class MoveEvaluator:
 
         return cls._process_instance
 
-    async def score(self, fen: str, answer_text: str) -> MoveResult:
+    async def score(self, board: chess.Board, move: chess.Move | None) -> MoveResult:
         """
-        Evaluate `answer_text` as a move from `fen` via the resulting position's eval.
+        Score a proposed move from a FEN using the persistent engine.
+
+        Args:
+            board (chess.Board): The current board position.
+            move (chess.Move | None): The proposed move to evaluate.
 
         Returns:
             MoveResult: the outcome of the evaluation.
             The returned `score` is at opponents turn but from our POV (higher = better).
             `score` and `cp` are None if the move was illegal or unparseable.
         """
-        board = chess.Board(fen)
-        move = parse_move(answer_text, board)
+        fen = board.fen()
         if move is None:
             return MoveResult(fen=fen, parse_success=False)
 

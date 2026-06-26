@@ -22,7 +22,7 @@ METRIC_PREFIXES = ("direct", "subtree")
 
 @dataclass
 class AgentTurn:
-    action: str
+    action: str | None
     text: str
     raw: str
 
@@ -46,7 +46,7 @@ class GuidedRegex:
         if not m:
             logger.debug(f"Failed to match content against regex: {self.parse_pattern}")
             logger.debug(f"Raw content was: {content}")
-            raise ValueError(f"Content does not match the required pattern: {self.parse_pattern}")
+            return AgentTurn(action=None, text=content, raw=content)
 
         action_val = m.group("action").strip()
         text_val = m.group("text").strip()
@@ -193,8 +193,10 @@ class RegexAgent(BaseAgent):
 
                 self.decomp_config.update_round(num_tasks=1)
 
+            # Unrecognized action, stop the agent loop
             else:
-                raise ValueError(f"Unhandled action: {turn.action}")
+                logger.info(f"Unhandled action: {turn.action}")
+                break
 
         # Update final stats
         completed = int((completion.finish_reason != "length") and (turn.action == TurnAction.ANSWER))

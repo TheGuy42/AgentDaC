@@ -1,8 +1,42 @@
 from __future__ import annotations
+import regex as re
 
+import chess
 from chess.engine import Cp, Score
 from experiments.chess_perst.chess_engine.config import EngineConfig
 from experiments.chess_perst.chess_engine.evaluator import MoveResult
+
+
+# TODO: parsing is too lenient. It often parses also large blocks of text as legal moves
+# the text should be pretty strictly parsed, and the model should be trained to output only legal moves in UCI format.
+# parsing should be strict, the expectation is that either the move is within a boxed block or surrounded by whitespace or something like that
+# NO ADDITIONAL TEXT SHOULD BE ALLOWED
+def parse_move(board: chess.Board, text: str) -> chess.Move | None:
+    """Extract a single legal move from free-form model text.
+
+    Parsing and legality are delegated to python-chess `parse_uci`. We
+    only clean up the model output: strip an optional `\\boxed{...}` wrapper, then try the
+    whole answer and each token (in case the move is embedded in a sentence). Returns the
+    legal :class:`chess.Move`, or `None` if none can be recovered.
+    """
+    if not isinstance(text, str) or not text.strip():
+        return None
+
+    raw = text.strip()
+    boxed = re.search(r"\\boxed\{([^{}]*)\}", raw)
+    if boxed:
+        raw = boxed.group(1).strip()
+
+    for token in [raw, *raw.replace(",", " ").split()]:
+        token = token.strip().strip(".")
+        if not token:
+            continue
+        try:
+            return board.parse_uci(token)
+        except ValueError:
+            continue
+
+    return None
 
 
 def compute_cp(chess_score: Score, config: EngineConfig) -> float:

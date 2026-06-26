@@ -64,7 +64,7 @@ class VerlTrainer(AgentLoopBase, ABC):
         """Score the trajectory, updating its `reward` / `metrics` / `metadata`."""
 
     async def run(self, sampling_params: dict[str, Any], **kwargs: Any) -> AgentLoopOutput:
-        
+
         stage = self._stage(kwargs)
         client = VerlClient(self)
         agent = self.create_agent(client, stage)
@@ -92,7 +92,7 @@ class VerlTrainer(AgentLoopBase, ABC):
 
         except Exception as e:
             logger.error("Rollout failed; emitting degenerate AgentLoopOutput: %s", e, exc_info=True)
-            
+
             trajectory = agent.trajectory.finish()
             self.trajectory_writer.write(
                 trajectory,
@@ -100,7 +100,7 @@ class VerlTrainer(AgentLoopBase, ABC):
                 stage=stage,
                 step=kwargs["global_steps"],
             )
-            
+
             return degenerate_output(trajectory, self.tokenizer)
 
     async def forward_step(
@@ -119,11 +119,15 @@ class VerlTrainer(AgentLoopBase, ABC):
         return RolloutStage.TRAIN if raw is None else RolloutStage(str(raw))
 
     def chat_kwargs(self, stage: RolloutStage, sampling_params: dict[str, Any]) -> dict[str, Any]:
-        extra = self.rollout_kwargs.get_kwargs(stage)
-        if "n" in extra:
+        extra_kwargs = self.rollout_kwargs.get_kwargs(stage)
+        if "n" in extra_kwargs:
             raise ValueError("rollout_kwargs must not set 'n'; verl controls the number of rollouts per prompt.")
 
-        kwargs = {**sampling_params, **extra}
+        kwargs = {
+            **sampling_params,
+            **{"max_new_tokens": self.config.data.max_response_length},
+            **extra_kwargs,
+        }
 
         if stage == RolloutStage.TRAIN:
             verl_temp = self.rollout_config.temperature

@@ -190,6 +190,11 @@ class PersistentAgent(BaseAgent):
 
                 self.decomp_config.update_round(num_tasks=1)
 
+            # Unrecognized action, stop the agent loop
+            if turn.action not in [e for e in TurnAction]:
+                logger.info(f"Unhandled action: {turn.action}")
+                break
+
         # Update final stats
         completed = int((completion.finish_reason != "length") and (turn.action == TurnAction.ANSWER))
         incomplete = 1 - completed

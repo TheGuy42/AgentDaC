@@ -15,8 +15,8 @@ from chess.engine import Cp, Mate, PovScore
 
 from experiments.chess_perst.chess_engine import EngineConfig, MoveEvaluator
 from experiments.chess_perst.chess_engine.cache import RootCache
-from experiments.chess_perst.chess_engine.evaluator import MoveResult, parse_move
-from experiments.chess_perst.rewards import compute_reward, compute_wp
+from experiments.chess_perst.chess_engine.evaluator import MoveResult
+from experiments.chess_perst.rewards import compute_reward, compute_wp, parse_move
 
 
 START_FEN = chess.STARTING_FEN
@@ -57,12 +57,12 @@ class FakeEngine:
 
 def test_parse_move():
     board = chess.Board()
-    assert parse_move("e2e4", board) == chess.Move.from_uci("e2e4")  # uci
-    assert parse_move("Nf3", board) == chess.Move.from_uci("g1f3")  # san
-    assert parse_move(r"\boxed{e2e4}", board) == chess.Move.from_uci("e2e4")  # boxed wrapper
-    assert parse_move("I play g1f3 here", board) == chess.Move.from_uci("g1f3")  # embedded
-    assert parse_move("e2e5", board) is None  # illegal
-    assert parse_move("", board) is None
+    assert parse_move(board, "e2e4") == chess.Move.from_uci("e2e4")  # uci
+    assert parse_move(board, "Nf3") == chess.Move.from_uci("g1f3")  # san
+    assert parse_move(board, r"\boxed{e2e4}") == chess.Move.from_uci("e2e4")  # boxed wrapper
+    assert parse_move(board, "I play g1f3 here") == chess.Move.from_uci("g1f3")  # embedded
+    assert parse_move(board, "e2e5") is None  # illegal
+    assert parse_move(board, "") is None
 
 
 async def test_cache_dedup_single_search():
