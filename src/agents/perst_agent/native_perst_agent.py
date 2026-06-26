@@ -29,7 +29,7 @@ class NativeGuidedRegex(GuidedRegex):
         self.actions = actions
 
         alt = "|".join(re.escape(act) for act in self.actions)
-        self.model_pattern = rf"^\s*Action: (?:{alt})\r?\nText: [\s\S]*$"
+        self.model_pattern = rf"^\s{{0,4}}Action: (?:{alt})\r?\nText: [\s\S]*$"
         self.parse_pattern = rf"[\s\S]*Action: (?P<action>{alt})\r?\nText: (?P<text>[\s\S]*)$"
         self.regex = re.compile(self.parse_pattern)
 
