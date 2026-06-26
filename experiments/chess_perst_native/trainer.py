@@ -2,6 +2,7 @@ from typing import Any
 import random
 
 from omegaconf import OmegaConf
+import chess
 
 from src.trajectory import Trajectory
 from src.agents import BaseAgent, NativePersistentAgent
@@ -10,7 +11,7 @@ from src.custom import VerlClient
 from src.configs import DecompConfig
 
 from experiments.chess_perst.format import format_prompt
-from experiments.chess_perst.rewards import compute_reward
+from experiments.chess_perst.rewards import compute_reward, parse_move
 from experiments.chess_perst.chess_engine import EngineConfig, MoveEvaluator
 
 
@@ -56,9 +57,13 @@ class ChessNativeTrainer(VerlTrainer):
     ) -> Trajectory:
         ans_message = trajectory.messages()[-1]
         agent_answer = NativePersistentAgent.parse_answer(ans_message)
-
         evaluator = MoveEvaluator.for_process(self.engine_config)
-        result = await evaluator.score(sample["fen"], agent_answer)
+        
+        fen = sample["fen"]
+        board = chess.Board(fen)
+
+        move = parse_move(board, agent_answer)
+        result = await evaluator.score(board, move)
         reward = compute_reward(result, self.engine_config)
         trajectory.reward = reward
 
@@ -71,7 +76,7 @@ class ChessNativeTrainer(VerlTrainer):
 
         trajectory.metadata.update(
             {
-                "fen": sample["fen"],
+                "fen": fen,
                 "ply": sample.get("ply"),
                 "cp": result.cp,
                 "agent_move": result.agent_move,
