@@ -7,36 +7,55 @@ from experiments.chess_perst.chess_engine.config import EngineConfig
 from experiments.chess_perst.chess_engine.evaluator import MoveResult
 
 
-# TODO: parsing is too lenient. It often parses also large blocks of text as legal moves
-# the text should be pretty strictly parsed, and the model should be trained to output only legal moves in UCI format.
-# parsing should be strict, the expectation is that either the move is within a boxed block or surrounded by whitespace or something like that
-# NO ADDITIONAL TEXT SHOULD BE ALLOWED
 def parse_move(board: chess.Board, text: str) -> chess.Move | None:
-    """Extract a single legal move from free-form model text.
+    """
+    Extract a single legal move from `text` in UCI format.
+    The text is expected to contain only a single valid move.
 
-    Parsing and legality are delegated to python-chess `parse_uci`. We
-    only clean up the model output: strip an optional `\\boxed{...}` wrapper, then try the
-    whole answer and each token (in case the move is embedded in a sentence). Returns the
-    legal :class:`chess.Move`, or `None` if none can be recovered.
+    1. Extract the first boxed move if present (e.g. \boxed{e2e4}).
+    2. Tokenize the text: split on whitespace and punctuation (commas, periods). 
+    3. Attempt to parse each token as a UCI move. If a token is a valid UCI move and legal in the given board position, return it.
+    4. If no valid moves are found, or if multiple valid moves are found, return None. Otherwise, return the single valid move found.
+
+    Args:
+        board (chess.Board): The chess board to validate the move against.
+        text (str): The model's output text.
+    
+    Returns:
+        chess.Move | None: The parsed move if valid and unique, otherwise None.
     """
     if not isinstance(text, str) or not text.strip():
         return None
 
-    raw = text.strip()
-    boxed = re.search(r"\\boxed\{([^{}]*)\}", raw)
+    text = text.strip()
+    boxed = re.search(r"\\boxed\{([^{}]*)\}", text)
     if boxed:
-        raw = boxed.group(1).strip()
+        text = boxed.group(1).strip()
 
-    for token in [raw, *raw.replace(",", " ").split()]:
-        token = token.strip().strip(".")
-        if not token:
-            continue
+    tokens = text.replace(",", " ").replace(".", " ").split()
+    tokens = [t.strip() for t in tokens if t]
+
+    if len(tokens) == 0:
+        return None
+
+    valid_moves = set()
+    for token in tokens:
         try:
-            return board.parse_uci(token)
+            move = board.parse_uci(token)
+            if move != move.null():
+                valid_moves.add(move)
+
+            if len(valid_moves) > 1:
+                return None  # early exit
+
         except ValueError:
             continue
 
-    return None
+    if len(valid_moves) == 1:
+        return valid_moves.pop()
+
+    else:  # Either no valid moves or multiple valid moves
+        return None
 
 
 def compute_cp(chess_score: Score, config: EngineConfig) -> float:
