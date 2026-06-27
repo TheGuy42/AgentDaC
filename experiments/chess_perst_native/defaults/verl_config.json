@@ -21,7 +21,7 @@
     "data": {
         "train_batch_size": 10,
         "max_prompt_length": 2048,
-        "max_response_length": 4096,
+        "max_response_length": 6144,
         "truncation": "error",
         "shuffle": true,
         "apply_chat_template_kwargs": {
@@ -32,13 +32,13 @@
         "rollout": {
             "n": 8,
             "do_sample": true,
-            "temperature": 0.7,
+            "temperature": 1.0,
             "top_p": 0.95,
             "top_k": 20,
             "val_kwargs": {
                 "n": 1,
                 "do_sample": true,
-                "temperature": 0.7,
+                "temperature": 1.0,
                 "top_p": 0.95,
                 "top_k": 20
             },
@@ -47,7 +47,7 @@
             "name": "vllm",
             "dtype": "bfloat16",
             "load_format": "safetensors",
-            "gpu_memory_utilization": 0.8,
+            "gpu_memory_utilization": 0.7,
             "engine_kwargs": {
                 "vllm": {
                     "generation_config": "auto",
@@ -91,7 +91,7 @@
             }
         },
         "model": {
-            "path": "Qwen/Qwen3-4B",
+            "path": "Qwen/Qwen3-8B",
             "use_remove_padding": true,
             "enable_gradient_checkpointing": true,
             "lora_rank": 16,

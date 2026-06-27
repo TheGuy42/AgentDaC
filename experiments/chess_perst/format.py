@@ -3,7 +3,8 @@ import chess
 
 INSTRUCTION = (
     "You are given a chess position. Find the best legal move for the side to move. "
-    "Analyze the position thoroughly and consider different strategies, but the final answer must be only one move."
+    "Analyze the position and consider different strategies. "
+    "Important: don't reason too long, you have token limits."
 )
 
 ANSWER_FORMAT = "The final answer must be exactly one legal move in UCI notation. It should contain only the move and nothing else."

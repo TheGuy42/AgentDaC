@@ -14,6 +14,7 @@ from typing import Any
 
 import torch
 from omegaconf import OmegaConf
+from transformers import AutoConfig
 
 from src.configs import DecompConfig, PromptConfig, RolloutConfig, TrainingConfig
 from src.utils.env import prepare_environment, set_seed
@@ -29,7 +30,7 @@ logger = create_logger(__name__)
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 # TODO: clean up this overall file, we need to make it more clean
-# and better structured / more maintainable 
+# and better structured / more maintainable
 # but also overall code readability is important, and things shouldnt be scattered around too much
 
 
@@ -278,7 +279,7 @@ class ExperimentRunner(ABC):
             model.custom_chat_template = resolved
 
     def _patch_lengths(self, config: Any, decomp_config: DecompConfig) -> None:
-        """Size the rollout/model lengths for the worst-case multi-turn trajectory.
+        """Patch sizes of rollout/model lengths for multi-turn trajectory.
 
         - `rollout.response_length` = the cumulative response budget (what `convert_trajectory`
           truncates to and what padding uses). This is the key length for the agent loop.
@@ -286,20 +287,34 @@ class ExperimentRunner(ABC):
           set per turn via the experiment's rollout chat kwargs).
         """
         single_resp_len = int(config.data.max_response_length)
-        traj_resp_len = (
-            decomp_config.max_tasks * (2 * single_resp_len)
+
+        traj_resp_len = int(
+            1.5 * decomp_config.max_tasks * single_resp_len  # each task also constitutes a response
             + (decomp_config.max_rounds - decomp_config.max_tasks) * single_resp_len
             + 32 * decomp_config.max_rounds  # chat-template buffer per round
         )
+
         inp_len = int(config.data.max_prompt_length)  # initial system+user prompt cap
         model_len = inp_len + traj_resp_len
+
+        hf_config = AutoConfig.from_pretrained(config.actor_rollout_ref.model.path, trust_remote_code=True)
+        hf_model_len: int | None = getattr(hf_config, "max_position_embeddings", getattr(hf_config, "model_max_length", None))
+
+        if hf_model_len and model_len > hf_model_len:
+            logger.warning(f"Computed model length exceeds max_position_embeddings: {model_len} > {hf_model_len}. ")
+            logger.warning(f"Modifying rollout response_length {traj_resp_len} -> {hf_model_len - inp_len}")
+            model_len = hf_model_len
+            traj_resp_len = model_len - inp_len
 
         config.data.max_prompt_length = inp_len
         config.actor_rollout_ref.rollout.prompt_length = inp_len
         config.actor_rollout_ref.rollout.response_length = traj_resp_len
         config.actor_rollout_ref.rollout.max_model_len = model_len
 
-        logger.info(f"Lengths: prompt_length={inp_len}, response_length(cumulative)={traj_resp_len}, max_model_len={model_len}")
+        logger.info("Patched Lengths:")
+        logger.info(f"  prompt_length: {inp_len}")
+        logger.info(f"  response_length(cumulative): {traj_resp_len}")
+        logger.info(f"  max_model_len: {model_len}")
 
     def _patch_test_run(self, config: Any) -> None:
         logger.info("Test run: overriding verl config for a quick run.")
