@@ -1,7 +1,7 @@
 {
     "mode": "path",
-    "system_root": "config_files/prompts/perst_native/v4_root.txt",
-    "system_inter": "config_files/prompts/perst_native/v4_root.txt",
-    "system_leaf": "config_files/prompts/perst_native/v4_leaf.txt",
+    "system_root": "config_files/prompts/perst_native/v5_root.txt",
+    "system_inter": "config_files/prompts/perst_native/v5_root.txt",
+    "system_leaf": "config_files/prompts/perst_native/v5_leaf.txt",
     "tasks_depleted": null
 }

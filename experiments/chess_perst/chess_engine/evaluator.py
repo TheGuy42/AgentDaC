@@ -14,6 +14,7 @@ from experiments.chess_perst.chess_engine.cache import RootCache
 
 logger = create_logger(__name__)
 
+
 @dataclass(frozen=True)
 class MoveResult:
     fen: str
@@ -30,9 +31,6 @@ class MoveResult:
 
     cp: int | None = None
     """The centipawn score of the resulting position, from the mover's POV."""
-
-
-
 
 
 class MoveEvaluator:

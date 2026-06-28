@@ -257,12 +257,12 @@ class ExperimentRunner(ABC):
         OmegaConf.update(omega_conf, "ray_kwargs.ray_init.runtime_env.env_vars.PYTHONPATH", str(REPO_ROOT), force_add=True)
 
         # Verify (and patch, if possible) the chat template before training starts.
-        self._ensure_prefix_preserving_chat_template(omega_conf)
+        self._patch_chat_template(omega_conf)
 
         return omega_conf
 
-    def _ensure_prefix_preserving_chat_template(self, omega_conf: Any) -> None:
-        """Verify (and patch, if possible) the chat template before training starts.
+    def _patch_chat_template(self, omega_conf: Any) -> None:
+        """Load and verify (and patch, if possible) the chat template before training starts.
 
         `convert_trajectory` reconstructs the trajectory from per-turn prompt tokens and
         requires a prefix-preserving chat template. Resolve it here -- against the *effective*
@@ -270,11 +270,20 @@ class ExperimentRunner(ABC):
         so `HFModelConfig` applies it to the tokenizer the rollout shares. Raises if unsafe.
         """
         model = omega_conf.actor_rollout_ref.model
+        manual_template = model.get("custom_chat_template", None)
+
+        # check if manual_template is a path to a file, if so, read the file and set manual_template to its contents
+        if manual_template is not None and isinstance(manual_template, str) and pathlib.Path(manual_template).is_file():
+            logger.info(f"Loading manual chat template from {manual_template} (encoding='utf-8').")
+            manual_template = pathlib.Path(manual_template).read_text(encoding="utf-8")
+            model.custom_chat_template = manual_template
+
         resolved = resolve_chat_template(
             model_path=model.path,
             manual_template=model.get("custom_chat_template", None),
             trust_remote_code=bool(model.get("trust_remote_code", False)),
         )
+
         if resolved is not None:
             model.custom_chat_template = resolved
 
@@ -313,6 +322,7 @@ class ExperimentRunner(ABC):
 
         logger.info("Patched Lengths:")
         logger.info(f"  prompt_length: {inp_len}")
+        logger.info(f"  response_length(per-turn): {single_resp_len}")
         logger.info(f"  response_length(cumulative): {traj_resp_len}")
         logger.info(f"  max_model_len: {model_len}")
 

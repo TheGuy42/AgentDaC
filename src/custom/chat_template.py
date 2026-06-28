@@ -29,15 +29,12 @@ def resolve_chat_template(
     # `get_training_chat_template` directly, because the latter also requires
     # `{% generation %}` markers and would raise on an already-prefix-preserving template that merely lacks them.
     if is_chat_template_prefix_preserving(tokenizer):
-        logger.debug(f"TRL :: Chat template is prefix-preserving ({source}); no patch needed.")
+        logger.debug(f"TRL: Chat template is prefix-preserving ({source}); no patch needed.")
         return manual_template
 
     # Not prefix-preserving (manual override or model default alike) -> patch via TRL.
     # get_training_chat_template raises ValueError when it cannot patch the template.
-    logger.warning(
-        f"TRL :: Chat template is not prefix-preserving ({source}); "
-        f"patching it to a prefix-preserving variant to avoid corrupting the trajectory token sequence."
-    )
+    logger.warning(f"TRL: Chat template is not prefix-preserving ({source}); patching to a prefix-preserving variant.")
 
     patched = get_training_chat_template(tokenizer)
 
