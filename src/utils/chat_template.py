@@ -23,6 +23,9 @@ def resolve_chat_template(
     if manual_template is not None:
         tokenizer.chat_template = manual_template
 
+    if tokenizer.chat_template is None:
+        raise ValueError(f"Model {model_path} has no chat template, and no manual override was provided.")
+
     source = "manual custom_chat_template" if manual_template is not None else f"model default {model_path}"
 
     # NOTE: we gate on TRL's `is_chat_template_prefix_preserving` rather than calling

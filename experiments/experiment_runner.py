@@ -20,7 +20,7 @@ from src.configs import DecompConfig, PromptConfig, RolloutConfig, TrainingConfi
 from src.utils.env import prepare_environment, set_seed
 from src.utils.io import load_object
 from src.utils.logging import create_logger, setup_logging
-from src.custom.chat_template import resolve_chat_template
+from src.utils.chat_template import resolve_chat_template
 
 
 logger = create_logger(__name__)

@@ -21,7 +21,7 @@
     "data": {
         "train_batch_size": 10,
         "max_prompt_length": 2048,
-        "max_response_length": 2048,
+        "max_response_length": 4096,
         "truncation": "error",
         "shuffle": true,
         "apply_chat_template_kwargs": {
@@ -47,7 +47,7 @@
             "name": "vllm",
             "dtype": "bfloat16",
             "load_format": "safetensors",
-            "gpu_memory_utilization": 0.75,
+            "gpu_memory_utilization": 0.7,
             "engine_kwargs": {
                 "vllm": {
                     "generation_config": "auto",
@@ -76,6 +76,7 @@
             "entropy_coeff": 0,
             "clip_ratio_low": 0.2,
             "clip_ratio_high": 0.3,
+            "strategy": "fsdp2",
             "fsdp_config": {
                 "param_offload": false,
                 "optimizer_offload": false,
@@ -84,16 +85,18 @@
         },
         "ref": {
             "log_prob_micro_batch_size_per_gpu": 8,
+            "strategy": "fsdp2",
             "fsdp_config": {
                 "param_offload": false,
                 "model_dtype": "bfloat16"
             }
         },
         "model": {
-            "path": "Qwen/Qwen3-14B",
+            "path": "Qwen/Qwen3-4B-Instruct-2507",
             "use_remove_padding": true,
+            "use_liger": true,
             "enable_gradient_checkpointing": true,
-            "lora_rank": 32,
+            "lora_rank": 16,
             "lora_alpha": 32,
             "target_modules": "all-linear",
             "override_config": {
