@@ -6,6 +6,7 @@ import chess
 from chess.engine import PovScore
 from src.utils.logging import create_logger
 from experiments.chess_perst.chess_engine.engine import LocalEngine
+from experiments.chess_perst.chess_engine.config import ChessConfig
 
 
 logger = create_logger(__name__)
@@ -26,7 +27,7 @@ class RootCache:
         self._tasks: OrderedDict[str, asyncio.Task[dict[str, PovScore]]] = OrderedDict()
         self._lock = asyncio.Lock()
 
-    async def build(self, fen: str) -> dict[str, PovScore]:
+    async def build(self, fen: str, config: ChessConfig) -> dict[str, PovScore]:
         """
         Build a cache of analysis for the given FEN.
         """
@@ -35,7 +36,7 @@ class RootCache:
 
             if task is None:
                 # first rollout to ask for this FEN
-                task = asyncio.create_task(self._search(fen))
+                task = asyncio.create_task(self._search(fen, config))
                 self._tasks[fen] = task
             else:
                 # update LRU order
@@ -53,7 +54,7 @@ class RootCache:
                     del self._tasks[fen]
             raise
 
-    async def _search(self, fen: str) -> dict[str, PovScore]:
+    async def _search(self, fen: str, config: ChessConfig) -> dict[str, PovScore]:
         board = chess.Board(fen)
-        infos = await self.engine.analyse(board, multipv=board.legal_moves.count())
+        infos = await self.engine.analyse(board, config, multipv=board.legal_moves.count())
         return {info["pv"][0].uci(): info["score"] for info in infos}  # type: ignore[typeddict-item]

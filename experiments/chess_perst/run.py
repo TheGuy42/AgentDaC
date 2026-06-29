@@ -14,7 +14,7 @@ if str(module_dir) not in sys.path:
 from src.utils.logging import create_logger
 from experiments.experiment_runner import ExperimentRunner
 from experiments.chess_perst.dataset import ChessPerstDataset
-from experiments.chess_perst.trainer import ChessTrainer
+from experiments.chess_perst.trainer import ChessConfig, ChessTrainer
 from experiments.chess_perst.chess_engine import EngineConfig
 from experiments.chess_perst.data import ChessDataset, SUPPORTED_DATASETS
 
@@ -33,6 +33,7 @@ class Runner(ExperimentRunner):
         """Load the shared configs plus the chess-specific engine config."""
         configs = super()._load_configs(dir)
         configs["engine_config"] = EngineConfig.load_from_path(pathlib.Path(dir) / "engine_config.json", do_raise=True)
+        configs["chess_config"] = ChessConfig.load_from_path(pathlib.Path(dir) / "chess_config.json", do_raise=True)
         return configs
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:

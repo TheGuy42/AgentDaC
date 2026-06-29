@@ -43,7 +43,7 @@
                 "top_k": 20
             },
             "tensor_model_parallel_size": 1,
-            "log_prob_micro_batch_size_per_gpu": 5,
+            "log_prob_micro_batch_size_per_gpu": 10,
             "name": "vllm",
             "dtype": "bfloat16",
             "load_format": "safetensors",
@@ -64,7 +64,7 @@
         },
         "actor": {
             "ppo_mini_batch_size": 10,
-            "ppo_micro_batch_size_per_gpu": 5,
+            "ppo_micro_batch_size_per_gpu": 10,
             "optim": {
                 "lr": 5e-6
             },
@@ -84,7 +84,7 @@
             }
         },
         "ref": {
-            "log_prob_micro_batch_size_per_gpu": 8,
+            "log_prob_micro_batch_size_per_gpu": 10,
             "strategy": "fsdp2",
             "fsdp_config": {
                 "param_offload": false,

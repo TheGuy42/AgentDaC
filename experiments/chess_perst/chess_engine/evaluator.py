@@ -1,13 +1,12 @@
 from __future__ import annotations
 import atexit
-import re
 from dataclasses import dataclass
 from typing import ClassVar
 
 import chess
 from chess.engine import Score, PovScore
 from src.utils.logging import create_logger
-from experiments.chess_perst.chess_engine.config import EngineConfig
+from experiments.chess_perst.chess_engine.config import EngineConfig, ChessConfig
 from experiments.chess_perst.chess_engine.engine import LocalEngine
 from experiments.chess_perst.chess_engine.cache import RootCache
 
@@ -44,33 +43,33 @@ class MoveEvaluator:
     _process_instance: ClassVar[MoveEvaluator | None] = None
     _process_config: ClassVar[EngineConfig | None] = None
 
-    def __init__(self, config: EngineConfig, engine: LocalEngine | None = None) -> None:
-        self.engine: LocalEngine = engine if engine is not None else LocalEngine(config)
+    def __init__(self, engine_config: EngineConfig, engine: LocalEngine | None = None) -> None:
+        self.engine: LocalEngine = engine if engine is not None else LocalEngine(engine_config)
         self.root_cache = RootCache(self.engine, cache_size=4096)
 
     @property
     def config(self) -> EngineConfig:
-        return self.engine.config
+        return self.engine.engine_config
 
     @classmethod
-    def for_process(cls, config: EngineConfig) -> MoveEvaluator:
+    def for_process(cls, engine_config: EngineConfig) -> MoveEvaluator:
         """
         Return the per-process shared evaluator, starting its engine on first use.
         The engine is started lazily and closed at interpreter exit. The first call's
         `config` wins for the lifetime of the process.
         """
         if cls._process_instance is None:
-            cls._process_instance = cls(config)
-            cls._process_config = config
+            cls._process_instance = cls(engine_config)
+            cls._process_config = engine_config
             atexit.register(cls._process_instance.close)
-        elif config != cls._process_config:
+        elif engine_config != cls._process_config:
             raise RuntimeError(
                 "MoveEvaluator.for_process() was called with a different EngineConfig after the process-local evaluator was already initialized."
             )
 
         return cls._process_instance
 
-    async def score(self, board: chess.Board, move: chess.Move | None) -> MoveResult:
+    async def score(self, board: chess.Board, move: chess.Move | None, config: ChessConfig) -> MoveResult:
         """
         Score a proposed move from a FEN using the persistent engine.
 
@@ -88,12 +87,12 @@ class MoveEvaluator:
             return MoveResult(fen=fen, parse_success=False)
 
         pov_score: PovScore | None = None
-        if self.config.eval_mode == "root_multipv":
-            score_cache = await self.root_cache.build(fen)
+        if config.mode == "root_multipv":
+            score_cache = await self.root_cache.build(fen, config)
             pov_score = score_cache.get(move.uci())
 
         if pov_score is None:
-            info = await self.engine.analyse(board, root_moves=[move])
+            info = await self.engine.analyse(board, config, root_moves=[move])
             pov_score = info.get("score")
 
         if pov_score is None:
@@ -106,7 +105,7 @@ class MoveEvaluator:
             parse_success=True,
             agent_move=move.uci(),
             score=score,
-            cp=score.score(mate_score=self.config.mate_score),
+            cp=score.score(mate_score=config.mate_score),
         )
 
     def close(self) -> None:

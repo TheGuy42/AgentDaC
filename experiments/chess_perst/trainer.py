@@ -12,13 +12,14 @@ from src.configs import DecompConfig
 
 from experiments.chess_perst.format import format_prompt
 from experiments.chess_perst.rewards import compute_reward, parse_move
-from experiments.chess_perst.chess_engine import EngineConfig, MoveEvaluator
+from experiments.chess_perst.chess_engine import EngineConfig, ChessConfig, MoveEvaluator
 
 
 class ChessTrainer(VerlTrainer):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.engine_config = EngineConfig.model_validate(OmegaConf.to_container(self.config.custom_configs.engine_config, resolve=True))
+        self.chess_config = ChessConfig.model_validate(OmegaConf.to_container(self.config.custom_configs.chess_config, resolve=True))
 
     def create_agent(self, client: VerlClient, stage: RolloutStage) -> BaseAgent:
         max_depth = self.decomp_config.max_depth
@@ -59,13 +60,14 @@ class ChessTrainer(VerlTrainer):
         ans_message = trajectory.messages()[-1]
         agent_answer = PersistentAgent.parse_answer(ans_message)
         evaluator = MoveEvaluator.for_process(self.engine_config)
+        chess_config = self.chess_config.for_validation() if stage != RolloutStage.TRAIN else self.chess_config
 
         fen = sample["fen"]
         board = chess.Board(fen)
 
         move = parse_move(board, agent_answer)
-        result = await evaluator.score(board, move)
-        reward = compute_reward(result, self.engine_config)
+        result = await evaluator.score(board, move, config=chess_config)
+        reward = compute_reward(result, config=chess_config)
         trajectory.reward = reward
 
         trajectory.metrics.update(

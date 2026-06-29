@@ -3,7 +3,7 @@ import regex as re
 
 import chess
 from chess.engine import Cp, Score
-from experiments.chess_perst.chess_engine.config import EngineConfig
+from experiments.chess_perst.chess_engine.config import ChessConfig
 from experiments.chess_perst.chess_engine.evaluator import MoveResult
 
 
@@ -58,14 +58,14 @@ def parse_move(board: chess.Board, text: str) -> chess.Move | None:
         return None
 
 
-def compute_cp(chess_score: Score, config: EngineConfig) -> float:
+def compute_cp(chess_score: Score, config: ChessConfig) -> float:
     """
     Compute the centipawn reward for a given chess score, linearly rescaled to [0, 1].
 
     Args:
         chess_score (Score): The chess score to convert.
             Should be from our perspective (i.e. positive = good for us).
-        config (EngineConfig): The engine configuration.
+        config (ChessConfig): The chess configuration.
 
     Returns:
         float: The rescaled score in [0, 1] (0.5 = equal; mates near 0/1, by distance).
@@ -74,7 +74,7 @@ def compute_cp(chess_score: Score, config: EngineConfig) -> float:
     return (cp + config.mate_score) / (2.0 * config.mate_score)
 
 
-def compute_wp(chess_score: Score, config: EngineConfig) -> float:
+def compute_wp(chess_score: Score, config: ChessConfig) -> float:
     """
     Compute the win probability reward for a given chess score.
     Returns a value in [0, 1], with the following special handling for mate scores:
@@ -89,7 +89,7 @@ def compute_wp(chess_score: Score, config: EngineConfig) -> float:
     Args:
         chess_score (Score): The chess score to convert to win probability.
             Should be from our perspective (i.e. positive = good for us).
-        config (EngineConfig): The engine configuration.
+        config (ChessConfig): The chess configuration.
 
     Returns:
         float: The win probability in [0, 1], with special handling for mate scores
@@ -112,7 +112,7 @@ def compute_wp(chess_score: Score, config: EngineConfig) -> float:
     return mate_margin + (1.0 - 2.0 * mate_margin) * wp
 
 
-def compute_reward(result: MoveResult, config: EngineConfig) -> float:
+def compute_reward(result: MoveResult, config: ChessConfig) -> float:
     """
     Map an engine :class:`MoveResult` into a scalar reward per `config.reward`.
     """

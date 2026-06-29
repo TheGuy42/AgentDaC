@@ -5,7 +5,7 @@ from typing import Iterable, overload
 import chess
 from chess.engine import InfoDict, SimpleEngine
 from src.utils.logging import create_logger
-from experiments.chess_perst.chess_engine.config import EngineConfig
+from experiments.chess_perst.chess_engine.config import EngineConfig, ChessConfig
 
 
 logger = create_logger(__name__)
@@ -20,49 +20,49 @@ class LocalEngine:
     runner: access is serialized and the blocking search runs off the event loop.
     """
 
-    def __init__(self, config: EngineConfig) -> None:
-        self.config = config
-        self.engine: SimpleEngine = SimpleEngine.popen_uci(config.engine_path)
-        self.engine.configure({"Threads": config.threads, "Hash": config.hash_mb})
+    def __init__(self, engine_config: EngineConfig) -> None:
+        self.engine_config = engine_config
+        self.engine: SimpleEngine = SimpleEngine.popen_uci(engine_config.engine_path)
+        self.engine.configure({"Threads": engine_config.threads, "Hash": engine_config.hash_mb})
         self._lock = asyncio.Lock()
 
     @overload
     async def analyse(
         self,
         board: chess.Board,
+        config: ChessConfig,
         *,
         multipv: int,
         root_moves: Iterable[chess.Move] | None = None,
-        **kwargs,
     ) -> list[InfoDict]: ...
 
     @overload
     async def analyse(
         self,
         board: chess.Board,
+        config: ChessConfig,
         *,
         multipv: None = None,
         root_moves: Iterable[chess.Move] | None = None,
-        **kwargs,
     ) -> InfoDict: ...
 
     @overload
     async def analyse(
         self,
         board: chess.Board,
+        config: ChessConfig,
         *,
         multipv: int | None,
         root_moves: Iterable[chess.Move] | None = None,
-        **kwargs,
     ) -> InfoDict | list[InfoDict]: ...
 
     async def analyse(
         self,
         board: chess.Board,
+        config: ChessConfig,
         *,
         multipv: int | None = None,
         root_moves: Iterable[chess.Move] | None = None,
-        **kwargs,
     ) -> InfoDict | list[InfoDict]:
         """Return the engine's raw analysis of `board` (a single, serialized search).
 
@@ -76,10 +76,14 @@ class LocalEngine:
         # to_thread: analyse() blocks until the search finishes; run it off-loop so other
         # rollouts keep progressing. (SimpleEngine is affinity-free, so any pool thread is fine.)
         async with self._lock:
+            kwargs = config.kwargs.copy()
+            if config.deterministic:
+                kwargs["game"] = object()
+
             return await asyncio.to_thread(
                 self.engine.analyse,
                 board,
-                limit=self.config.limit,
+                limit=config.limit,
                 root_moves=root_moves,
                 multipv=multipv,
                 **kwargs,

@@ -5,11 +5,7 @@ from src.configs.base_config import BaseConfig
 
 
 class EngineConfig(BaseConfig):
-    """Settings for the local UCI engine and the move reward it produces."""
-
-    limit: Limit
-    """Search budget per analysis, e.g. `{"nodes": 1000000}` or `{"time": 0.5}`. A nodes (or
-    depth) limit is reproducible; a time limit varies with machine load and concurrency."""
+    """Settings for the local UCI engine deployment."""
 
     engine_path: str = "stockfish"
     """Path to the UCI engine binary — a name on PATH or an absolute path. Any UCI engine works."""
@@ -22,12 +18,24 @@ class EngineConfig(BaseConfig):
     hash_mb: int = 64
     """Engine transposition-table size in MB (the UCI `Hash` option), per engine process."""
 
-    eval_mode: Literal["child", "root_multipv"] = "child"
+
+class ChessConfig(BaseConfig):
+    """Settings for the local UCI analysis and the move reward it produces."""
+
+    limit: Limit
+    """Search budget per analysis, e.g. `{"nodes": 1000000}` or `{"time": 0.5}`. A nodes (or
+    depth) limit is reproducible; a time limit varies with machine load and concurrency."""
+
+    mode: Literal["child", "root_multipv"] = "child"
     """How a move is evaluated: 'child' = one search per move;
     'root_multipv'= one MultiPV search of the root, cached and shared across the GRPO group."""
 
     reward: Literal["win_prob", "centipawns"] = "win_prob"
     """The type of reward to use for evaluating moves."""
+
+    deterministic: bool = False
+    """Whether to reset the engine move cache before each evaluation.
+    Set `False` for more accurate results but non-deterministic; `True` for reproducible results but less accurate."""
 
     mate_score: int = 10_000
     """Centipawn magnitude a forced mate maps to (scaled down by distance to mate)."""
@@ -40,3 +48,13 @@ class EngineConfig(BaseConfig):
 
     mate_decay: float = 0.005
     """Per-ply reward step within a mate band, so a faster mate scores higher."""
+
+    kwargs: dict = {}
+    """Extra kwargs to pass to the engine's `analyse()` method, e.g. `info` or `options`."""
+
+    validation_overwrites: dict = {}
+    """Optional overwrites for a second validation search. Keys are any of the above fields, and values are the new values to use for validation."""
+
+    def for_validation(self) -> ChessConfig:
+        """Return a copy of this config with any validation overwrites applied."""
+        return self.model_validate({**self.model_dump(), **self.validation_overwrites})
