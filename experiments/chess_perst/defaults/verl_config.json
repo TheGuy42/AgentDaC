@@ -37,7 +37,7 @@
             "top_k": 20,
             "val_kwargs": {
                 "n": 1,
-                "do_sample": true,
+                "do_sample": false,
                 "temperature": 1.0,
                 "top_p": 0.95,
                 "top_k": 20

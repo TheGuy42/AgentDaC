@@ -123,11 +123,7 @@ class VerlTrainer(AgentLoopBase, ABC):
         if "n" in extra_kwargs:
             raise ValueError("rollout_kwargs must not set 'n'; verl controls the number of rollouts per prompt.")
 
-        kwargs = {
-            **sampling_params,
-            **{"max_new_tokens": self.config.data.max_response_length},
-            **extra_kwargs,
-        }
+        kwargs = {**sampling_params, **extra_kwargs}
 
         if stage == RolloutStage.TRAIN:
             verl_temp = self.rollout_config.temperature

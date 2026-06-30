@@ -73,12 +73,10 @@ class VerlClient(InferenceClient):
         output: TokenOutput,
         kwargs: dict[str, Any],
     ) -> InferenceResponse:
-        response_ids = list(output.token_ids)
-
         content = await self.verl_agent.loop.run_in_executor(
             None,
             lambda: self.tokenizer.decode(
-                response_ids,
+                output.token_ids,
                 skip_special_tokens=True,
                 clean_up_tokenization_spaces=False,
             ),
@@ -96,14 +94,14 @@ class VerlClient(InferenceClient):
                     {
                         "index": 0,
                         "message": {"role": "assistant", "content": content},
-                        "finish_reason": self._finish_reason(output, response_ids, kwargs),
-                        "token_ids": response_ids,
+                        "finish_reason": self._finish_reason(prompt_ids, output, kwargs),
+                        "token_ids": output.token_ids,
                     }
                 ],
                 "usage": {
                     "prompt_tokens": len(prompt_ids),
-                    "completion_tokens": len(response_ids),
-                    "total_tokens": len(prompt_ids) + len(response_ids),
+                    "completion_tokens": len(output.token_ids),
+                    "total_tokens": len(prompt_ids) + len(output.token_ids),
                 },
                 "prompt_token_ids": list(prompt_ids),
             }
@@ -111,9 +109,36 @@ class VerlClient(InferenceClient):
 
         return VerlResponse(completion, output)
 
-    def _finish_reason(self, output: TokenOutput, response_ids: list[int], kwargs: dict[str, Any]) -> str:
-        # VERL collapses vLLM's "stop"/"length" into stop_reason="completed", so length is inferred.
-        cap = kwargs.get("max_tokens") or int(self.verl_agent.rollout_config.response_length)
-        if output.stop_reason == "aborted" or len(response_ids) >= int(cap):
-            return "length"
-        return "stop"
+    def _finish_reason(self, prompt_ids: list[int], output: TokenOutput, kwargs: dict[str, Any]) -> str:
+        """Best-effort finish reason inference.
+
+        VERL collapses vLLM finish_reason in {"stop", "length"} into stop_reason="completed",
+        so exact recovery is impossible. This infers "length" only when the generated output
+        reaches VERL's effective max-token cap.
+        """
+
+        if output.stop_reason in {"abort", "aborted"}:
+            return "aborted"
+
+        cfg = self.verl_agent.rollout_config
+
+        # If explicitly passed use max_tokens or max_new_tokens
+        if kwargs.get("max_tokens") is not None:
+            requested_max_tokens = int(kwargs["max_tokens"])
+        elif kwargs.get("max_new_tokens") is not None:
+            requested_max_tokens = int(kwargs["max_new_tokens"])
+
+        else:
+            # Otherwise, infer from the prompt and response lengths in the rollout config
+            requested_max_tokens = min(
+                cfg.response_length,
+                cfg.prompt_length + cfg.response_length - len(prompt_ids),
+            )
+
+        max_possible_tokens = cfg.max_model_len - len(prompt_ids)
+        effective_max_tokens = max(1, min(requested_max_tokens, max_possible_tokens))
+
+        if len(output.token_ids) < effective_max_tokens:
+            return "stop"
+
+        return "length"

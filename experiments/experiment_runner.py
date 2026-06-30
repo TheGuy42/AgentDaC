@@ -247,8 +247,8 @@ class ExperimentRunner(ABC):
         # Embed the custom configs so the per-sample VerlTrainer can rebuild them.
         omega_conf.custom_configs = {k: (v.model_dump() if hasattr(v, "model_dump") else v) for k, v in configs.items()}
 
-        # Patch the rollout/model lengths for the worst-case multi-turn trajectory (cumulative response length).
-        self._patch_lengths(omega_conf, configs["decomp_config"])
+        # Patch the rollout/model lengths.
+        self._patch_lengths(omega_conf)
 
         if args.test_run:
             self._patch_test_run(omega_conf)
@@ -287,44 +287,53 @@ class ExperimentRunner(ABC):
         if resolved is not None:
             model.custom_chat_template = resolved
 
-    def _patch_lengths(self, config: Any, decomp_config: DecompConfig) -> None:
-        """Patch sizes of rollout/model lengths for multi-turn trajectory.
+    def _patch_lengths(self, config: Any) -> None:
+        """Patch sizes of rollout/model lengths for multi-turn trajectory."""
 
-        - `rollout.response_length` = the cumulative response budget (what `convert_trajectory`
-          truncates to and what padding uses). This is the key length for the agent loop.
-        - `data.max_response_length` stays the per-turn cap (the vLLM `max_new_tokens` knob is
-          set per turn via the experiment's rollout chat kwargs).
-        """
-        single_resp_len = int(config.data.max_response_length)
+        # config.data.max_prompt_length:
+        #   Maximum initial prompt length: tokens before the first assistant-generated token.
+        #   In multi-turn RL, this should cover system + user prompt + chat template + tool schemas
+        #   + generation prompt, but not later assistant/tool turns.
 
-        traj_resp_len = int(
-            1.5 * decomp_config.max_tasks * single_resp_len  # each task also constitutes a response
-            + (decomp_config.max_rounds - decomp_config.max_tasks) * single_resp_len
-            + 32 * decomp_config.max_rounds  # chat-template buffer per round
-        )
+        # config.data.max_response_length:
+        #   Maximum cumulative trajectory suffix after the initial prompt.
+        #   In multi-turn RL, this includes all generated assistant tokens, tool-call syntax,
+        #   tool observations inserted into the conversation, later user/tool messages, and final answer.
 
-        inp_len = int(config.data.max_prompt_length)  # initial system+user prompt cap
-        model_len = inp_len + traj_resp_len
+        # config.actor_rollout_ref.rollout.prompt_length:
+        #   Rollout-side prompt budget. In the default config, it is derived from data.max_prompt_length.
+
+        # config.actor_rollout_ref.rollout.response_length:
+        #   Rollout-side cumulative response/trajectory budget. In the default config, it is derived
+        #   from data.max_response_length.
+
+        # config.actor_rollout_ref.rollout.max_model_len:
+        #   Rollout engine context-window limit for prompt + output at any generation step.
+        #   It must be <= the model max_position_embeddings as VERL interprets it.
+
+        prompt_length = int(config.data.max_prompt_length)
+        response_length = int(config.data.max_response_length)
+        model_length = prompt_length + response_length
 
         hf_config = AutoConfig.from_pretrained(config.actor_rollout_ref.model.path, trust_remote_code=True)
-        hf_model_len: int | None = getattr(hf_config, "max_position_embeddings", getattr(hf_config, "model_max_length", None))
+        hf_model_length: int | None = getattr(hf_config, "max_position_embeddings", getattr(hf_config, "model_max_length", None))
 
-        if hf_model_len and model_len > hf_model_len:
-            logger.warning(f"Computed model length exceeds max_position_embeddings: {model_len} > {hf_model_len}. ")
-            logger.warning(f"Modifying rollout response_length {traj_resp_len} -> {hf_model_len - inp_len}")
-            model_len = hf_model_len
-            traj_resp_len = model_len - inp_len
+        if hf_model_length and model_length > hf_model_length:
+            logger.warning(f"Computed model length exceeds max_position_embeddings: {model_length} > {hf_model_length}. ")
+            logger.warning("Decreasing response_length to fit within the model's max_position_embeddings.")
+            response_length = hf_model_length - prompt_length
+            model_length = hf_model_length
 
-        config.data.max_prompt_length = inp_len
-        config.actor_rollout_ref.rollout.prompt_length = inp_len
-        config.actor_rollout_ref.rollout.response_length = traj_resp_len
-        config.actor_rollout_ref.rollout.max_model_len = model_len
+        config.data.max_prompt_length = prompt_length
+        config.data.max_response_length = response_length
+        config.actor_rollout_ref.rollout.prompt_length = prompt_length
+        config.actor_rollout_ref.rollout.response_length = response_length
+        config.actor_rollout_ref.rollout.max_model_len = model_length
 
         logger.info("Patched Lengths:")
-        logger.info(f"  prompt_length: {inp_len}")
-        logger.info(f"  response_length(per-turn): {single_resp_len}")
-        logger.info(f"  response_length(cumulative): {traj_resp_len}")
-        logger.info(f"  max_model_len: {model_len}")
+        logger.info(f"  prompt_length: {prompt_length}")
+        logger.info(f"  response_length: {response_length}")
+        logger.info(f"  max_model_len: {model_length}")
 
     def _patch_test_run(self, config: Any) -> None:
         logger.info("Test run: overriding verl config for a quick run.")
