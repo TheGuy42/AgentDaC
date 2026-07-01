@@ -28,21 +28,20 @@ def resolve_chat_template(
 
     source = "manual custom_chat_template" if manual_template is not None else f"model default {model_path}"
 
-    # NOTE: we gate on TRL's `is_chat_template_prefix_preserving` rather than calling
-    # `get_training_chat_template` directly, because the latter also requires
-    # `{% generation %}` markers and would raise on an already-prefix-preserving template that merely lacks them.
-    if is_chat_template_prefix_preserving(tokenizer):
-        logger.debug(f"TRL: Chat template is prefix-preserving ({source}); no patch needed.")
-        return manual_template
+    try:
+        patched_template = get_training_chat_template(tokenizer)
+        if patched_template is not None:
+            logger.info(f"TRL: Patched chat template from {source} to be prefix-preserving for TRL training.")
+            tokenizer.chat_template = patched_template
 
-    # Not prefix-preserving (manual override or model default alike) -> patch via TRL.
-    # get_training_chat_template raises ValueError when it cannot patch the template.
-    logger.warning(f"TRL: Chat template is not prefix-preserving ({source}); patching to a prefix-preserving variant.")
+    except ValueError:
+        # NOTE: Raised when can't patch, but note that it sometimes tries to patch for other reasons,
+        # not only when the template is not prefix-preserving. So we don't raise here, but we do check below.
+        pass
 
-    patched = get_training_chat_template(tokenizer)
-
-    tokenizer.chat_template = patched
     if not is_chat_template_prefix_preserving(tokenizer):
-        raise ValueError("TRL returned a patched chat template that is still not prefix-preserving. Refusing to proceed.")
+        # NOTE: `is_chat_template_prefix_preserving` is not always accurate,
+        # so it should't be relied as a guard to check whether patching is needed or not.
+        raise ValueError(f"TRL: Could not patch chat template from {source} to be prefix-preserving. Please provide a manual override.")
 
-    return patched
+    return tokenizer.chat_template

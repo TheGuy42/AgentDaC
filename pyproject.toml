@@ -10,16 +10,23 @@ dependencies = [
     "wrapt-timeout-decorator>=1.5.1",
     "jupyter>=1.1.1",
     "math-verify>=0.9.0",
-    "datasets==4.3.0", # otherwise there is a dependency conflict with pyarrow    "transformers>=4.56.0,<5",
-    "torch==2.10.0",
-    "torchvision==0.25.0",
-    "torchaudio==2.10.0",
-    "vllm==0.18.1",
+
+    "transformers>=5.5.3,<6", # Qwen3.5 needs Transformers 5.x support.
+    "datasets==4.3.0", # Keep this pinned if you need it for the pyarrow conflict you mentioned.
+    "torch==2.10.0", # CUDA 12.8-compatible PyTorch stack.
+    "vllm==0.19.1",
+
+    # VERL 0.8.0 + newer vLLM stack.
+    # vLLM 0.20+ wheels are compiled against CUDA 12.9+; 0.19.1 is the last
+    # version with reliable CUDA 12.8 support and Transformers v5 compatibility.
     "verl==0.8.0",
+
+    # Flash attention for the exact hardware
+    "flash-attn @ https://github.com/lesj0610/flash-attention/releases/download/v2.8.3-cu12-torch2.10-cp312/flash_attn-2.8.3%2Bcu12torch2.10cxx11abiTRUE-cp312-cp312-linux_x86_64.whl",
+
     "chess>=1.11.2",
     "transferqueue>=0.1.8",
     "trl>=1.6.0",
-    "transformers>=4.57.6",
     "huggingface-hub[cli]>=0.36.2",
     "pytest>=9.1.1",
     "pytest-async>=0.1.1",
@@ -30,30 +37,18 @@ dependencies = [
 # Its own docker image uses vllm 0.20.x which requires numpy>=2
 # So we override the dependency here to allow the installation.
 [tool.uv]
-override-dependencies = ["numpy>=2"] 
+override-dependencies = ["numpy>=2"]
+index-strategy = "unsafe-best-match"
 
 [tool.uv.sources]
-torch = [
-    { index = "pytorch-cu129", marker = "sys_platform == 'linux'" },
-]
-torchvision = [
-    { index = "pytorch-cu129", marker = "sys_platform == 'linux'" },
-]
-torchaudio = [
-    { index = "pytorch-cu129", marker = "sys_platform == 'linux'" },
-]
+torch = [{ index = "pytorch-cu128", marker = "sys_platform == 'linux'" }]
+torchvision = [{ index = "pytorch-cu128", marker = "sys_platform == 'linux'" }]
+torchaudio = [{ index = "pytorch-cu128", marker = "sys_platform == 'linux'" }]
 
 [[tool.uv.index]]
-name = "pytorch-cu129"
-url = "https://download.pytorch.org/whl/cu129"
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
 explicit = true
-
-# Makes FlashAttention's installer see the exact runtime PyTorch build.
-# This is useful both for selecting a prebuilt wheel and for compilation.
-[tool.uv.extra-build-dependencies]
-flash-attn = [
-    { requirement = "torch", match-runtime = true },
-]
 
 # Install trl without any of its dependencies
 # since we only need trl/chat_template_utils.py

@@ -1,6 +1,6 @@
 {
     "algorithm": {
-        "adv_estimator": "grpo",
+        "adv_estimator": "grpo_vectorized",
         "use_kl_in_reward": false
     },
     "trainer": {
@@ -21,7 +21,7 @@
     "data": {
         "train_batch_size": 10,
         "max_prompt_length": 2048,
-        "max_response_length": 4096,
+        "max_response_length": 16384,
         "truncation": "error",
         "shuffle": true,
         "apply_chat_template_kwargs": {
@@ -51,7 +51,10 @@
             "engine_kwargs": {
                 "vllm": {
                     "generation_config": "auto",
-                    "max_lora_rank": 64
+                    "max_lora_rank": 64,
+                    "additional_config": {
+                        "gdn_prefill_backend": "triton"
+                    }
                 }
             },
             "agent": {
@@ -64,12 +67,12 @@
         },
         "actor": {
             "ppo_mini_batch_size": 10,
-            "ppo_micro_batch_size_per_gpu": 10,
+            "ppo_micro_batch_size_per_gpu": 5,
             "optim": {
                 "lr": 5e-6
             },
             "policy_loss": {
-                "loss_mode": "gspo"
+                "loss_mode": "vanilla"
             },
             "use_kl_loss": false,
             "kl_loss_coef": 0.0,
@@ -83,24 +86,17 @@
                 "model_dtype": "bfloat16"
             }
         },
-        "ref": {
-            "log_prob_micro_batch_size_per_gpu": 10,
-            "strategy": "fsdp2",
-            "fsdp_config": {
-                "param_offload": false,
-                "model_dtype": "bfloat16"
-            }
-        },
         "model": {
-            "path": "Qwen/Qwen3-4B-Instruct-2507",
+            "path": "Qwen/Qwen3.5-9B",
             "use_remove_padding": true,
             "use_liger": true,
+            "use_fused_kernels": true,
             "enable_gradient_checkpointing": true,
             "lora_rank": 16,
             "lora_alpha": 32,
             "target_modules": "all-linear",
             "override_config": {
-                "attn_implementation": "sdpa"
+                "attn_implementation": "flash_attention_2"
             }
         }
     }
