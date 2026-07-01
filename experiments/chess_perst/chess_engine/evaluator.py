@@ -28,6 +28,9 @@ class MoveResult:
     score: Score | None = None
     """The engine evaluation of the resulting position, from the mover's POV (higher = better). None if illegal."""
 
+    best_score: Score | None = None
+    """The score of the best move in the position, from the mover's POV (higher = better). None if illegal."""
+
     cp: int | None = None
     """The centipawn score of the resulting position, from the mover's POV."""
 
@@ -83,29 +86,46 @@ class MoveEvaluator:
             `score` and `cp` are None if the move was illegal or unparseable.
         """
         fen = board.fen()
-        if move is None:
-            return MoveResult(fen=fen, parse_success=False)
 
-        pov_score: PovScore | None = None
+        # First, find the best move in the position, if requested.
+
+        pov_best: PovScore | None = None
+        if config.relative:
+            score_cache = await self.root_cache.build(fen, config)
+            pov_best = max(score_cache.values(), key=lambda ps: ps.pov(board.turn))
+
+        if move is None:
+            return MoveResult(
+                fen=fen,
+                parse_success=False,
+                best_score=pov_best.pov(board.turn) if pov_best is not None else None,
+            )
+
+        # If the move is legal, get its score from the engine.
+        # First check the root multipv cache, then fall back to a single-move search if not found.
+
+        pov_move: PovScore | None = None
         if config.mode == "root_multipv":
             score_cache = await self.root_cache.build(fen, config)
-            pov_score = score_cache.get(move.uci())
+            pov_move = score_cache.get(move.uci())
 
-        if pov_score is None:
+        if pov_move is None:
             info = await self.engine.analyse(board, config, root_moves=[move])
-            pov_score = info.get("score")
+            pov_move = info.get("score")
 
-        if pov_score is None:
+        if pov_move is None:
             raise RuntimeError("Engine analysis did not return a score for the move.")
 
-        score = pov_score.pov(board.turn)
+        score_move = pov_move.pov(board.turn)
+        score_best = pov_best.pov(board.turn) if pov_best is not None else None
 
         return MoveResult(
             fen=fen,
             parse_success=True,
             agent_move=move.uci(),
-            score=score,
-            cp=score.score(mate_score=config.mate_score),
+            score=score_move,
+            best_score=score_best,
+            cp=score_move.score(mate_score=config.mate_score),
         )
 
     def close(self) -> None:

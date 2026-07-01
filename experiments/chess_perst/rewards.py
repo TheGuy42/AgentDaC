@@ -13,14 +13,14 @@ def parse_move(board: chess.Board, text: str) -> chess.Move | None:
     The text is expected to contain only a single valid move.
 
     1. Extract the first boxed move if present (e.g. \boxed{e2e4}).
-    2. Tokenize the text: split on whitespace and punctuation (commas, periods). 
+    2. Tokenize the text: split on whitespace and punctuation (commas, periods).
     3. Attempt to parse each token as a UCI move. If a token is a valid UCI move and legal in the given board position, return it.
     4. If no valid moves are found, or if multiple valid moves are found, return None. Otherwise, return the single valid move found.
 
     Args:
         board (chess.Board): The chess board to validate the move against.
         text (str): The model's output text.
-    
+
     Returns:
         chess.Move | None: The parsed move if valid and unique, otherwise None.
     """
@@ -112,19 +112,32 @@ def compute_wp(chess_score: Score, config: ChessConfig) -> float:
     return mate_margin + (1.0 - 2.0 * mate_margin) * wp
 
 
+def compute_reward_absolute(score: Score | None, config: ChessConfig) -> float:
+    """
+    Map an engine :class:`Score` into a single scalar absolute reward per `config.reward`.
+    """
+    if score is None:
+        return -config.mate_margin
+
+    if config.reward == "win_prob":
+        return compute_wp(score, config)
+
+    elif config.reward == "centipawns":
+        return compute_cp(score, config)
+
+    else:
+        raise ValueError(f"Unknown reward type: {config.reward}")
+
+
 def compute_reward(result: MoveResult, config: ChessConfig) -> float:
     """
     Map an engine :class:`MoveResult` into a scalar reward per `config.reward`.
     """
+    if config.relative:
+        best_reward = compute_reward_absolute(result.best_score, config)
+        move_reward = compute_reward_absolute(result.score, config)
+        # We aim to maximize the reward, i.e. increase the `move_reward`
+        return move_reward - best_reward
 
-    if result.score is None:
-        return -config.mate_margin
-
-    if config.reward == "win_prob":
-        return compute_wp(result.score, config)
-
-    elif config.reward == "centipawns":
-        return compute_cp(result.score, config)
-
-    else:
-        raise ValueError(f"Unknown reward type: {config.reward}")
+    # Otherwise, compute the reward based on the absolute score
+    return compute_reward_absolute(result.score, config)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Literal
 from chess.engine import Limit
+from pydantic import model_validator
 from src.configs.base_config import BaseConfig
 
 
@@ -27,8 +28,10 @@ class ChessConfig(BaseConfig):
     depth) limit is reproducible; a time limit varies with machine load and concurrency."""
 
     mode: Literal["child", "root_multipv"] = "child"
-    """How a move is evaluated: 'child' = one search per move;
-    'root_multipv'= one MultiPV search of the root, cached and shared across the GRPO group."""
+    """How a move is evaluated: 
+    - 'child' = one search per move;
+    - 'root_multipv'= one MultiPV search of the root, cached and shared across the GRPO group.
+    """
 
     reward: Literal["win_prob", "centipawns"] = "win_prob"
     """The type of reward to use for evaluating moves."""
@@ -36,6 +39,10 @@ class ChessConfig(BaseConfig):
     deterministic: bool = False
     """Whether to reset the engine move cache before each evaluation.
     Set `False` for more accurate results but non-deterministic; `True` for reproducible results but less accurate."""
+
+    relative: bool = False
+    """Whether to compute the reward relative to the best move in the position. Only applies to
+    `mode=root_multipv`."""
 
     mate_score: int = 10_000
     """Centipawn magnitude a forced mate maps to (scaled down by distance to mate)."""
@@ -54,6 +61,12 @@ class ChessConfig(BaseConfig):
 
     validation_overwrites: dict = {}
     """Optional overwrites for a second validation search. Keys are any of the above fields, and values are the new values to use for validation."""
+
+    @model_validator(mode="after")
+    def validate_correctness(self):
+        if self.relative and self.mode != "root_multipv":
+            raise ValueError("relative=True requires mode='root_multipv'")
+        return self
 
     def for_validation(self) -> ChessConfig:
         """Return a copy of this config with any validation overwrites applied."""

@@ -21,7 +21,7 @@
     "data": {
         "train_batch_size": 10,
         "max_prompt_length": 2048,
-        "max_response_length": 16384,
+        "max_response_length": 12288,
         "truncation": "error",
         "shuffle": true,
         "apply_chat_template_kwargs": {
@@ -30,7 +30,7 @@
     },
     "actor_rollout_ref": {
         "rollout": {
-            "n": 16,
+            "n": 8,
             "do_sample": true,
             "temperature": 1.0,
             "top_p": 0.95,
@@ -58,7 +58,7 @@
                 }
             },
             "agent": {
-                "num_workers": 16
+                "num_workers": 8
             },
             "multi_turn": {
                 "enable": true,

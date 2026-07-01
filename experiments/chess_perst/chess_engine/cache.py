@@ -56,5 +56,13 @@ class RootCache:
 
     async def _search(self, fen: str, config: ChessConfig) -> dict[str, PovScore]:
         board = chess.Board(fen)
-        infos = await self.engine.analyse(board, config, multipv=board.legal_moves.count())
-        return {info["pv"][0].uci(): info["score"] for info in infos}  # type: ignore[typeddict-item]
+        info_list = await self.engine.analyse(board, config, multipv=board.legal_moves.count())
+
+        result = {}
+        for info in info_list:
+            if (pv := info.get("pv")) is not None:
+                key = pv[0].uci()
+                if (val := info.get("score")) is not None:
+                    result[key] = val
+
+        return result
