@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import asyncio
 
 from src.trajectory import Trajectory
@@ -45,11 +44,11 @@ class MarkerAgent(BaseAgent):
             additional_histories=False,  # NOTE: no support for recursive histories yet
         )
 
-    async def call(self, messages: list[Message], **kwargs) -> InferenceResponse:
+    async def _call(self, messages: list[Message], **kwargs) -> InferenceResponse:
         # By default allow only a single task and answer in the response
-        kwargs.setdefault("include_stop_str_in_output", True)
         kwargs.setdefault("stop", [Markers.TASK_END, Markers.ANS_END])
-        return await super().call(messages, **kwargs)
+        kwargs = self.client.update_kwargs(kwargs, include_stop_str_in_output=True)
+        return await super()._call(messages, **kwargs)
 
     # NOTE: experimental
     def _remaining_budget_string(self) -> str:
@@ -100,7 +99,7 @@ class MarkerAgent(BaseAgent):
 
         while True:
             # Call the OpenAI API to get a response
-            completion = await self.call(self.trajectory.messages(), **kwargs)
+            completion = await self._call(self.trajectory.messages(), **kwargs)
             self.trajectory.messages_and_responses.append(completion)
 
             # Update metrics

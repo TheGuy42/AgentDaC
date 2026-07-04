@@ -4,7 +4,7 @@ from typing import Any
 from src.agents import BaseAgent, MarkerAgent
 from src.agents.marker_agent.markers import Markers, extract_between
 from src.configs import DecompConfig
-from src.custom import VerlClient
+from src.inference import VerlClient
 from src.trainer import RolloutStage, VerlTrainer
 from src.trajectory import Trajectory
 

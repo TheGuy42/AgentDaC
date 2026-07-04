@@ -1,7 +1,7 @@
 from src.trajectory import Trajectory
 from src.agents import BaseAgent, MarkerAgent
 from src.trainer import RolloutStage, VerlTrainer
-from src.custom import VerlClient
+from src.inference import VerlClient
 from src.agents.marker_agent.markers import Markers, extract_between
 from src.configs import DecompConfig
 

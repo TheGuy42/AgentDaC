@@ -10,7 +10,8 @@ from verl.experimental.agent_loop.agent_loop import AgentLoopBase, AgentLoopOutp
 from src.agents.base import BaseAgent
 from src.aliases import UserMessage
 from src.configs import DecompConfig, PromptConfig, RolloutConfig
-from src.custom import VerlClient, convert_trajectory, degenerate_output
+from src.custom import convert_trajectory, degenerate_output
+from src.inference import VerlClient
 from src.trajectory import Trajectory
 from src.utils.logging import create_logger
 from src.utils.trajectory_writer import TrajectoryWriter

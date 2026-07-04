@@ -56,7 +56,7 @@ class BaseAgent(ABC):
 
         return None
 
-    async def call(self, messages: list[Message], **kwargs) -> InferenceResponse:
+    async def _call(self, messages: list[Message], **kwargs) -> InferenceResponse:
         """
         Generate an assistant response via the inference client.
         Should not be used directly; use `chat` instead.

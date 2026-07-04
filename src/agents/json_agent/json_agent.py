@@ -6,8 +6,6 @@ import json_repair
 from src.trajectory import Trajectory
 from src.agents.base import BaseAgent
 from src.agents.json_agent.actions import TurnAction
-from vllm.sampling_params import StructuredOutputsParams
-
 from src.aliases import Message, UserMessage
 from src.inference import InferenceResponse
 from src.utils.visualize import trajectory_string, message_string
@@ -117,13 +115,11 @@ class JsonAgent(BaseAgent):
 
         return GuidedJson(*allowed)
 
-    async def call(self, messages: list[Message], **kwargs) -> InferenceResponse:
+    async def _call(self, messages: list[Message], **kwargs) -> InferenceResponse:
         schema: GuidedJson = kwargs.pop("schema")
         schema_descriptor = schema.build()
-
-        kwargs.setdefault("include_stop_str_in_output", True)
-        kwargs["structured_outputs"] = StructuredOutputsParams(json=schema_descriptor["schema"])
-        return await super().call(messages, **kwargs)
+        kwargs = self.client.update_kwargs(kwargs, json_schema=schema_descriptor, include_stop_str_in_output=True)
+        return await super()._call(messages, **kwargs)
 
     def _create_subagent(self) -> BaseAgent:
         return JsonAgent(
@@ -165,7 +161,7 @@ class JsonAgent(BaseAgent):
         while True:
             # Model turn
             schema = self._create_schema()
-            completion = await self.call(self.trajectory.messages(), schema=schema, **kwargs)
+            completion = await self._call(self.trajectory.messages(), schema=schema, **kwargs)
             self.trajectory.messages_and_responses.append(completion)
 
             # Update metrics

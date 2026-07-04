@@ -3,15 +3,17 @@ from __future__ import annotations
 import time
 from typing import Any
 from uuid import uuid4
+import copy
 
 from transformers import PreTrainedTokenizerBase
-
 from verl.experimental.agent_loop.agent_loop import AgentLoopBase
 from verl.utils.tokenizer import normalize_token_ids
 from verl.workers.rollout.replica import TokenOutput
+from vllm.sampling_params import StructuredOutputsParams
 
 from src.aliases import Message, Response
-from src.inference import InferenceClient, InferenceResponse, OAIResponse
+from src.inference.client import InferenceClient, InferenceResponse
+from src.inference.openai_client import OAIResponse
 
 
 class VerlResponse(OAIResponse):
@@ -34,6 +36,29 @@ class VerlClient(InferenceClient):
     def _get_model_name(self) -> str:
         model_path = self.verl_agent.config.actor_rollout_ref.model.path
         return "/".join(model_path.split("/")[-2:])
+
+    def update_kwargs(
+        self,
+        kwargs: dict[str, Any],
+        json_schema: dict | None = None,
+        regex_schema: str | None = None,
+        include_stop_str_in_output: bool | None = None,
+    ) -> dict[str, Any]:
+
+        assert not (json_schema and regex_schema), "Cannot specify both json_schema and regex_schema."
+
+        kwargs = copy.deepcopy(kwargs)
+
+        if json_schema is not None:
+            kwargs["structured_outputs"] = StructuredOutputsParams(json=json_schema["schema"])
+
+        if regex_schema is not None:
+            kwargs["structured_outputs"] = StructuredOutputsParams(regex=regex_schema)
+
+        if include_stop_str_in_output is not None:
+            kwargs["include_stop_str_in_output"] = include_stop_str_in_output
+
+        return kwargs
 
     async def chat(self, messages: list[Message], **kwargs: Any) -> InferenceResponse:
         prompt_ids = await self._tokenize(messages)

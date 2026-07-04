@@ -4,7 +4,6 @@ Per-sample metrics are written to `extra_fields["custom_metrics"]`.
 
 from __future__ import annotations
 
-import re
 import uuid
 from collections import defaultdict
 from pprint import pprint
@@ -16,10 +15,6 @@ from omegaconf import OmegaConf
 import transfer_queue as tq
 import verl.trainer.main_ppo_sync as mps
 from verl.utils import tensordict_utils as tu
-from src.utils.logging import create_logger
-
-
-logger = create_logger(__name__)
 
 
 def mean_custom_metrics(extra_field_dicts: list, metrics: dict, prefix: str) -> None:

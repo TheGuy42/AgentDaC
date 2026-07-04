@@ -49,9 +49,9 @@ class DummyAgent(BaseAgent):
         )
         self.metrics["direct_tokens"] = 0
 
-    async def call(self, messages: list[Message], **kwargs) -> InferenceResponse:
-        kwargs.setdefault("include_stop_str_in_output", True)
-        return await super().call(messages, **kwargs)
+    async def _call(self, messages: list[Message], **kwargs) -> InferenceResponse:
+        kwargs = self.client.update_kwargs(kwargs, include_stop_str_in_output=True)
+        return await super()._call(messages, **kwargs)
 
     async def chat(
         self,
@@ -77,7 +77,7 @@ class DummyAgent(BaseAgent):
             self.metrics[f"{prefix}_chats"] += 1
 
         # Model turn
-        completion = await self.call(self.trajectory.messages(), **kwargs)
+        completion = await self._call(self.trajectory.messages(), **kwargs)
         self.trajectory.messages_and_responses.append(completion)
 
         # Update metrics

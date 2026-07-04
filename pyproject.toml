@@ -10,20 +10,16 @@ dependencies = [
     "wrapt-timeout-decorator>=1.5.1",
     "jupyter>=1.1.1",
     "math-verify>=0.9.0",
-
     "transformers>=5.5.3,<6", # Qwen3.5 needs Transformers 5.x support.
     "datasets==4.3.0", # Keep this pinned if you need it for the pyarrow conflict you mentioned.
     "torch==2.10.0", # CUDA 12.8-compatible PyTorch stack.
     "vllm==0.19.1",
-
     # VERL 0.8.0 + newer vLLM stack.
     # vLLM 0.20+ wheels are compiled against CUDA 12.9+; 0.19.1 is the last
     # version with reliable CUDA 12.8 support and Transformers v5 compatibility.
     "verl==0.8.0",
-
     # Flash attention for the exact hardware
     "flash-attn @ https://github.com/lesj0610/flash-attention/releases/download/v2.8.3-cu12-torch2.10-cp312/flash_attn-2.8.3%2Bcu12torch2.10cxx11abiTRUE-cp312-cp312-linux_x86_64.whl",
-
     "chess>=1.11.2",
     "transferqueue>=0.1.8",
     "trl>=1.6.0",

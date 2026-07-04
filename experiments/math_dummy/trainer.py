@@ -1,7 +1,7 @@
 from typing import Any
 
 from src.agents import BaseAgent, DummyAgent
-from src.custom import VerlClient
+from src.inference import VerlClient
 from src.trainer import RolloutStage, VerlTrainer
 from src.trajectory import Trajectory
 

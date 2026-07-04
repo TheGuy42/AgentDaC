@@ -1,7 +1,7 @@
 from src.trajectory import Trajectory
 from src.agents import BaseAgent, JsonAgent
 from src.trainer import RolloutStage, VerlTrainer
-from src.custom import VerlClient
+from src.inference import VerlClient
 from src.configs import DecompConfig
 
 from experiments.math.rewards import answer_reward

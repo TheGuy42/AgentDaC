@@ -7,8 +7,6 @@ from src.agents.regex_agent.regex_agent import GuidedRegex
 from src.aliases import Message, UserMessage
 from src.configs import PromptConfig, DecompConfig
 from src.inference import InferenceClient, InferenceResponse
-
-from vllm.sampling_params import StructuredOutputsParams
 from src.utils.visualize import trajectory_string, message_string
 from src.utils.logging import create_logger
 
@@ -85,11 +83,10 @@ class PersistentAgent(BaseAgent):
 
         return GuidedRegex(*allowed)
 
-    async def call(self, messages: list[Message], **kwargs) -> InferenceResponse:
+    async def _call(self, messages: list[Message], **kwargs) -> InferenceResponse:
         regex: GuidedRegex = kwargs.pop("regex")
-        kwargs.setdefault("include_stop_str_in_output", True)
-        kwargs["structured_outputs"] = StructuredOutputsParams(regex=regex.model_pattern)
-        return await super().call(messages, **kwargs)
+        kwargs = self.client.update_kwargs(kwargs, regex_schema=regex.model_pattern, include_stop_str_in_output=True)
+        return await super()._call(messages, **kwargs)
 
     def _create_subagent(self) -> PersistentAgent:
         return PersistentAgent(
@@ -127,7 +124,7 @@ class PersistentAgent(BaseAgent):
         while True:
             # Model turn
             regex = self._create_regex()
-            completion = await self.call(self.trajectory.messages(), regex=regex, **kwargs)
+            completion = await self._call(self.trajectory.messages(), regex=regex, **kwargs)
             self.trajectory.messages_and_responses.append(completion)
 
             # Update metrics

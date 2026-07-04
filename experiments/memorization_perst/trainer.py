@@ -1,7 +1,7 @@
 from src.trajectory import Trajectory
 from src.agents import BaseAgent, PersistentAgent
 from src.trainer import RolloutStage, VerlTrainer
-from src.custom import VerlClient
+from src.inference import VerlClient
 
 from experiments.memorization.format import format_prompt
 from experiments.memorization.rewards import answer_reward
