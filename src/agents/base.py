@@ -79,7 +79,7 @@ class BaseAgent(ABC):
             (str): The answer text from the agent.
         """
         trajectory = await self.chat(prompt, verbose=verbose, **kwargs)
-        return self.parse_answer(trajectory.messages()[-1]).strip()
+        return self.parse_answer(trajectory.messages_and_responses[-1]).strip()
 
     @abstractmethod
     async def chat(
@@ -103,12 +103,12 @@ class BaseAgent(ABC):
         pass
 
     @abstractmethod
-    def parse_answer(self, message: Message) -> str:
+    def parse_answer(self, message: Message | InferenceResponse) -> str:
         """
         Parse the final answer from the agent's message.
 
         Args:
-            message (Message): The agent's message containing the answer.
+            message (Message | InferenceResponse): The agent's message containing the answer.
 
         Returns:
             (str): The parsed answer text.

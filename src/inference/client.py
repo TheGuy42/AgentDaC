@@ -22,6 +22,11 @@ class InferenceResponse(ABC):
 
     @property
     @abstractmethod
+    def reasoning(self) -> str | None:
+        """The assistant's internal reasoning, if available."""
+
+    @property
+    @abstractmethod
     def finish_reason(self) -> str | None:
         """Why generation stopped (e.g. `"stop"` / `"length"`)."""
 

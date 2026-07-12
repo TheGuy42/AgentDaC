@@ -55,7 +55,7 @@ class ChessTrainer(VerlTrainer):
         stage: RolloutStage,
         agent: BaseAgent,
     ) -> Trajectory:
-        ans_message = trajectory.messages()[-1]
+        ans_message = trajectory.messages_and_responses[-1]
         agent_answer = agent.parse_answer(ans_message)
         evaluator = MoveEvaluator.for_process(self.engine_config)
         chess_config = self.chess_config.for_validation() if stage != RolloutStage.TRAIN else self.chess_config

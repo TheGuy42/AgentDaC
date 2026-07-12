@@ -22,6 +22,10 @@ class OAIResponse(InferenceResponse):
     @property
     def tool_calls(self) -> list[Any] | None:
         return self.choice.message.tool_calls
+    
+    @property
+    def reasoning(self) -> str | None:
+        return getattr(self.choice.message, "reasoning_content", None)
 
     @property
     def finish_reason(self) -> str | None:

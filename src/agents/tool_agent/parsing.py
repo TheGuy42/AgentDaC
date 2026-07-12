@@ -7,6 +7,7 @@ from vllm.reasoning import ReasoningParserManager
 from vllm.tool_parsers import ToolParserManager
 from vllm.tokenizers import TokenizerLike
 
+from src.inference import InferenceResponse
 from src.utils.logging import create_logger
 
 logger = create_logger(__name__)
@@ -38,7 +39,7 @@ class ParsedTurn:
     """
 
     reasoning: str | None
-    content: str | None  # TODO: never parsed to None, even though should be sometimes
+    content: str | None
     tool_call: ToolCall | None = None
 
     @property
@@ -67,32 +68,39 @@ class NativeToolParser:
         if reasoning_parser is not None:
             self._reasoning_parser = ReasoningParserManager.get_reasoning_parser(reasoning_parser)(tokenizer)
 
-    def parse(self, content: str | None) -> ParsedTurn:
+    def parse(self, response: InferenceResponse) -> ParsedTurn:
         """
         Split reasoning, then extract the single tool call (if any).
 
         Args:
-            content (str | None): the assistant generation to parse.
+            response (InferenceResponse): the assistant generation to parse.
 
         Returns:
             ParsedTurn: the parsed reasoning, content, and tool call.
         """
-        if content is None:  # No text to parse, return empty turn
-            return ParsedTurn(reasoning=None, content=None, tool_call=None)
+        if response.tool_calls and len(response.tool_calls) > 1:
+            logger.warning("Expected at most one tool call per turn, but got multiple.")
 
         # Minimal request object; vLLM's only need its presence.
         dummy_request = ChatCompletionRequest(messages=[], model="_", seed=None)
 
-        reasoning: str | None = None
-        if self._reasoning_parser is not None:  # Extract reasoning first
+        reasoning = response.reasoning
+        content = response.content
+        tool_call = response.tool_calls[0] if response.tool_calls else None
+
+        # Try to extract reasoning if missing
+        if (self._reasoning_parser is not None) and (content is not None) and (reasoning is None):
             reasoning, content = self._reasoning_parser.extract_reasoning(content, dummy_request)
 
-        if content is None:  # If no content left, then there is no tool call either
-            return ParsedTurn(reasoning=reasoning, content=None, tool_call=None)
+        # Try to extract tool calls if missing
+        if (content is not None) and (tool_call is None):
+            tools_info = self._tool_parser.extract_tool_calls(content, dummy_request)
+            if tools_info.tools_called and len(tools_info.tool_calls) > 1:
+                logger.warning("Expected at most one tool call per turn, but parsed multiple.")
 
-        tools_info = self._tool_parser.extract_tool_calls(content, dummy_request)
-        assert len(tools_info.tool_calls or []) <= 1, "expected at most one tool call per turn"
-        tool_call = tools_info.tool_calls[0] if tools_info.tools_called else None
+            content = tools_info.content
+            tool_call = tools_info.tool_calls[0] if tools_info.tool_calls else None
+
         return ParsedTurn(reasoning=reasoning, content=content, tool_call=tool_call)
 
 

@@ -1,6 +1,8 @@
+import re
+from typing import cast
+from openai.types.chat import ChatCompletionMessageFunctionToolCallParam
 from src.trajectory import Trajectory
 from src.aliases import Message
-import re
 
 
 class Colors:
@@ -71,6 +73,7 @@ def message_string(message: Message, indent: int = 0) -> str:
             if (tool_kind := tool_call.get("type")) != "function":
                 raise NotImplementedError(f"Unsupported tool call type: {tool_kind}")
 
+            tool_call = cast(ChatCompletionMessageFunctionToolCallParam, tool_call)
             fn_name = tool_call["function"]["name"]
             fn_args = tool_call["function"]["arguments"]
             tool_lines.append(f"{fn_name}({fn_args.strip()})")

@@ -1,9 +1,6 @@
 from __future__ import annotations
-
-import argparse
 import pathlib
 import sys
-from typing import Any
 
 # set pythonpath to the main module directory
 module_dir = pathlib.Path(__file__).parent.parent.parent.resolve()

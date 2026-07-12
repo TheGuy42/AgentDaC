@@ -48,7 +48,7 @@ def _fp_tc(name, text):
 
 def test_delegation_turn_parse_latex_verbatim():
     p = _parser()
-    turn = p.parse(_fp_tc("create_new_sub_agent", "Evaluate \\boxed{d8d7} and \\frac{1}{2} for a < b"))
+    turn = p.parse(_MockResponse(_fp_tc("create_new_sub_agent", "Evaluate \\boxed{d8d7} and \\frac{1}{2} for a < b")))
     assert turn.has_tool_call
     call = turn.tool_call
     assert call.function.name == "create_new_sub_agent"
@@ -59,7 +59,7 @@ def test_terminal_turn_is_the_answer():
     # No tool call -> terminal; the content is the answer (verbatim, no escaping).
     p = _parser()
     answer = "The best move is \\boxed{d8d7}."
-    turn = p.parse(answer)
+    turn = p.parse(_MockResponse(answer))
     assert not turn.has_tool_call
     assert turn.content == answer
 
@@ -91,6 +91,10 @@ class _MockResponse(InferenceResponse):
         return None
 
     @property
+    def reasoning(self):
+        return None
+
+    @property
     def finish_reason(self):
         return "stop"
 
@@ -108,7 +112,7 @@ class _MockClient(InferenceClient):
 
     async def chat(self, messages, **kwargs):
         n_assistant = sum(1 for m in messages if m.get("role") == "assistant")
-        status = [m for m in messages if str(m.get("content", "")).startswith("[status]")]
+        status = [m for m in messages if str(m.get("content", "")).startswith("<controller_state>")]
         can_delegate = bool(status) and "create_new_sub_agent" in str(status[-1]["content"])
         if can_delegate and n_assistant == 0:
             return _MockResponse(_fp_tc("create_new_sub_agent", "solve the sub-task"))
@@ -134,7 +138,7 @@ def test_stateless_delegates_then_answers():
     roles = [m["role"] for m in traj.messages()]
     assert roles.count("assistant") == 2  # delegated, then answered directly
     assert "tool" in roles  # sub-agent answer returned as a tool message
-    assert agent.parse_answer(traj.messages()[-1]) == "e2e4"
+    assert agent.parse_answer(traj.messages_and_responses[-1]) == "e2e4"
     assert agent.metrics["direct_calls"] == 2 and agent.metrics["direct_tasks"] == 1
     assert agent.metrics["direct_agents"] == 1 and agent.metrics["direct_responses_completed"] == 1
 
@@ -142,14 +146,14 @@ def test_stateless_delegates_then_answers():
 def test_persistent_delegates_then_answers():
     agent, traj = _run(ToolPersistentAgent, max_depth=1, max_rounds=3, max_tasks=2)
     assert any(m["role"] == "tool" for m in traj.messages())
-    assert agent.parse_answer(traj.messages()[-1]) == "e2e4"
+    assert agent.parse_answer(traj.messages_and_responses[-1]) == "e2e4"
     assert agent.metrics["direct_agents"] == 1
 
 
 def test_leaf_answers_immediately():
     agent, traj = _run(ToolStatelessAgent, max_depth=0, max_rounds=3, max_tasks=2)
     assert [m["role"] for m in traj.messages()].count("assistant") == 1
-    assert agent.parse_answer(traj.messages()[-1]) == "e2e4"
+    assert agent.parse_answer(traj.messages_and_responses[-1]) == "e2e4"
 
 
 def test_leaf_advertises_no_tools():

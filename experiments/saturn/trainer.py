@@ -60,7 +60,7 @@ class SaturnTrainer(VerlTrainer):
         assert isinstance(ans_content, str), f"Expected content to be a string, got {type(ans_content)}"
 
         answer = sample["solution"].strip()
-        agent_answer = agent.parse_answer(ans_message)
+        agent_answer = agent.parse_answer(trajectory.messages_and_responses[-1])
         num_answers = len(extract_between(ans_content, Markers.ANS_START, Markers.ANS_END))
 
         # Compute rewards

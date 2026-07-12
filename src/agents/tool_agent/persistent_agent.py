@@ -109,17 +109,23 @@ class ToolPersistentAgent(BaseAgent):
 
     def _status_message(self) -> UserMessage:
         available_tools = self._available_tools()
-        if len(available_tools) > 0:
-            options = [f"{schema['function']['name']}" for schema in available_tools]
-            content = (
-                f"[status] rounds remaining: {max(self.decomp_config.max_rounds - self.decomp_config.total_rounds, 0)}; "
-                f"sub-tasks remaining: {max(self.decomp_config.max_tasks - self.decomp_config.total_tasks, 0)}. "
-                f"Available tools: {options}, or write your final answer directly to finish."
-            )
-        else:
-            content = "[status] no delegations remaining. Write your final answer directly now."
+        action_names = [f"{schema['function']['name']}" for schema in available_tools] + ["final answer (no tool)"]
+        content = (
+            f"<controller_state>\n"
+            f"remaining_rounds: {max(self.decomp_config.max_rounds - self.decomp_config.total_rounds, 0)}\n"
+            f"remaining_delegations: {max(self.decomp_config.max_tasks - self.decomp_config.total_tasks, 0)}\n"
+            f"allowed_actions: {action_names}\n"
+            f"</controller_state>"
+        )
 
         return UserMessage(role="user", content=content)
+
+    def _append_message(self, message: Message | InferenceResponse, verbose: bool = False):
+        self.trajectory.messages_and_responses.append(message)
+        if verbose:
+            if isinstance(message, InferenceResponse):
+                message = self.trajectory.messages()[-1]  # Let trajectory.messages() handle the conversion
+            print(message_string(message, indent=self.current_depth))
 
     async def chat(
         self,
@@ -131,7 +137,7 @@ class ToolPersistentAgent(BaseAgent):
             logger.warning(f"Prompt role is expected to be 'user', but got {prompt.get('role')}.")
 
         self.decomp_config.reset()
-        self.trajectory.messages_and_responses.append(prompt)
+        self._append_message(prompt, verbose=False)
 
         if verbose:
             print(trajectory_string(self.trajectory, indent=self.current_depth))
@@ -145,19 +151,14 @@ class ToolPersistentAgent(BaseAgent):
             self.metrics[f"{prefix}_chats"] += 1
 
         while True:
-            can_delegate = self._can_delegate()
-
             # Status message, only if we are not at a leaf (tools are available)
             if len(self.tool_map) > 0:
                 status_message = self._status_message()
-                self.trajectory.messages_and_responses.append(status_message)
-
-                if verbose:
-                    print(message_string(status_message, indent=self.current_depth))
+                self._append_message(status_message, verbose=verbose)
 
             # Model turn
             completion = await self._call(self.trajectory.messages(), **kwargs)
-            self.trajectory.messages_and_responses.append(completion)
+            self._append_message(completion, verbose=verbose)
 
             for prefix in METRIC_PREFIXES:
                 self.metrics[f"{prefix}_calls"] += 1
@@ -168,7 +169,7 @@ class ToolPersistentAgent(BaseAgent):
                 print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
 
             # Parse reasoning and tool calls from the model's output
-            turn = self.tool_parser.parse(completion.content)
+            turn = self.tool_parser.parse(completion)
 
             if turn.reasoning:
                 for prefix in METRIC_PREFIXES:
@@ -176,10 +177,37 @@ class ToolPersistentAgent(BaseAgent):
 
             available_names = [schema["function"]["name"] for schema in self._available_tools()]
 
-            # Terminal: no too call (or no budget)
-            if turn.tool_call is None or turn.tool_call.function.name not in available_names or not can_delegate:
+            # Terminal: no too call
+            if turn.tool_call is None:
                 self.decomp_config.update_round(num_tasks=0)
                 break
+
+            # Terminal: no available tools, but the model tried to call one
+            if turn.tool_call is not None and len(available_names) == 0:
+                logger.info("Model attempted to call a tool, but no tools are available.")
+                break  # We will still try to extract final answer from the turn.content of this turn
+
+            # Illegal tool name
+            if turn.tool_call.function.name not in self.tool_map.keys():
+                error_message = ToolMessage(
+                    role="tool",
+                    content=f"[error] Unexpected tool call name: {turn.tool_call.function.name}.",
+                    tool_call_id=turn.tool_call.id,
+                )
+                self._append_message(error_message, verbose=verbose)
+                self.decomp_config.update_round(num_tasks=0)
+                continue
+
+            # Legal tool name, but its not available
+            if turn.tool_call.function.name in self.tool_map.keys() and turn.tool_call.function.name not in available_names:
+                error_message = ToolMessage(
+                    role="tool",
+                    content=f"[error] `{turn.tool_call.function.name}` unavailable in the current state.",
+                    tool_call_id=turn.tool_call.id,
+                )
+                self._append_message(error_message, verbose=verbose)
+                self.decomp_config.update_round(num_tasks=0)
+                continue
 
             # Create a new sub-agent
             if turn.tool_call.function.name == CREATE_NEW_SUB_AGENT or self.sub_agent is None:
@@ -205,21 +233,19 @@ class ToolPersistentAgent(BaseAgent):
                     task_content = list(call_args.values())[0]
 
                 if task_content is None:
-                    # Feed error message to the model
-                    error_text = f"`{arg_name}` should appear as an argument of the tool call: {turn.tool_call.function.name}"
-                    logger.warning(error_text)
-                    error_message = UserMessage(role="user", content=f"[error] {error_text}. Please try again.")
-                    self.trajectory.messages_and_responses.append(error_message)
+                    error_message = ToolMessage(
+                        role="tool",
+                        content=f"[error]`{arg_name}` should appear as an argument of the tool call: {turn.tool_call.function.name}.",
+                        tool_call_id=turn.tool_call.id,
+                    )
+                    self._append_message(error_message, verbose=verbose)
                     self.decomp_config.update_round(num_tasks=0)
                     continue
 
                 task = UserMessage(role="user", content=task_content)
                 task_answer = await self.sub_agent.answer(task, verbose, **kwargs)
                 task_response = ToolMessage(role="tool", content=task_answer, tool_call_id=turn.tool_call.id)
-                self.trajectory.messages_and_responses.append(task_response)
-
-                if verbose:
-                    print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
+                self._append_message(task_response, verbose=verbose)
 
                 for prefix in METRIC_PREFIXES:
                     self.metrics[f"{prefix}_tasks"] += 1
@@ -234,15 +260,17 @@ class ToolPersistentAgent(BaseAgent):
                 self.decomp_config.update_round(num_tasks=1)
 
             else:
-                # Feed error message to the model
-                error_text = f"Unexpected tool call name: {turn.tool_call.function.name}"
-                logger.warning(error_text)
-                error_message = UserMessage(role="user", content=f"[error] {error_text}. Please try again.")
-                self.trajectory.messages_and_responses.append(error_message)
+                error_message = ToolMessage(
+                    role="tool",
+                    content=f"[error] Unexpected tool call name: {turn.tool_call.function.name}.",
+                    tool_call_id=turn.tool_call.id,
+                )
+                self._append_message(error_message, verbose=verbose)
                 self.decomp_config.update_round(num_tasks=0)
+                continue
 
         # Update final stats
-        completed = int((completion.finish_reason != "length") and turn.content is not None)
+        completed = int((completion.finish_reason != "length") and (turn.tool_call is None) and (turn.content is not None))
         incomplete = 1 - completed
 
         # This agent's own response completion, counted across all four quadrants
@@ -253,17 +281,12 @@ class ToolPersistentAgent(BaseAgent):
         self.trajectory.finish()
         return self.trajectory
 
-    def parse_answer(self, message: Message) -> str:
-        if message["role"] != "assistant":
-            logger.error(f"Expected message role 'assistant', got {message['role']}")
-            raise ValueError("Message role must be 'assistant' to extract answer.")
+    def parse_answer(self, message: Message | InferenceResponse) -> str:
+        if not isinstance(message, InferenceResponse):
+            logger.error(f"Expected an InferenceResponse, got {type(message)}")
+            raise ValueError("parse_answer expects an InferenceResponse.")
 
-        content = message.get("content")
-        if not isinstance(content, str):
-            logger.error(f"Expected message content to be a string, got {type(content)}")
-            raise ValueError("Message content must be a string.")
-
-        parsed_content = self.tool_parser.parse(content).content
+        parsed_content = self.tool_parser.parse(message).content
         if parsed_content is None:
             logger.warning("Parsed content is None; returning empty string as answer.")
             return ""

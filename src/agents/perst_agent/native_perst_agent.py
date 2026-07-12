@@ -6,7 +6,7 @@ from src.agents.perst_agent.actions import TurnAction
 from src.agents.regex_agent.regex_agent import GuidedRegex
 from src.configs import PromptConfig, DecompConfig
 from src.aliases import Message
-from src.inference import InferenceClient
+from src.inference import InferenceClient, InferenceResponse
 from src.utils.logging import create_logger
 
 
@@ -75,12 +75,12 @@ class NativePersistentAgent(PersistentAgent):
             additional_histories=False,  # NOTE: no support for recursive histories yet
         )
 
-    def parse_answer(self, message: Message) -> str:
-        if message["role"] != "assistant":
-            logger.error(f"Expected message role 'assistant', got {message['role']}")
-            raise ValueError("Message role must be 'assistant' to extract answer.")
+    def parse_answer(self, message: Message | InferenceResponse) -> str:
+        if not isinstance(message, InferenceResponse):
+            logger.error(f"Expected an InferenceResponse, got {type(message)}")
+            raise ValueError("parse_answer expects an InferenceResponse.")
 
-        content = message.get("content")
+        content = message.content
         if not isinstance(content, str):
             logger.error(f"Expected message content to be a string, got {type(content)}")
             raise ValueError("Message content must be a string.")

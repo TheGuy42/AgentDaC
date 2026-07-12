@@ -29,7 +29,7 @@ class MemorizationPerstTrainer(VerlTrainer):
         stage: RolloutStage,
         agent: BaseAgent,
     ) -> Trajectory:
-        ans_message = trajectory.messages()[-1]
+        ans_message = trajectory.messages_and_responses[-1]
         agent_answer = agent.parse_answer(ans_message)
 
         # Compute rewards
