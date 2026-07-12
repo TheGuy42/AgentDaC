@@ -11,7 +11,7 @@ from verl.utils.tokenizer import normalize_token_ids
 from verl.workers.rollout.replica import TokenOutput
 from vllm.sampling_params import StructuredOutputsParams
 
-from src.aliases import Message, Response
+from src.aliases import Message, Response, ToolSchema
 from src.inference.client import InferenceClient, InferenceResponse
 from src.inference.openai_client import OAIResponse
 
@@ -61,7 +61,7 @@ class VerlClient(InferenceClient):
         return kwargs
 
     async def chat(self, messages: list[Message], **kwargs: Any) -> InferenceResponse:
-        prompt_ids = await self._tokenize(messages)
+        prompt_ids = await self._tokenize(messages, tools=kwargs.pop("tools", None))
 
         output = await self.verl_agent.server_manager.generate(
             request_id=self.client_id,
@@ -79,13 +79,14 @@ class VerlClient(InferenceClient):
     def tokenizer(self) -> PreTrainedTokenizerBase:
         return self.verl_agent.tokenizer  # type: ignore[assignment]
 
-    async def _tokenize(self, messages: list[Message]) -> list[int]:
+    async def _tokenize(self, messages: list[Message], tools: list[ToolSchema] | None = None) -> list[int]:
         encoded = await self.verl_agent.loop.run_in_executor(
             None,
             lambda: self.tokenizer.apply_chat_template(
                 list(messages),  # type: ignore[arg-type]
                 add_generation_prompt=True,
                 tokenize=True,
+                tools=tools,  # type: ignore[arg-type]
                 **dict(self.verl_agent.apply_chat_template_kwargs or {}),
             ),
         )

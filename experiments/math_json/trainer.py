@@ -40,10 +40,10 @@ class MathJsonTrainer(VerlTrainer):
     def format_prompt(self, sample: dict[str, Any]) -> str:
         return format_prompt(sample)
 
-    async def score_trajectory(self, sample: dict[str, Any], trajectory: Trajectory, stage: RolloutStage) -> Trajectory:
+    async def score_trajectory(self, sample: dict[str, Any], trajectory: Trajectory, stage: RolloutStage, agent: BaseAgent) -> Trajectory:
 
         ans_message = trajectory.messages()[-1]
-        agent_answer = JsonAgent.parse_answer(ans_message)
+        agent_answer = agent.parse_answer(ans_message)
 
         # Compute rewards
         trajectory.reward = 0.0

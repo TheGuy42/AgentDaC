@@ -3,15 +3,14 @@ from datetime import datetime
 from typing import Any, cast
 import dataclasses
 
-from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
-from src.aliases import Message
+from src.aliases import Message, ToolSchema
 from src.inference import InferenceResponse
 
 
 @dataclasses.dataclass
 class Trajectory:
     messages_and_responses: list[Message | InferenceResponse]
-    tools: list[ChatCompletionToolParam] | None = None
+    tools: list[ToolSchema] | None = None
     histories: list[Trajectory] = dataclasses.field(default_factory=list)
     reward: float = 0.0
     metrics: dict[str, float | int | bool] = dataclasses.field(default_factory=dict)

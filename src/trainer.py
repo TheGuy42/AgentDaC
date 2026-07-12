@@ -61,7 +61,7 @@ class VerlTrainer(AgentLoopBase, ABC):
         """Build the user-prompt string from the dataset row (`kwargs`)."""
 
     @abstractmethod
-    async def score_trajectory(self, sample: dict[str, Any], trajectory: Trajectory, stage: RolloutStage) -> Trajectory:
+    async def score_trajectory(self, sample: dict[str, Any], trajectory: Trajectory, stage: RolloutStage, agent: BaseAgent) -> Trajectory:
         """Score the trajectory, updating its `reward` / `metrics` / `metadata`."""
 
     async def run(self, sampling_params: dict[str, Any], **kwargs: Any) -> AgentLoopOutput:
@@ -73,7 +73,7 @@ class VerlTrainer(AgentLoopBase, ABC):
 
         try:
             trajectory = await self.forward_step(agent, kwargs, stage, chat_kw)
-            trajectory = await self.score_trajectory(kwargs, trajectory, stage)
+            trajectory = await self.score_trajectory(kwargs, trajectory, stage, agent)
 
             # UUID assigned per prompt dispatch
             # session_id is rollout.n sample index: 0, 1, ..., n-1
@@ -94,6 +94,7 @@ class VerlTrainer(AgentLoopBase, ABC):
         except Exception as e:
             logger.error("Rollout failed; emitting degenerate AgentLoopOutput: %s", e, exc_info=True)
 
+            agent.trajectory.log(str(e))
             trajectory = agent.trajectory.finish()
             self.trajectory_writer.write(
                 trajectory,

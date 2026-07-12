@@ -2,12 +2,13 @@ import chess
 
 
 INSTRUCTION = (
-    "You are given a chess position. Find the best legal move for the side to move. "
-    "Analyze the position and consider different strategies. "
-    "Important: don't reason too long, you have token limits."
+    "You are given a chess position. Find the best legal move for the side to move. Important: don't reason too long, you have token limits."
+    "Use sub-tasks to break down the problem if needed and break down the reasoning into smaller steps."
 )
 
-ANSWER_FORMAT = "The final answer must be exactly one legal move in UCI notation. It should contain only the move and nothing else."
+ANSWER_FORMAT = (
+    "The final answer must be exactly one legal move in UCI notation. The final move should appear within \\boxed{...} as a single move. "
+)
 
 
 def render_board(board: chess.Board) -> str:
@@ -54,7 +55,7 @@ def format_prompt(sample: dict) -> str:
         "Legal moves (UCI):",
         legal_moves,
         "",
-        "Answer format:",
+        "Final answer format:",
         ANSWER_FORMAT,
     ]
     return "\n".join(parts)

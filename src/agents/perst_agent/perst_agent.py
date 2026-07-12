@@ -15,6 +15,7 @@ logger = create_logger(__name__)
 
 
 METRIC_PREFIXES = ("direct", "subtree")
+METRIC_COUNTERS = ("calls", "tasks", "thinks", "agents", "chats", "responses_completed", "responses_incomplete")
 
 
 class PersistentAgent(BaseAgent):
@@ -37,19 +38,8 @@ class PersistentAgent(BaseAgent):
 
         self.force_thinking = force_thinking
 
-        self.metrics.update(
-            {
-                f"{prefix}_{counter}": 0
-                for counter in ("calls", "tasks", "thinks", "agents", "chats", "responses_completed", "responses_incomplete")
-                for prefix in METRIC_PREFIXES
-            }
-        )
-        self.metrics.update(
-            {
-                "subtree_depth": 0,
-                "direct_tokens": 0,
-            }
-        )
+        self.metrics.update({f"{prefix}_{counter}": 0 for counter in METRIC_COUNTERS for prefix in METRIC_PREFIXES})
+        self.metrics.update({"subtree_depth": 0, "direct_tokens": 0})
 
         # We support a persistent sub-agent across chat rounds
         self.sub_agent: PersistentAgent | None = None
@@ -179,7 +169,7 @@ class PersistentAgent(BaseAgent):
                     self.metrics[f"{prefix}_tasks"] += 1
 
                 # Fold in the sub-agent's subtree contribution from this single invocation.
-                for q in ("calls", "tasks", "thinks", "agents", "chats", "responses_completed", "responses_incomplete"):
+                for q in METRIC_COUNTERS:
                     self.metrics[f"subtree_{q}"] += self.sub_agent.metrics[f"subtree_{q}"]
 
                 child_depth = 1 + self.sub_agent.metrics["subtree_depth"]
@@ -204,8 +194,7 @@ class PersistentAgent(BaseAgent):
         self.trajectory.finish()
         return self.trajectory
 
-    @staticmethod
-    def parse_answer(message: Message) -> str:
+    def parse_answer(self, message: Message) -> str:
         if message["role"] != "assistant":
             logger.error(f"Expected message role 'assistant', got {message['role']}")
             raise ValueError("Message role must be 'assistant' to extract answer.")

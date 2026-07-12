@@ -21,7 +21,7 @@ class ChessTrainer(VerlTrainer):
         self.engine_config = EngineConfig.model_validate(OmegaConf.to_container(self.config.custom_configs.engine_config, resolve=True))
         self.chess_config = ChessConfig.model_validate(OmegaConf.to_container(self.config.custom_configs.chess_config, resolve=True))
 
-    def create_agent(self, client: VerlClient, stage: RolloutStage) -> BaseAgent:
+    def _decomp_config_for_stage(self, stage: RolloutStage) -> DecompConfig:
         max_depth = self.decomp_config.max_depth
         max_tasks = self.decomp_config.max_tasks
         max_rounds = self.decomp_config.max_rounds
@@ -34,16 +34,13 @@ class ChessTrainer(VerlTrainer):
             if self.extra_config.get("randomize_decomp_rounds", False):
                 max_rounds = random.randint(0, self.decomp_config.max_rounds)
 
-        decomp_config = DecompConfig(
-            max_depth=max_depth,
-            max_tasks=max_tasks,
-            max_rounds=max_rounds,
-        )
+        return DecompConfig(max_depth=max_depth, max_tasks=max_tasks, max_rounds=max_rounds)
 
+    def create_agent(self, client: VerlClient, stage: RolloutStage) -> BaseAgent:
         return PersistentAgent(
             client=client,
             prompt_config=self.prompt_config,
-            decomp_config=decomp_config,
+            decomp_config=self._decomp_config_for_stage(stage),
             additional_histories=self.extra_config.get("additional_histories", False),
             force_thinking=self.extra_config.get("force_thinking", False),
         )
@@ -56,9 +53,10 @@ class ChessTrainer(VerlTrainer):
         sample: dict,
         trajectory: Trajectory,
         stage: RolloutStage,
+        agent: BaseAgent,
     ) -> Trajectory:
         ans_message = trajectory.messages()[-1]
-        agent_answer = PersistentAgent.parse_answer(ans_message)
+        agent_answer = agent.parse_answer(ans_message)
         evaluator = MoveEvaluator.for_process(self.engine_config)
         chess_config = self.chess_config.for_validation() if stage != RolloutStage.TRAIN else self.chess_config
 

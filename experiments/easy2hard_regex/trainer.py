@@ -46,9 +46,10 @@ class Easy2HardRegexTrainer(VerlTrainer):
         sample: dict[str, Any],
         trajectory: Trajectory,
         stage: RolloutStage,
+        agent: BaseAgent,
     ) -> Trajectory:
         ans_message = trajectory.messages()[-1]
-        agent_answer = RegexAgent.parse_answer(ans_message)
+        agent_answer = agent.parse_answer(ans_message)
 
         # Compute rewards
         trajectory.reward = 0.0

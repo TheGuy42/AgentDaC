@@ -6,6 +6,7 @@ from openai.types.chat import (
     ChatCompletionFunctionMessageParam as FunctionMessage,
     ChatCompletionDeveloperMessageParam as DeveloperMessage,
     ChatCompletionMessageParam as Message,
+    ChatCompletionToolParam as ToolSchema,
 )
 
 from openai.types.chat.chat_completion import (
@@ -22,6 +23,7 @@ __all__ = [
     "FunctionMessage",
     "DeveloperMessage",
     "Message",
+    "ToolSchema",
     "Choice",
     "Response",
 ]

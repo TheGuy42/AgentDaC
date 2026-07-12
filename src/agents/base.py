@@ -102,9 +102,8 @@ class BaseAgent(ABC):
         """
         pass
 
-    @staticmethod
     @abstractmethod
-    def parse_answer(message: Message) -> str:
+    def parse_answer(self, message: Message) -> str:
         """
         Parse the final answer from the agent's message.
 
