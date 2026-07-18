@@ -1,9 +1,10 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
+from enum import StrEnum
 
 from src.inference import InferenceClient, InferenceResponse
 from src.trajectory import Trajectory
-from src.utils.visualize import trajectory_string
+from src.utils.visualize import trajectory_string, message_string
 from src.utils.logging import create_logger
 from src.aliases import Message, SystemMessage
 from src.configs import PromptConfig, DecompConfig
@@ -13,6 +14,17 @@ logger = create_logger(__name__)
 
 
 class BaseAgent(ABC):
+    @classmethod
+    @abstractmethod
+    def error_kinds(cls) -> type[StrEnum]:
+        """
+        Get the enumeration of error kinds for this agent.
+
+        Returns:
+            type[StrEnum]: The enumeration of error kinds.
+        """
+        pass
+
     def __init__(
         self,
         client: InferenceClient,
@@ -20,17 +32,19 @@ class BaseAgent(ABC):
         decomp_config: DecompConfig,
         current_depth: int = 0,
         additional_histories: bool = False,
+        verbose: bool = False,
     ):
         self.client = client
         self.prompt_config = prompt_config.initialize()
         self.decomp_config = decomp_config.clone()
         self.current_depth = current_depth
         self.additional_histories = additional_histories
+        self.verbose = verbose
 
         self.trajectory = Trajectory(messages_and_responses=[])
 
         if sys_msg := self._get_system_message():
-            self.trajectory.messages_and_responses.append(sys_msg)
+            self.append_message(sys_msg)
 
     @property
     def metrics(self) -> dict[str, float | int | bool]:
@@ -56,6 +70,19 @@ class BaseAgent(ABC):
 
         return None
 
+    def append_message(self, message: Message | InferenceResponse):
+        """
+        Append a message to the trajectory and print it if verbose is enabled.
+
+        Args:
+            message (Message | InferenceResponse): The message to append.
+        """
+        self.trajectory.messages_and_responses.append(message)
+        if self.verbose:
+            if isinstance(message, InferenceResponse):
+                message = self.trajectory.messages()[-1]
+            print(message_string(message, indent=self.current_depth))
+
     async def _call(self, messages: list[Message], **kwargs) -> InferenceResponse:
         """
         Generate an assistant response via the inference client.
@@ -67,33 +94,27 @@ class BaseAgent(ABC):
         """
         return await self.client.chat(messages, **kwargs)
 
-    async def answer(self, prompt: Message, verbose: bool = False, **kwargs) -> str:
+    async def answer(self, prompt: Message, **kwargs) -> str | None:
         """
         Answer a question using the agent.
 
         Args:
             prompt (Message): The question to answer.
-            verbose (bool): If True, print the conversation messages.
             **kwargs: Additional keyword arguments to pass to OpenAI API call.
         Returns:
-            (str): The answer text from the agent.
+            (str | None): The answer text from the agent, or None if the answer cannot be parsed.
         """
-        trajectory = await self.chat(prompt, verbose=verbose, **kwargs)
-        return self.parse_answer(trajectory.messages_and_responses[-1]).strip()
+        trajectory = await self.chat(prompt, **kwargs)
+        answer = self.parse_answer(trajectory.messages_and_responses[-1])
+        return answer.strip() if isinstance(answer, str) else answer
 
     @abstractmethod
-    async def chat(
-        self,
-        prompt: Message,
-        verbose: bool = False,
-        **kwargs,
-    ) -> Trajectory:
+    async def chat(self, prompt: Message, **kwargs) -> Trajectory:
         """
         Start a conversation with the agent using the provided prompt.
 
         Args:
             prompt (Message): The initial message to start the conversation.
-            verbose (bool): If True, print the conversation messages.
             **kwargs: Additional keyword arguments to pass to OpenAI API call.
 
         Returns:
@@ -103,7 +124,7 @@ class BaseAgent(ABC):
         pass
 
     @abstractmethod
-    def parse_answer(self, message: Message | InferenceResponse) -> str:
+    def parse_answer(self, message: Message | InferenceResponse) -> str | None:
         """
         Parse the final answer from the agent's message.
 
@@ -111,6 +132,6 @@ class BaseAgent(ABC):
             message (Message | InferenceResponse): The agent's message containing the answer.
 
         Returns:
-            (str): The parsed answer text.
+            (str | None): The parsed answer text, or None if the answer cannot be parsed.
         """
         pass

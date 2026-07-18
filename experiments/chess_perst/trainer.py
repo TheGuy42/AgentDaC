@@ -63,7 +63,7 @@ class ChessTrainer(VerlTrainer):
         fen = sample["fen"]
         board = chess.Board(fen)
 
-        move = parse_move(board, agent_answer)
+        move = parse_move(board, agent_answer or "<NO_ANSWER>")
         result = await evaluator.score(board, move, config=chess_config)
         reward = compute_reward(result, config=chess_config)
         trajectory.reward = reward

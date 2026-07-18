@@ -1,14 +1,16 @@
 from __future__ import annotations
+
 from src.aliases import ToolSchema
 from src.agents.tool_agent.persistent_agent import ToolPersistentAgent, CREATE_NEW_SUB_AGENT
 from src.agents.tool_agent.schemas import tool_schema
 
 
 class ToolStatelessAgent(ToolPersistentAgent):
-    # NOTE: The same as a persistent agent, but only with the ability of creating new sub-agents
+    # NOTE: The same as a persistent agent, 
+    # but only with the ability of creating new sub-agents.
 
     def build_tools(self) -> dict[str, ToolSchema]:
-        if self.current_depth >= self.decomp_config.max_depth:
+        if self.decomp_config.is_leaf(self.current_depth):
             return {}  # leaf: no delegation, answers directly
         return {
             CREATE_NEW_SUB_AGENT: tool_schema(
@@ -27,8 +29,9 @@ class ToolStatelessAgent(ToolPersistentAgent):
         }
 
     def _available_tools(self) -> list[ToolSchema]:
+        DC = self.decomp_config
         available = []
-        if self._can_delegate():
+        if (not DC.is_leaf(self.current_depth)) and DC.has_tasks():
             available += [self.tool_map[CREATE_NEW_SUB_AGENT]]
         return available
 
@@ -40,4 +43,5 @@ class ToolStatelessAgent(ToolPersistentAgent):
             tool_parser=self.tool_parser,
             current_depth=self.current_depth + 1,
             additional_histories=False,
+            verbose=self.verbose,
         )

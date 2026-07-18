@@ -1,4 +1,5 @@
 from __future__ import annotations
+from enum import StrEnum
 
 from src.trajectory import Trajectory
 from src.agents.base import BaseAgent
@@ -7,7 +8,6 @@ from src.agents.regex_agent.regex_agent import GuidedRegex
 from src.aliases import Message, UserMessage
 from src.configs import PromptConfig, DecompConfig
 from src.inference import InferenceClient, InferenceResponse
-from src.utils.visualize import trajectory_string, message_string
 from src.utils.logging import create_logger
 
 
@@ -15,10 +15,19 @@ logger = create_logger(__name__)
 
 
 METRIC_PREFIXES = ("direct", "subtree")
-METRIC_COUNTERS = ("calls", "tasks", "thinks", "agents", "chats", "responses_completed", "responses_incomplete")
+METRIC_COUNTERS = ("calls", "tasks", "thinks", "agents", "chats")
+
+
+class PersistentErrors(StrEnum):
+    CLIENT_ERROR = "client_error"
+    PARSE_ERROR = "parse_error"
 
 
 class PersistentAgent(BaseAgent):
+    @classmethod
+    def error_kinds(cls) -> type[StrEnum]:
+        return PersistentErrors
+
     def __init__(
         self,
         client: InferenceClient,
@@ -27,6 +36,7 @@ class PersistentAgent(BaseAgent):
         current_depth: int = 0,
         additional_histories: bool = False,
         force_thinking: bool = False,
+        verbose: bool = False,
     ):
         super().__init__(
             client=client,
@@ -34,6 +44,7 @@ class PersistentAgent(BaseAgent):
             decomp_config=decomp_config,
             current_depth=current_depth,
             additional_histories=additional_histories,
+            verbose=verbose,
         )
 
         self.force_thinking = force_thinking
@@ -55,18 +66,16 @@ class PersistentAgent(BaseAgent):
         5) If tasks exhausted (total_tasks >= max_tasks): cannot ISSUE_FRESH_TASK or ISSUE_TASK.
         6) ANSWER is always allowed.
         """
-        dc = self.decomp_config
-        is_leaf = self.current_depth >= dc.max_depth
-        has_rounds = dc.total_rounds < dc.max_rounds
-        tasks_available = dc.total_tasks < dc.max_tasks
 
-        if self.force_thinking and dc.total_rounds == 0:
+        DC = self.decomp_config
+
+        if self.force_thinking and DC.total_rounds == 0:
             return GuidedRegex(TurnAction.THINK)
 
         allowed = [TurnAction.ANSWER]
-        if has_rounds:
+        if DC.has_rounds():
             allowed.append(TurnAction.THINK)
-            if (not is_leaf) and tasks_available:
+            if (not DC.is_leaf(self.current_depth)) and DC.has_tasks():
                 allowed.append(TurnAction.ISSUE_FRESH_TASK)
                 if self.sub_agent is not None:
                     allowed.append(TurnAction.ISSUE_TASK)
@@ -84,24 +93,17 @@ class PersistentAgent(BaseAgent):
             prompt_config=self.prompt_config,
             decomp_config=self.decomp_config,
             current_depth=self.current_depth + 1,
-            additional_histories=False,  # NOTE: no support for recursive histories yet
+            additional_histories=False,
             force_thinking=self.force_thinking,
+            verbose=self.verbose,
         )
 
-    async def chat(
-        self,
-        prompt: Message,
-        verbose: bool = False,
-        **kwargs,
-    ) -> Trajectory:
+    async def chat(self, prompt: Message, **kwargs) -> Trajectory:
         if prompt.get("role") != "user":
             logger.warning(f"Prompt role is expected to be 'user', but got {prompt.get('role')}.")
 
         self.decomp_config.reset()
-        self.trajectory.messages_and_responses.append(prompt)
-
-        if verbose:
-            print(trajectory_string(self.trajectory, indent=self.current_depth))
+        self.append_message(prompt)
 
         # Reset metrics of the run
         for k in self.metrics.keys():
@@ -112,34 +114,44 @@ class PersistentAgent(BaseAgent):
             self.metrics[f"{prefix}_chats"] += 1
 
         while True:
-            # Model turn
             regex = self._create_regex()
-            completion = await self._call(self.trajectory.messages(), regex=regex, **kwargs)
-            self.trajectory.messages_and_responses.append(completion)
 
-            # Update metrics
             for prefix in METRIC_PREFIXES:
                 self.metrics[f"{prefix}_calls"] += 1
+
+            try:
+                # Model turn
+                completion = await self._call(self.trajectory.messages(), regex=regex, **kwargs)
+            except Exception as e:
+                logger.error(f"Error during model call: {e}")
+                self.trajectory.error(kind=PersistentErrors.CLIENT_ERROR, message=str(e))
+                return self.trajectory.finish()
+
+            self.append_message(completion)
+
             if completion.total_tokens is not None:
                 self.metrics["direct_tokens"] = completion.total_tokens
 
-            if verbose:
-                print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
-
-            # Extract raw content and parse it
-            assistant_msg = self.trajectory.messages()[-1]
-            turn = regex.parse(assistant_msg.get("content"))
+            try:
+                # Extract raw content and parse it
+                assistant_msg = self.trajectory.messages()[-1]
+                turn = regex.parse(assistant_msg.get("content"))
+            except Exception as e:
+                logger.warning(f"Failed to parse model output: {e}")
+                self.trajectory.error(kind=PersistentErrors.PARSE_ERROR, message=str(e))
+                return self.trajectory.finish()
 
             # Finish if the model chose to answer
             if turn.action == TurnAction.ANSWER:
                 self.decomp_config.update_round(num_tasks=0)
-                break
+                return self.trajectory.finish()
 
             # If the model chose to think, continue
             elif turn.action == TurnAction.THINK:
                 for prefix in METRIC_PREFIXES:
                     self.metrics[f"{prefix}_thinks"] += 1
                 self.decomp_config.update_round(num_tasks=0)
+                continue
 
             # Create a new sub-agent
             elif turn.action == TurnAction.ISSUE_FRESH_TASK:
@@ -148,21 +160,20 @@ class PersistentAgent(BaseAgent):
                     self.metrics[f"{prefix}_agents"] += 1
 
                 if self.additional_histories:
-                    # Each sub-agent defines its own history
-                    # The history is dynamically updated as the sub-agent is invoked, as expected.
                     self.trajectory.histories.append(self.sub_agent.trajectory)
 
             # Issue a sub-task to the current sub-agent
             if turn.action == TurnAction.ISSUE_FRESH_TASK or turn.action == TurnAction.ISSUE_TASK:
-                assert self.sub_agent is not None, "Sub-agent must be created before it can be asked to perform a task."
+                if self.sub_agent is None:
+                    raise ValueError("Sub-agent must be created before it can be asked to perform a task.")
 
                 task = UserMessage(role="user", content=turn.text)
-                task_answer = await self.sub_agent.answer(task, verbose, **kwargs)
-                task_response = UserMessage(role="user", name="sub-agent", content=task_answer)
-                self.trajectory.messages_and_responses.append(task_response)
+                task_answer = await self.sub_agent.answer(task, **kwargs)
+                if task_answer is None:
+                    task_answer = "[error] sub-agent failed to produce an answer."
 
-                if verbose:
-                    print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
+                task_response = UserMessage(role="user", name="sub-agent", content=task_answer)
+                self.append_message(task_response)
 
                 # The direct task issued by this agent
                 for prefix in METRIC_PREFIXES:
@@ -177,37 +188,24 @@ class PersistentAgent(BaseAgent):
 
                 self.decomp_config.update_round(num_tasks=1)
 
-            # Unrecognized action, stop the agent loop
-            if turn.action not in [e for e in TurnAction]:
-                logger.info(f"Unhandled action: {turn.action}")
-                break
+            else:  # Unrecognized action, should be impossible
+                raise ValueError(f"Unrecognized action: {turn.action}")
 
-        # Update final stats
-        completed = int((completion.finish_reason != "length") and (turn.action == TurnAction.ANSWER))
-        incomplete = 1 - completed
-
-        # This agent's own response completion, counted across all four quadrants
-        for prefix in METRIC_PREFIXES:
-            self.metrics[f"{prefix}_responses_completed"] += completed
-            self.metrics[f"{prefix}_responses_incomplete"] += incomplete
-
-        self.trajectory.finish()
-        return self.trajectory
-
-    def parse_answer(self, message: Message | InferenceResponse) -> str:
+    def parse_answer(self, message: Message | InferenceResponse) -> str | None:
         if not isinstance(message, InferenceResponse):
             logger.error(f"Expected an InferenceResponse, got {type(message)}")
-            raise ValueError("parse_answer expects an InferenceResponse.")
+            return None
 
         content = message.content
         if not isinstance(content, str):
             logger.error(f"Expected message content to be a string, got {type(content)}")
-            raise ValueError("Message content must be a string.")
+            return None
 
         try:
             schema = GuidedRegex(TurnAction.ANSWER)
             turn = schema.parse(content)
             return turn.text
+
         except Exception as e:
             logger.error(f"Failed to parse final answer: {e}")
-            return content
+            return None

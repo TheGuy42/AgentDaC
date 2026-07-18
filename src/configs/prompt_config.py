@@ -19,7 +19,6 @@ class PromptConfig(BaseConfig):
     system_root: str | None = None
     system_inter: str | None = None
     system_leaf: str | None = None
-    tasks_depleted: str | None = None
 
     def initialize(self, encoding: str = "utf-8") -> PromptConfig:
         if not self.mode == "path":
@@ -29,6 +28,5 @@ class PromptConfig(BaseConfig):
         self.system_root = read_prompt(self.system_root, encoding)
         self.system_inter = read_prompt(self.system_inter, encoding)
         self.system_leaf = read_prompt(self.system_leaf, encoding)
-        self.tasks_depleted = read_prompt(self.tasks_depleted, encoding)
         self.mode = "text"
         return self

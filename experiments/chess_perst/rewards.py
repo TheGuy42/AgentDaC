@@ -42,14 +42,18 @@ def parse_move(board: chess.Board, text: str) -> chess.Move | None:
     for token in tokens:
         try:
             move = board.parse_uci(token)
-            if move != move.null():
-                valid_moves.add(move)
-
-            if len(valid_moves) > 1:
-                return None  # early exit
-
         except ValueError:
-            continue
+            try:
+                # Backup: try to parse SAN if UCI fails
+                move = board.parse_san(token)
+            except ValueError:
+                continue
+
+        if move != move.null():
+            valid_moves.add(move)
+
+        if len(valid_moves) > 1:
+            return None  # early exit
 
     if len(valid_moves) == 1:
         return valid_moves.pop()

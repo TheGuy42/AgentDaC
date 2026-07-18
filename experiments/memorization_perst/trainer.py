@@ -34,7 +34,7 @@ class MemorizationPerstTrainer(VerlTrainer):
 
         # Compute rewards
         trajectory.reward = 0.0
-        ans_reward, parse_success = answer_reward(sample, agent_answer)
+        ans_reward, parse_success = answer_reward(sample, agent_answer or "<NO_ANSWER>")
         trajectory.reward += ans_reward
 
         # Update metrics

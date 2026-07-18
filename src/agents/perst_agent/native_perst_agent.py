@@ -40,7 +40,7 @@ class NativePersistentAgent(PersistentAgent):
     This agent should be used when toggling `enable_thinking=True` and using an explicit `reasoning-parser`.
     In this case, each turn will start from a native thinking block of the model, followed by a guided regex block.
 
-    *Note:* If using this agent without a `reasoning-parser`, then the GuidedRegex will be applied to the entire output 
+    *Note:* If using this agent without a `reasoning-parser`, then the GuidedRegex will be applied to the entire output
     and will suppress the native thinking block, so a reasoning-parser is required.
     """
 
@@ -51,6 +51,7 @@ class NativePersistentAgent(PersistentAgent):
         decomp_config: DecompConfig,
         current_depth: int = 0,
         additional_histories: bool = False,
+        verbose: bool = False,
     ):
         super().__init__(
             client=client,
@@ -59,6 +60,7 @@ class NativePersistentAgent(PersistentAgent):
             current_depth=current_depth,
             additional_histories=additional_histories,
             force_thinking=False,
+            verbose=verbose,
         )
 
     def _create_regex(self) -> GuidedRegex:
@@ -72,23 +74,25 @@ class NativePersistentAgent(PersistentAgent):
             prompt_config=self.prompt_config,
             decomp_config=self.decomp_config,
             current_depth=self.current_depth + 1,
-            additional_histories=False,  # NOTE: no support for recursive histories yet
+            additional_histories=False,  
+            verbose=self.verbose,
         )
 
-    def parse_answer(self, message: Message | InferenceResponse) -> str:
+    def parse_answer(self, message: Message | InferenceResponse) -> str | None:
         if not isinstance(message, InferenceResponse):
             logger.error(f"Expected an InferenceResponse, got {type(message)}")
-            raise ValueError("parse_answer expects an InferenceResponse.")
+            return None
 
         content = message.content
         if not isinstance(content, str):
             logger.error(f"Expected message content to be a string, got {type(content)}")
-            raise ValueError("Message content must be a string.")
+            return None
 
         try:
             schema = NativeGuidedRegex(TurnAction.ANSWER)
             turn = schema.parse(content)
             return turn.text
+        
         except Exception as e:
             logger.error(f"Failed to parse final answer: {e}")
-            return content
+            return None

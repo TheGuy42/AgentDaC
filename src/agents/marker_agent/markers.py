@@ -44,14 +44,12 @@ def extract_between(text: str, start_marker: str, end_marker: str, strict: bool 
     return re.findall(pattern, text)
 
 
-# TODO: try with strict=False
 def extract_answer(text: str, strict=True) -> str:
     answer_list = extract_between(text, Markers.ANS_START, Markers.ANS_END, strict=strict)
     answer = answer_list[-1] if len(answer_list) > 0 else text
     return answer.strip()
 
 
-# TODO: try with strict=false
 def extract_tasks(text: str, strict=True) -> list[str]:
     task_list = extract_between(text, Markers.TASK_START, Markers.TASK_END, strict=strict)
     return [task.strip() for task in task_list]

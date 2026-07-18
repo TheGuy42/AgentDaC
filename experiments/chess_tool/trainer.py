@@ -1,6 +1,6 @@
 from omegaconf import OmegaConf
 
-from src.agents import BaseAgent, ToolStatelessAgent, ToolPersistentAgent
+from src.agents import BaseAgent, ToolStatelessAgent, ToolPersistentAgent, ToolSubmitAgent
 from src.trainer import RolloutStage
 from src.inference import VerlClient
 from src.agents.tool_agent.parsing import build_tool_parser
@@ -11,6 +11,7 @@ from experiments.chess_perst.trainer import ChessTrainer
 FLOWS: dict[str, type[ToolStatelessAgent] | type[ToolPersistentAgent]] = {
     "stateless": ToolStatelessAgent,
     "persistent": ToolPersistentAgent,
+    "persistent_submit": ToolSubmitAgent,
 }
 
 

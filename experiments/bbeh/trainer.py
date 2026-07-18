@@ -60,7 +60,7 @@ class BbehTrainer(VerlTrainer):
 
         # Compute rewards
         trajectory.reward = 0.0
-        ans_reward, parse_success = answer_reward(sample, agent_answer)
+        ans_reward, parse_success = answer_reward(sample, agent_answer or "<NO_ANSWER>")
         ans_reward = 3.0 * ans_reward
         trajectory.reward += ans_reward
         fmt_reward = format_reward(trajectory)

@@ -27,3 +27,15 @@ class DecompConfig(BaseConfig):
         """Update round and task counters"""
         self.total_rounds += 1
         self.total_tasks += num_tasks
+
+    def has_rounds(self) -> bool:
+        """Check if there are remaining rounds"""
+        return self.total_rounds < self.max_rounds
+
+    def has_tasks(self) -> bool:
+        """Check if there are remaining tasks"""
+        return (self.total_tasks < self.max_tasks) and self.has_rounds()
+
+    def is_leaf(self, current_depth: int) -> bool:
+        """Check if the current depth is at or beyond the maximum depth"""
+        return current_depth >= self.max_depth

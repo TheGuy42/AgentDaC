@@ -1,4 +1,5 @@
 from __future__ import annotations
+from enum import StrEnum
 from typing import Any
 from dataclasses import dataclass
 import re
@@ -8,7 +9,6 @@ from src.agents.base import BaseAgent
 from src.agents.regex_agent.actions import TurnAction
 from src.aliases import Message, UserMessage
 from src.inference import InferenceResponse
-from src.utils.visualize import trajectory_string, message_string
 from src.utils.logging import create_logger
 
 
@@ -16,11 +16,17 @@ logger = create_logger(__name__)
 
 
 METRIC_PREFIXES = ("direct", "subtree")
+METRIC_COUNTERS = ("calls", "tasks", "thinks", "chats")
+
+
+class RegexErrors(StrEnum):
+    CLIENT_ERROR = "client_error"
+    PARSE_ERROR = "parse_error"
 
 
 @dataclass
 class AgentTurn:
-    action: str | None
+    action: str
     text: str
     raw: str
 
@@ -44,7 +50,7 @@ class GuidedRegex:
         if not m:
             logger.debug(f"Failed to match content against regex: {self.parse_pattern}")
             logger.debug(f"Raw content was: {content}")
-            return AgentTurn(action=None, text=content, raw=content)
+            raise ValueError(f"Content does not match the expected regex pattern. Allowed actions: {self.actions}.")
 
         action_val = m.group("action").strip()
         text_val = m.group("text").strip()
@@ -56,21 +62,14 @@ class GuidedRegex:
 
 
 class RegexAgent(BaseAgent):
+    @classmethod
+    def error_kinds(cls) -> type[StrEnum]:
+        return RegexErrors
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.metrics.update(
-            {
-                f"{prefix}_{counter}": 0
-                for counter in ("calls", "tasks", "thinks", "chats", "responses_completed", "responses_incomplete")
-                for prefix in METRIC_PREFIXES
-            }
-        )
-        self.metrics.update(
-            {
-                "subtree_depth": 0,
-                "direct_tokens": 0,
-            }
-        )
+        self.metrics.update({f"{prefix}_{counter}": 0 for counter in METRIC_COUNTERS for prefix in METRIC_PREFIXES})
+        self.metrics.update({"subtree_depth": 0, "direct_tokens": 0})
 
     def _create_regex(self) -> GuidedRegex:
         """
@@ -81,18 +80,14 @@ class RegexAgent(BaseAgent):
         4) If tasks exhausted (total_tasks >= max_tasks): cannot ISSUE_TASK.
         5) ANSWER is always allowed.
         """
-        if self.current_depth >= self.decomp_config.max_depth:
-            self.decomp_config.max_rounds = 1  # Force only one round at leaf nodes
-
-        dc = self.decomp_config
-        is_leaf = self.current_depth >= dc.max_depth
-        has_rounds = dc.total_rounds < dc.max_rounds
-        tasks_available = dc.total_tasks < dc.max_tasks
+        DC = self.decomp_config
+        if DC.is_leaf(self.current_depth):
+            DC.max_rounds = 1  # Force only one round at leaf nodes
 
         allowed = [TurnAction.ANSWER]
-        if has_rounds:
+        if DC.has_rounds():
             allowed.append(TurnAction.THINK)
-            if (not is_leaf) and tasks_available:
+            if (not DC.is_leaf(self.current_depth)) and DC.has_tasks():
                 allowed.append(TurnAction.ISSUE_TASK)
 
         return GuidedRegex(*allowed)
@@ -108,23 +103,16 @@ class RegexAgent(BaseAgent):
             prompt_config=self.prompt_config,
             decomp_config=self.decomp_config,
             current_depth=self.current_depth + 1,
-            additional_histories=False,  # NOTE: no support for recursive histories yet
+            additional_histories=False,  
+            verbose=self.verbose,
         )
 
-    async def chat(
-        self,
-        prompt: Message,
-        verbose: bool = False,
-        **kwargs,
-    ) -> Trajectory:
+    async def chat(self, prompt: Message, **kwargs) -> Trajectory:
         if prompt.get("role") != "user":
             logger.warning(f"Prompt role is expected to be 'user', but got {prompt.get('role')}.")
 
         self.decomp_config.reset()
-        self.trajectory.messages_and_responses.append(prompt)
-
-        if verbose:
-            print(trajectory_string(self.trajectory, indent=self.current_depth))
+        self.append_message(prompt)
 
         # Reset metrics of the run
         for k in self.metrics.keys():
@@ -137,25 +125,34 @@ class RegexAgent(BaseAgent):
         while True:
             # Model turn
             regex = self._create_regex()
-            completion = await self._call(self.trajectory.messages(), regex=regex, **kwargs)
-            self.trajectory.messages_and_responses.append(completion)
 
-            # Update metrics
             for prefix in METRIC_PREFIXES:
                 self.metrics[f"{prefix}_calls"] += 1
+
+            try:
+                completion = await self._call(self.trajectory.messages(), regex=regex, **kwargs)
+            except Exception as e:
+                logger.error(f"Error during model call: {e}")
+                self.trajectory.error(kind=RegexErrors.CLIENT_ERROR, message=str(e))
+                return self.trajectory.finish()
+
+            self.append_message(completion)
+
             if completion.total_tokens is not None:
                 self.metrics["direct_tokens"] = completion.total_tokens
 
-            if verbose:
-                print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
-
-            # Extract raw content and parse it
-            assistant_msg = self.trajectory.messages()[-1]
-            turn = regex.parse(assistant_msg.get("content"))
+            try:
+                # Extract raw content and parse it
+                assistant_msg = self.trajectory.messages()[-1]
+                turn = regex.parse(assistant_msg.get("content"))
+            except Exception as e:
+                logger.error(f"Error parsing model response: {e}")
+                self.trajectory.error(kind=RegexErrors.PARSE_ERROR, message=str(e))
+                return self.trajectory.finish()
 
             # Finish if the model chose to answer
             if turn.action == TurnAction.ANSWER:
-                break
+                return self.trajectory.finish()
 
             # If the model chose to think, continue
             elif turn.action == TurnAction.THINK:
@@ -167,22 +164,23 @@ class RegexAgent(BaseAgent):
             elif turn.action == TurnAction.ISSUE_TASK:
                 sub_agent = self._create_subagent()
                 task = UserMessage(role="user", content=turn.text)
-                task_answer = await sub_agent.answer(task, verbose, **kwargs)
+
+                task_answer = await sub_agent.answer(task, **kwargs)
+                if task_answer is None:
+                    task_answer = "[error] sub-agent failed to produce an answer."
+
                 task_response = UserMessage(role="user", name="sub-agent", content=task_answer)
-                self.trajectory.messages_and_responses.append(task_response)
+                self.append_message(task_response)
 
                 if self.additional_histories:
                     self.trajectory.histories.append(sub_agent.trajectory)
-
-                if verbose:
-                    print(message_string(self.trajectory.messages()[-1], indent=self.current_depth))
 
                 # The direct task issued by this agent
                 for prefix in METRIC_PREFIXES:
                     self.metrics[f"{prefix}_tasks"] += 1
 
                 # Fold in the sub-agent's subtree contribution from this single invocation
-                for q in ("calls", "tasks", "thinks", "chats", "responses_completed", "responses_incomplete"):
+                for q in METRIC_COUNTERS:
                     self.metrics[f"subtree_{q}"] += sub_agent.metrics[f"subtree_{q}"]
 
                 child_depth = 1 + sub_agent.metrics["subtree_depth"]
@@ -190,32 +188,18 @@ class RegexAgent(BaseAgent):
 
                 self.decomp_config.update_round(num_tasks=1)
 
-            # Unrecognized action, stop the agent loop
-            else:
-                logger.info(f"Unhandled action: {turn.action}")
-                break
+            else:  # Unrecognized action, should be impossible
+                raise ValueError(f"Unrecognized action: {turn.action}.")
 
-        # Update final stats
-        completed = int((completion.finish_reason != "length") and (turn.action == TurnAction.ANSWER))
-        incomplete = 1 - completed
-
-        # This agent's own response completion, counted across all four quadrants
-        for prefix in METRIC_PREFIXES:
-            self.metrics[f"{prefix}_responses_completed"] += completed
-            self.metrics[f"{prefix}_responses_incomplete"] += incomplete
-        self.trajectory.finish()
-
-        return self.trajectory
-
-    def parse_answer(self, message: Message | InferenceResponse) -> str:
+    def parse_answer(self, message: Message | InferenceResponse) -> str | None:
         if not isinstance(message, InferenceResponse):
             logger.error(f"Expected an InferenceResponse, got {type(message)}")
-            raise ValueError("parse_answer expects an InferenceResponse.")
+            return None
 
         content = message.content
         if not isinstance(content, str):
             logger.error(f"Expected message content to be a string, got {type(content)}")
-            raise ValueError("Message content must be a string.")
+            return None
 
         try:
             schema = GuidedRegex(TurnAction.ANSWER)
@@ -223,4 +207,4 @@ class RegexAgent(BaseAgent):
             return turn.text
         except Exception as e:
             logger.error(f"Failed to parse final answer: {e}")
-            return content
+            return None

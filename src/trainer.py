@@ -44,7 +44,7 @@ class VerlTrainer(AgentLoopBase, ABC):
         self.prompt_config = PromptConfig.model_validate(OmegaConf.to_container(custom_configs.prompt_config, resolve=True))
         self.decomp_config = DecompConfig.model_validate(OmegaConf.to_container(custom_configs.decomp_config, resolve=True))
         self.rollout_kwargs = RolloutConfig.model_validate(OmegaConf.to_container(custom_configs.rollout_config, resolve=True))
-        self.extra_config: dict[str, Any] = OmegaConf.to_container(custom_configs.extra_config, resolve=True)
+        self.extra_config: dict[str, Any] = OmegaConf.to_container(custom_configs.extra_config, resolve=True)  # type: ignore
 
         # Initialize the TrajectoryWriter for logging rollouts to disk.
         self.trajectory_writer = TrajectoryWriter(
