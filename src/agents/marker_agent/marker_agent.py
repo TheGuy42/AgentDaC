@@ -50,7 +50,7 @@ class MarkerAgent(BaseAgent):
         )
 
         if self.additional_histories:
-            agent.trajectory.histories = self.trajectory.histories
+            self.trajectory.histories.append(agent.trajectory)
 
         return agent
 
@@ -113,9 +113,8 @@ class MarkerAgent(BaseAgent):
                 self.metrics["direct_tokens"] = completion.total_tokens
 
             try:
-                # Extract raw content and parse it
-                assistant_msg = self.trajectory.messages()[-1]
-                turn = self.parser.parse(assistant_msg.get("content"))
+                # Parse model output
+                turn = self.parser.parse(completion.content)
             except Exception as e:
                 message = f"Failed to parse model output: {e}"
                 self.trajectory.error(kind=MarkerErrors.PARSE_ERROR, message=message)
@@ -125,17 +124,11 @@ class MarkerAgent(BaseAgent):
                 self.decomp_config.update_round(num_tasks=0)
                 continue
 
-            allowed = self._allowed_actions()
+            # Record recoverable parse errors in the model's output
+            if parse_error := self.parser.validate(completion.content):
+                self.trajectory.error(kind=MarkerErrors.PARSE_ERROR, message=parse_error)
 
-            # Malformed: neither block appears
-            if turn.tasks is None and turn.answers is None:
-                message = "No <task> or <answer> block found."
-                self.trajectory.error(kind=MarkerErrors.PARSE_ERROR, message=message)
-                if not self.decomp_config.has_rounds():
-                    return self.trajectory.finish()
-                self.append_message(UserMessage(role="user", content=f"[error] {message}"))
-                self.decomp_config.update_round(num_tasks=0)
-                continue
+            allowed = self._allowed_actions()
 
             # Terminal: answer is present
             if turn.answers is not None:
@@ -155,6 +148,7 @@ class MarkerAgent(BaseAgent):
                     continue
 
                 # The direct tasks issued by this agent
+                # TODO: handle case when multiple tasks are issued but we have less available tasks in the decomp_config
                 tasks_answers = await asyncio_tasks.gather(*[self._subagent_forward(task, **kwargs) for task in turn.tasks])
 
                 for prefix in METRIC_PREFIXES:

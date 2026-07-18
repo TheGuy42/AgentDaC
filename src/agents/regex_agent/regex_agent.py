@@ -108,7 +108,7 @@ class RegexAgent(BaseAgent):
         )
         
         if self.additional_histories:
-            agent.trajectory.histories = self.trajectory.histories
+            self.trajectory.histories.append(agent.trajectory)
             
         return agent
 
@@ -147,9 +147,8 @@ class RegexAgent(BaseAgent):
                 self.metrics["direct_tokens"] = completion.total_tokens
 
             try:
-                # Extract raw content and parse it
-                assistant_msg = self.trajectory.messages()[-1]
-                turn = regex.parse(assistant_msg.get("content"))
+                # Parse model output
+                turn = regex.parse(completion.content)
             except Exception as e:
                 logger.error(f"Error parsing model response: {e}")
                 self.trajectory.error(kind=RegexErrors.PARSE_ERROR, message=str(e))

@@ -112,7 +112,7 @@ class ToolPersistentAgent(BaseAgent):
         )
         
         if self.additional_histories:
-            agent.trajectory.histories = self.trajectory.histories
+            self.trajectory.histories.append(agent.trajectory)
             
         return agent
 

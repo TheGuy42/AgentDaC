@@ -126,7 +126,7 @@ class JsonAgent(BaseAgent):
         )
         
         if self.additional_histories:
-            agent.trajectory.histories = self.trajectory.histories
+            self.trajectory.histories.append(agent.trajectory)
             
         return agent
 
@@ -165,9 +165,8 @@ class JsonAgent(BaseAgent):
                 self.metrics["direct_tokens"] = completion.total_tokens
 
             try:
-                # Extract raw content and parse it
-                assistant_msg = self.trajectory.messages()[-1]
-                turn = schema.parse(assistant_msg.get("content"))
+                # Parse model output
+                turn = schema.parse(completion.content)
             except Exception as e:
                 logger.warning(f"Failed to parse model output: {e}")
                 self.trajectory.error(kind=JsonErrors.PARSE_ERROR, message=str(e))

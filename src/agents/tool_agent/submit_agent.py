@@ -58,10 +58,10 @@ class ToolSubmitAgent(ToolPersistentAgent):
             additional_histories=False,
             verbose=self.verbose,
         )
-        
+
         if self.additional_histories:
-            agent.trajectory.histories = self.trajectory.histories
-            
+            self.trajectory.histories.append(agent.trajectory)
+
         return agent
 
     async def chat(self, prompt: Message, **kwargs) -> Trajectory:
@@ -196,13 +196,14 @@ class ToolSubmitAgent(ToolPersistentAgent):
             logger.error(f"Expected an InferenceResponse, got {type(message)}")
             return None
 
-        turn = self.tool_parser.parse(message)
-        if turn.tool_call is None or turn.tool_call.function.name != SUBMIT_ANSWER:
-            return None
-
         try:
-            return self._parse_arguments(turn.tool_call, repair=True)["answer"].strip()
+            turn = self.tool_parser.parse(message)
+            if turn.tool_call is None or turn.tool_call.function.name != SUBMIT_ANSWER:
+                return None
 
-        except Exception:
-            logger.error(f"Failed to parse answer from tool call: {turn.tool_call}")
+            args = self._parse_arguments(turn.tool_call, repair=True)
+            return args["answer"].strip()
+
+        except Exception as e:
+            logger.error(f"Failed to parse answer from tool call: {e}")
             return None
