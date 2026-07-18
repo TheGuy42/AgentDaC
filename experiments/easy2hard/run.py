@@ -1,6 +1,8 @@
-from argparse import ArgumentParser
-import sys
+from __future__ import annotations
+
+import argparse
 import pathlib
+import sys
 from typing import Any
 
 # set pythonpath to the main module directory
@@ -8,19 +10,21 @@ module_dir = pathlib.Path(__file__).parent.parent.parent.resolve()
 if str(module_dir) not in sys.path:
     sys.path.append(str(module_dir))
 
-from experiments.experiment_runner import ExperimentRunner
+
+from experiments._framework import ExperimentRunner, AgentKey
 from experiments.easy2hard.dataset import Easy2HardDataset
 from experiments.easy2hard.trainer import Easy2HardTrainer
 
 
 class Runner(ExperimentRunner):
-    def default_project_name(self) -> str:
-        return "easy2hard_dac"
+    def task_name(self) -> str:
+        return "easy2hard"
 
-    def default_config_dir(self) -> str:
-        return "experiments/easy2hard/defaults"
+    def supported_agents(self) -> list[str]:
+        return [AgentKey.MARKER, AgentKey.REGEX]
 
-    def add_arguments(self, parser: ArgumentParser) -> None:
+    def add_arguments(self, parser: argparse.ArgumentParser) -> None:
+        super().add_arguments(parser)
         parser.add_argument("--min_difficulty", type=int, default=0)
         parser.add_argument("--max_difficulty", type=int, default=100)
 

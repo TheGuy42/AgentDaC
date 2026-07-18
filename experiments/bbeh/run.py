@@ -1,6 +1,8 @@
-from argparse import ArgumentParser
-import sys
+from __future__ import annotations
+
+import argparse
 import pathlib
+import sys
 from typing import Any
 
 # set pythonpath to the main module directory
@@ -9,20 +11,21 @@ if str(module_dir) not in sys.path:
     sys.path.append(str(module_dir))
 
 
-from experiments.experiment_runner import ExperimentRunner
+from experiments._framework import ExperimentRunner, AgentKey
 from experiments.bbeh.dataset import BbehDataset
 from experiments.bbeh.trainer import BbehTrainer
 from experiments.bbeh.tasks import SupportedTasks
 
 
 class Runner(ExperimentRunner):
-    def default_project_name(self) -> str:
-        return "bbeh_dac"
+    def task_name(self) -> str:
+        return "bbeh"
 
-    def default_config_dir(self) -> str:
-        return "experiments/bbeh/defaults"
+    def supported_agents(self) -> list[str]:
+        return [AgentKey.MARKER]
 
-    def add_arguments(self, parser: ArgumentParser) -> None:
+    def add_arguments(self, parser: argparse.ArgumentParser) -> None:
+        super().add_arguments(parser)
         parser.add_argument(
             "--tasks",
             type=str,

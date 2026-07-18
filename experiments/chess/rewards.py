@@ -3,8 +3,8 @@ import regex as re
 
 import chess
 from chess.engine import Cp, Score
-from experiments.chess_perst.chess_engine.config import ChessConfig
-from experiments.chess_perst.chess_engine.evaluator import MoveResult
+from experiments.chess.chess_engine.config import ChessConfig
+from experiments.chess.chess_engine.evaluator import MoveResult
 
 
 def parse_move(board: chess.Board, text: str) -> chess.Move | None:

@@ -17,10 +17,10 @@ import chess
 import pytest
 from chess.engine import Cp, Mate, PovScore
 
-from experiments.chess_perst.chess_engine import ChessConfig, EngineConfig, MoveEvaluator
-from experiments.chess_perst.chess_engine.cache import RootCache
-from experiments.chess_perst.chess_engine.evaluator import MoveResult
-from experiments.chess_perst.rewards import compute_reward, compute_wp, parse_move
+from experiments.chess.chess_engine import ChessConfig, EngineConfig, MoveEvaluator
+from experiments.chess.chess_engine.cache import RootCache
+from experiments.chess.chess_engine.evaluator import MoveResult
+from experiments.chess.rewards import compute_reward, compute_wp, parse_move
 
 
 START_FEN = chess.STARTING_FEN

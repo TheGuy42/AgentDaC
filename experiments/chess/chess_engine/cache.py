@@ -5,8 +5,8 @@ from collections import OrderedDict
 import chess
 from chess.engine import PovScore
 from src.utils.logging import create_logger
-from experiments.chess_perst.chess_engine.engine import LocalEngine
-from experiments.chess_perst.chess_engine.config import ChessConfig
+from experiments.chess.chess_engine.engine import LocalEngine
+from experiments.chess.chess_engine.config import ChessConfig
 
 
 logger = create_logger(__name__)

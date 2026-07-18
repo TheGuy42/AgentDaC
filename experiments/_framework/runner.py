@@ -44,12 +44,20 @@ class ExperimentRunner(ABC):
         return self._parser_args
 
     @abstractmethod
-    def default_project_name(self) -> str:
-        """Override to specify default project name."""
+    def task_name(self) -> str:
+        """Short task identifier, e.g. 'math'. Roots the config dir and project name."""
 
     @abstractmethod
+    def supported_agents(self) -> list[str]:
+        """Agent kinds this task supports."""
+
+    def default_project_name(self) -> str:
+        """Override to specify default project name."""
+        return f"{self.task_name()}_{self.args().agent}"
+
     def default_config_dir(self) -> str:
         """Override to specify the experiment's config directory (holds the JSON configs)."""
+        return f"experiments/{self.task_name()}/configs/{self.args().agent}"
 
     @abstractmethod
     def dataset_class(self) -> type:
@@ -75,25 +83,35 @@ class ExperimentRunner(ABC):
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         """Override to add custom command line arguments."""
 
-    def _generate_run_name(self, base_model: str) -> str:
+    def default_run_name(self, base_model: str) -> str:
+        """Default run name to use."""
         base_model = base_model.split("/")[-1]
         date_str = datetime.now().strftime("%m_%d_%H_%M")
         return f"{base_model}_{date_str}"
 
     def _parse_args(self) -> argparse.Namespace:
         parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+        parser.add_argument(
+            "--agent",
+            type=str,
+            required=True,
+            help="The agent kind to run",
+            choices=self.supported_agents(),
+        )
+
         parser.add_argument(
             "--project",
             type=str,
-            default=self.default_project_name(),
-            help="Project name.",
+            default=None,
+            help="Project name. If not provided, defaults to `default_project_name()`.",
         )
 
         parser.add_argument(
             "--run",
             type=str,
-            default="",
-            help="Experiment run name.",
+            default=None,
+            help="Experiment run name. If not provided, defaults to `default_run_name()`.",
         )
 
         parser.add_argument(
@@ -114,8 +132,8 @@ class ExperimentRunner(ABC):
         parser.add_argument(
             "--config_dir",
             type=str,
-            default=self.default_config_dir(),
-            help="Config directory.",
+            default=None,
+            help="Config directory. If not provided, defaults to `default_config_dir()`.",
         )
 
         parser.add_argument(
@@ -150,6 +168,12 @@ class ExperimentRunner(ABC):
         self.add_arguments(parser)
         self._parser_args = parser.parse_args()
         args = self.args()
+
+        if args.project is None:
+            args.project = self.default_project_name()
+
+        if args.config_dir is None:
+            args.config_dir = self.default_config_dir()
 
         if not all(0 <= gpu < torch.cuda.device_count() for gpu in args.gpus):
             raise ValueError(f"Invalid GPU IDs {args.gpus}. Available: {list(range(torch.cuda.device_count()))}")
@@ -259,6 +283,9 @@ class ExperimentRunner(ABC):
         # Verify (and patch, if possible) the chat template before training starts.
         self._patch_chat_template(omega_conf)
 
+        # Inject the agent kind into the verl config so the agent-loop can rebuild it.
+        OmegaConf.update(omega_conf, "custom_configs.agent", self.args().agent, force_add=True)
+
         return omega_conf
 
     def _patch_chat_template(self, omega_conf: Any) -> None:
@@ -269,27 +296,28 @@ class ExperimentRunner(ABC):
         template verl will use -- and inject any patched template via `custom_chat_template`
         so `HFModelConfig` applies it to the tokenizer the rollout shares. Raises if unsafe.
         """
-        model = omega_conf.actor_rollout_ref.model
-        manual_template = model.get("custom_chat_template", None)
+        model_conf = omega_conf.actor_rollout_ref.model
+        manual_template = model_conf.get("custom_chat_template", None)
 
         # check if manual_template is a path to a file, if so, read the file and set manual_template to its contents
         if manual_template is not None and isinstance(manual_template, str) and pathlib.Path(manual_template).is_file():
             logger.info(f"Loading manual chat template from {manual_template} (encoding='utf-8').")
             manual_template = pathlib.Path(manual_template).read_text(encoding="utf-8")
-            model.custom_chat_template = manual_template
+            model_conf.custom_chat_template = manual_template
 
         resolved = resolve_chat_template(
-            model_path=model.path,
-            manual_template=model.get("custom_chat_template", None),
-            trust_remote_code=bool(model.get("trust_remote_code", False)),
+            model_path=model_conf.path,
+            manual_template=model_conf.get("custom_chat_template", None),
+            trust_remote_code=bool(model_conf.get("trust_remote_code", False)),
         )
 
         if resolved is not None:
-            model.custom_chat_template = resolved
+            model_conf.custom_chat_template = resolved
 
     def _patch_lengths(self, config: Any) -> None:
         """Patch sizes of rollout/model lengths for multi-turn trajectory."""
 
+        # DOCS:
         # config.data.max_prompt_length:
         #   Maximum initial prompt length: tokens before the first assistant-generated token.
         #   In multi-turn RL, this should cover system + user prompt + chat template + tool schemas
@@ -382,7 +410,7 @@ class ExperimentRunner(ABC):
             train_config.val_size = 10
 
         model_name = str(configs["verl_config"]["actor_rollout_ref"]["model"]["path"])
-        exp_name = args.run or self._generate_run_name(model_name)
+        exp_name = args.run or self.default_run_name(model_name)
         logger.info(f"Experiment name: {exp_name}")
 
         # Inject the trajectory writer config

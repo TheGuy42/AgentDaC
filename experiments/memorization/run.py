@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import argparse
 import pathlib
 import sys
@@ -10,19 +11,20 @@ if str(module_dir) not in sys.path:
     sys.path.append(str(module_dir))
 
 
-from experiments.experiment_runner import ExperimentRunner
+from experiments._framework import ExperimentRunner, AgentKey
 from experiments.memorization.dataset import LABEL_KINDS, MemorizationDataset
 from experiments.memorization.trainer import MemorizationTrainer
 
 
 class Runner(ExperimentRunner):
-    def default_project_name(self) -> str:
+    def task_name(self) -> str:
         return "memorization"
 
-    def default_config_dir(self) -> str:
-        return "experiments/memorization/defaults"
+    def supported_agents(self) -> list[str]:
+        return [AgentKey.MARKER, AgentKey.DUMMY, AgentKey.PERST]
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
+        super().add_arguments(parser)
         parser.add_argument("--num_samples", type=int, default=10)
         parser.add_argument("--labels", type=str, nargs="+", default=["A", "B"])
         parser.add_argument("--label_kind", type=str, default="random", choices=LABEL_KINDS)

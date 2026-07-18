@@ -12,22 +12,28 @@ if str(module_dir) not in sys.path:
 
 
 from src.utils.logging import create_logger
-from experiments.experiment_runner import ExperimentRunner
-from experiments.chess_perst.dataset import ChessPerstDataset
-from experiments.chess_perst.trainer import ChessConfig, ChessTrainer
-from experiments.chess_perst.chess_engine import EngineConfig
-from experiments.chess_perst.data import ChessDataset, SUPPORTED_DATASETS
+from experiments._framework import ExperimentRunner, AgentKey
+from experiments.chess.dataset import ChessPerstDataset
+from experiments.chess.trainer import ChessConfig, ChessTrainer
+from experiments.chess.chess_engine import EngineConfig
+from experiments.chess.data import ChessDataset, SUPPORTED_DATASETS
 
 
 logger = create_logger(__name__)
 
 
 class Runner(ExperimentRunner):
-    def default_project_name(self) -> str:
-        return "chess_perst_dac"
+    def task_name(self) -> str:
+        return "chess"
 
-    def default_config_dir(self) -> str:
-        return "experiments/chess_perst/defaults"
+    def supported_agents(self) -> list[str]:
+        return [
+            AgentKey.PERST,
+            AgentKey.NATIVE_PERST,
+            AgentKey.TOOL_STATELESS,
+            AgentKey.TOOL_PERSISTENT,
+            AgentKey.TOOL_SUBMIT,
+        ]
 
     def _load_configs(self, dir: str | pathlib.Path) -> dict[str, Any]:
         """Load the shared configs plus the chess-specific engine config."""
@@ -37,6 +43,7 @@ class Runner(ExperimentRunner):
         return configs
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
+        super().add_arguments(parser)
         parser.add_argument(
             "--datasets",
             nargs="+",
@@ -44,27 +51,9 @@ class Runner(ExperimentRunner):
             default=[ChessDataset.PUZZLES],
             help="Which chess dataset(s) to load positions from (pooled when more than one).",
         )
-
-        parser.add_argument(
-            "--data_seed",
-            type=int,
-            default=1234,
-            help="Seed for reproducible data loading/shuffling.",
-        )
-
-        parser.add_argument(
-            "--min_rating",
-            type=int,
-            default=None,
-            help="Minimum puzzle rating (lichess-puzzles only).",
-        )
-
-        parser.add_argument(
-            "--max_rating",
-            type=int,
-            default=None,
-            help="Maximum puzzle rating (lichess-puzzles only).",
-        )
+        parser.add_argument("--data_seed", type=int, default=1234, help="Seed for reproducible data loading/shuffling.")
+        parser.add_argument("--min_rating", type=int, default=None, help="Minimum puzzle rating (lichess-puzzles only).")
+        parser.add_argument("--max_rating", type=int, default=None, help="Maximum puzzle rating (lichess-puzzles only).")
 
     def dataset_class(self) -> type:
         return ChessPerstDataset

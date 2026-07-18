@@ -5,7 +5,7 @@ from typing import Iterable, overload
 import chess
 from chess.engine import InfoDict, SimpleEngine
 from src.utils.logging import create_logger
-from experiments.chess_perst.chess_engine.config import EngineConfig, ChessConfig
+from experiments.chess.chess_engine.config import EngineConfig, ChessConfig
 
 
 logger = create_logger(__name__)

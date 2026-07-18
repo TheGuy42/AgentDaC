@@ -11,19 +11,20 @@ if str(module_dir) not in sys.path:
     sys.path.append(str(module_dir))
 
 
-from experiments.experiment_runner import ExperimentRunner
+from experiments._framework import ExperimentRunner, AgentKey
 from experiments.math.dataset import MathDataset
 from experiments.math.trainer import MathTrainer
 
 
 class Runner(ExperimentRunner):
-    def default_project_name(self) -> str:
-        return "math_dac"
+    def task_name(self) -> str:
+        return "math"
 
-    def default_config_dir(self) -> str:
-        return "experiments/math/defaults"
+    def supported_agents(self) -> list[str]:
+        return [AgentKey.MARKER, AgentKey.DUMMY, AgentKey.JSON, AgentKey.REGEX, AgentKey.PERST]
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
+        super().add_arguments(parser)
         parser.add_argument("--min_level", type=int, default=1)
         parser.add_argument("--max_level", type=int, default=5)
 
