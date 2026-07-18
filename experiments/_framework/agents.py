@@ -58,6 +58,7 @@ def _build_marker(trainer: "ExperimentTrainer", client: VerlClient, stage: Rollo
         prompt_config=trainer.prompt_config,
         decomp_config=trainer.build_decomp_config(stage),
         additional_histories=trainer.extra_config.get("additional_histories", False),
+        strict=trainer.extra_config.get("marker_strict", True),
     )
 
 

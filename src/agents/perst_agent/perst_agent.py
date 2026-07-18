@@ -82,13 +82,13 @@ class PersistentAgent(BaseAgent):
 
         return GuidedRegex(*allowed)
 
-    async def _call(self, messages: list[Message], **kwargs) -> InferenceResponse:
+    async def call(self, messages: list[Message], **kwargs) -> InferenceResponse:
         regex: GuidedRegex = kwargs.pop("regex")
         kwargs = self.client.update_kwargs(kwargs, regex_schema=regex.model_pattern, include_stop_str_in_output=True)
-        return await super()._call(messages, **kwargs)
+        return await super().call(messages, **kwargs)
 
-    def _create_subagent(self) -> PersistentAgent:
-        return PersistentAgent(
+    def create_subagent(self) -> PersistentAgent:
+        agent = PersistentAgent(
             client=self.client,
             prompt_config=self.prompt_config,
             decomp_config=self.decomp_config,
@@ -97,6 +97,11 @@ class PersistentAgent(BaseAgent):
             force_thinking=self.force_thinking,
             verbose=self.verbose,
         )
+        
+        if self.additional_histories:
+            agent.trajectory.histories = self.trajectory.histories
+        
+        return agent
 
     async def chat(self, prompt: Message, **kwargs) -> Trajectory:
         if prompt.get("role") != "user":
@@ -121,7 +126,7 @@ class PersistentAgent(BaseAgent):
 
             try:
                 # Model turn
-                completion = await self._call(self.trajectory.messages(), regex=regex, **kwargs)
+                completion = await self.call(self.trajectory.messages(), regex=regex, **kwargs)
             except Exception as e:
                 logger.error(f"Error during model call: {e}")
                 self.trajectory.error(kind=PersistentErrors.CLIENT_ERROR, message=str(e))
@@ -155,12 +160,9 @@ class PersistentAgent(BaseAgent):
 
             # Create a new sub-agent
             elif turn.action == TurnAction.ISSUE_FRESH_TASK:
-                self.sub_agent = self._create_subagent()
+                self.sub_agent = self.create_subagent()
                 for prefix in METRIC_PREFIXES:
                     self.metrics[f"{prefix}_agents"] += 1
-
-                if self.additional_histories:
-                    self.trajectory.histories.append(self.sub_agent.trajectory)
 
             # Issue a sub-task to the current sub-agent
             if turn.action == TurnAction.ISSUE_FRESH_TASK or turn.action == TurnAction.ISSUE_TASK:

@@ -43,7 +43,7 @@ class BaseAgent(ABC):
 
         self.trajectory = Trajectory(messages_and_responses=[])
 
-        if sys_msg := self._get_system_message():
+        if sys_msg := self._system_prompt():
             self.append_message(sys_msg)
 
     @property
@@ -57,7 +57,7 @@ class BaseAgent(ABC):
     def __str__(self) -> str:
         return trajectory_string(self.trajectory)
 
-    def _get_system_message(self) -> SystemMessage | None:
+    def _system_prompt(self) -> SystemMessage | None:
         if self.current_depth == 0:
             content = self.prompt_config.system_root
         elif self.current_depth < self.decomp_config.max_depth:
@@ -83,7 +83,7 @@ class BaseAgent(ABC):
                 message = self.trajectory.messages()[-1]
             print(message_string(message, indent=self.current_depth))
 
-    async def _call(self, messages: list[Message], **kwargs) -> InferenceResponse:
+    async def call(self, messages: list[Message], **kwargs) -> InferenceResponse:
         """
         Generate an assistant response via the inference client.
         Should not be used directly; use `chat` instead.

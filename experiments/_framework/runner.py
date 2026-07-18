@@ -25,9 +25,8 @@ from src.utils.chat_template import resolve_chat_template
 
 logger = create_logger(__name__)
 
-# Repo root, so the Ray workers can import experiment `_target_` FQDNs (e.g.
-# `experiments.math.trainer.MathTrainer`).
-REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
+# Repo root, so the Ray workers can import experiment `_target_` FQDNs
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 # TODO: clean up this overall file, we need to make it more clean
 # and better structured / more maintainable

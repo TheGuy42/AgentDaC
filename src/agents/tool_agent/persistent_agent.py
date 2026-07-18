@@ -50,7 +50,7 @@ class ToolPersistentAgent(BaseAgent):
         super().__init__(client, prompt_config, decomp_config, current_depth, additional_histories, verbose)
 
         self.tool_parser = tool_parser
-        self.tool_map = self.build_tools()
+        self.tool_map = self._build_tools()
         self.trajectory.tools = list(self.tool_map.values())
 
         self.metrics.update({f"{prefix}_{counter}": 0 for counter in METRIC_COUNTERS for prefix in METRIC_PREFIXES})
@@ -59,7 +59,7 @@ class ToolPersistentAgent(BaseAgent):
         # We support a persistent sub-agent across chat rounds
         self.sub_agent: ToolPersistentAgent | None = None
 
-    def build_tools(self) -> dict[str, ToolSchema]:
+    def _build_tools(self) -> dict[str, ToolSchema]:
         if self.decomp_config.is_leaf(self.current_depth):
             return {}  # leaf: no delegation, answers directly
 
@@ -88,17 +88,20 @@ class ToolPersistentAgent(BaseAgent):
             ),
         }
 
-    async def _call(self, messages: list[Message], **kwargs) -> InferenceResponse:
+    async def call(self, messages: list[Message], **kwargs) -> InferenceResponse:
         # Cap the turn at a single tool call by stopping at its closing tag.
-        stops = list(kwargs.get("stop") or [])
+        stops = kwargs.get("stop") or []
+        if isinstance(stops, str):
+            stops = [stops]  # stop is either string or list of strings
+
         if self.tool_parser.stop_tag not in stops:
             stops.append(self.tool_parser.stop_tag)
         kwargs["stop"] = stops
         kwargs = self.client.update_kwargs(kwargs, include_stop_str_in_output=True)
-        return await super()._call(messages, tools=list(self.tool_map.values()) or None, **kwargs)
+        return await super().call(messages, tools=list(self.tool_map.values()) or None, **kwargs)
 
-    def _create_subagent(self) -> ToolPersistentAgent:
-        return ToolPersistentAgent(
+    def create_subagent(self) -> ToolPersistentAgent:
+        agent = ToolPersistentAgent(
             client=self.client,
             prompt_config=self.prompt_config,
             decomp_config=self.decomp_config,
@@ -107,23 +110,30 @@ class ToolPersistentAgent(BaseAgent):
             additional_histories=False,
             verbose=self.verbose,
         )
+        
+        if self.additional_histories:
+            agent.trajectory.histories = self.trajectory.histories
+            
+        return agent
 
-    def _available_tools(self) -> list[ToolSchema]:
-        available = []
+    def available_tools(self) -> list[ToolSchema]:
         DC = self.decomp_config
+        available = []
         if (not DC.is_leaf(self.current_depth)) and DC.has_tasks():
-            available += [self.tool_map[CREATE_NEW_SUB_AGENT], self.tool_map[MESSAGE_CURRENT_SUB_AGENT]]
+            available.append(self.tool_map[CREATE_NEW_SUB_AGENT])
+            if self.sub_agent is not None:
+                available.append(self.tool_map[MESSAGE_CURRENT_SUB_AGENT])
         return available
 
-    def _status_message(self) -> UserMessage:
+    def status_message(self) -> UserMessage:
         DC = self.decomp_config
-        available_tools = self._available_tools()
-        action_names = [f"{schema['function']['name']}" for schema in available_tools] + ["final answer (no tool)"]
+        available_tools = self.available_tools()
+        tool_names = [f"{schema['function']['name']}" for schema in available_tools]
         content = (
             f"<controller_state>\n"
             f"remaining_rounds: {max(DC.max_rounds - DC.total_rounds, 0)}\n"
             f"remaining_delegations: {max(DC.max_tasks - DC.total_tasks, 0)}\n"
-            f"allowed_actions: {action_names}\n"
+            f"allowed_tools: {tool_names if tool_names else 'None'}\n"
             f"</controller_state>"
         )
 
@@ -197,7 +207,7 @@ class ToolPersistentAgent(BaseAgent):
         while True:
             # Status message, only if we are not at a leaf (tools are available)
             if len(self.tool_map) > 0:
-                status_message = self._status_message()
+                status_message = self.status_message()
                 self.append_message(status_message)
 
             for prefix in METRIC_PREFIXES:
@@ -205,7 +215,7 @@ class ToolPersistentAgent(BaseAgent):
 
             try:
                 # Model turn
-                completion = await self._call(self.trajectory.messages(), **kwargs)
+                completion = await self.call(self.trajectory.messages(), **kwargs)
             except Exception as e:
                 logger.error(f"Error during model call: {e}")
                 self.trajectory.error(kind=ToolPersistentErrors.CLIENT_ERROR, message=str(e))
@@ -240,7 +250,7 @@ class ToolPersistentAgent(BaseAgent):
                 return self.trajectory.finish()
 
             try:  # Parse tool call argument
-                args = self._parse_arguments(turn.tool_call, repair=True)
+                args = self._parse_arguments(turn.tool_call, repair=False)
 
             except Exception as e:
                 error_text = f"[error] Failed to parse tool call: {e}"
@@ -251,7 +261,7 @@ class ToolPersistentAgent(BaseAgent):
                 continue
 
             # Make sure the tool is available in the current state
-            available_names = [schema["function"]["name"] for schema in self._available_tools()]
+            available_names = [schema["function"]["name"] for schema in self.available_tools()]
 
             if turn.tool_call.function.name not in available_names:
                 error_text = f"[error] Tool `{turn.tool_call.function.name}` is unavailable in the current state."
@@ -263,12 +273,9 @@ class ToolPersistentAgent(BaseAgent):
 
             # Create a new sub-agent
             if turn.tool_call.function.name == CREATE_NEW_SUB_AGENT or self.sub_agent is None:
-                self.sub_agent = self._create_subagent()
+                self.sub_agent = self.create_subagent()
                 for prefix in METRIC_PREFIXES:
                     self.metrics[f"{prefix}_agents"] += 1
-
-                if self.additional_histories:
-                    self.trajectory.histories.append(self.sub_agent.trajectory)
 
             # Issue a sub-task to the current sub-agent
             if turn.tool_call.function.name in (CREATE_NEW_SUB_AGENT, MESSAGE_CURRENT_SUB_AGENT):
@@ -301,5 +308,10 @@ class ToolPersistentAgent(BaseAgent):
             logger.error(f"Expected an InferenceResponse, got {type(message)}")
             return None
 
-        parsed_content = self.tool_parser.parse(message).content
-        return parsed_content.strip() if parsed_content is not None else None
+        try:
+            parsed_content = self.tool_parser.parse(message).content
+            return parsed_content.strip() if parsed_content is not None else None
+
+        except Exception as e:
+            logger.error(f"Failed to parse answer from message: {e}")
+            return None

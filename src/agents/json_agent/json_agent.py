@@ -109,14 +109,14 @@ class JsonAgent(BaseAgent):
 
         return GuidedJson(*allowed)
 
-    async def _call(self, messages: list[Message], **kwargs) -> InferenceResponse:
+    async def call(self, messages: list[Message], **kwargs) -> InferenceResponse:
         schema: GuidedJson = kwargs.pop("schema")
         schema_descriptor = schema.build()
         kwargs = self.client.update_kwargs(kwargs, json_schema=schema_descriptor, include_stop_str_in_output=True)
-        return await super()._call(messages, **kwargs)
+        return await super().call(messages, **kwargs)
 
-    def _create_subagent(self) -> BaseAgent:
-        return JsonAgent(
+    def create_subagent(self) -> BaseAgent:
+        agent = JsonAgent(
             client=self.client,
             prompt_config=self.prompt_config,
             decomp_config=self.decomp_config,
@@ -124,6 +124,11 @@ class JsonAgent(BaseAgent):
             additional_histories=False,  
             verbose=self.verbose,
         )
+        
+        if self.additional_histories:
+            agent.trajectory.histories = self.trajectory.histories
+            
+        return agent
 
     async def chat(self, prompt: Message, **kwargs) -> Trajectory:
         if prompt.get("role") != "user":
@@ -148,7 +153,7 @@ class JsonAgent(BaseAgent):
 
             try:
                 # Model turn
-                completion = await self._call(self.trajectory.messages(), schema=schema, **kwargs)
+                completion = await self.call(self.trajectory.messages(), schema=schema, **kwargs)
             except Exception as e:
                 logger.error(f"Error during model call: {e}")
                 self.trajectory.error(kind=JsonErrors.CLIENT_ERROR, message=str(e))
@@ -180,7 +185,7 @@ class JsonAgent(BaseAgent):
 
             # Issue a task and get the answer from a sub-agent
             elif turn.action == TurnAction.ISSUE_TASK:
-                sub_agent = self._create_subagent()
+                sub_agent = self.create_subagent()
                 task = UserMessage(role="user", content=turn.text)
 
                 task_answer = await sub_agent.answer(task, **kwargs)
@@ -189,9 +194,6 @@ class JsonAgent(BaseAgent):
 
                 task_response = UserMessage(role="user", name="sub-agent", content=task_answer)
                 self.append_message(task_response)
-
-                if self.additional_histories:
-                    self.trajectory.histories.append(sub_agent.trajectory)
 
                 # The direct task issued by this agent
                 for prefix in METRIC_PREFIXES:

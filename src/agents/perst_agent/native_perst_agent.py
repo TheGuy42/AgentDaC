@@ -68,8 +68,8 @@ class NativePersistentAgent(PersistentAgent):
         regex = super()._create_regex()
         return NativeGuidedRegex(*[a for a in regex.actions if a != TurnAction.THINK])
 
-    def _create_subagent(self) -> NativePersistentAgent:
-        return NativePersistentAgent(
+    def create_subagent(self) -> NativePersistentAgent:
+        agent = NativePersistentAgent(
             client=self.client,
             prompt_config=self.prompt_config,
             decomp_config=self.decomp_config,
@@ -77,6 +77,11 @@ class NativePersistentAgent(PersistentAgent):
             additional_histories=False,  
             verbose=self.verbose,
         )
+        
+        if self.additional_histories:
+            agent.trajectory.histories = self.trajectory.histories
+            
+        return agent
 
     def parse_answer(self, message: Message | InferenceResponse) -> str | None:
         if not isinstance(message, InferenceResponse):

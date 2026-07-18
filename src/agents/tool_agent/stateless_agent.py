@@ -9,7 +9,7 @@ class ToolStatelessAgent(ToolPersistentAgent):
     # NOTE: The same as a persistent agent, 
     # but only with the ability of creating new sub-agents.
 
-    def build_tools(self) -> dict[str, ToolSchema]:
+    def _build_tools(self) -> dict[str, ToolSchema]:
         if self.decomp_config.is_leaf(self.current_depth):
             return {}  # leaf: no delegation, answers directly
         return {
@@ -28,15 +28,15 @@ class ToolStatelessAgent(ToolPersistentAgent):
             )
         }
 
-    def _available_tools(self) -> list[ToolSchema]:
+    def available_tools(self) -> list[ToolSchema]:
         DC = self.decomp_config
         available = []
         if (not DC.is_leaf(self.current_depth)) and DC.has_tasks():
-            available += [self.tool_map[CREATE_NEW_SUB_AGENT]]
+            available.append(self.tool_map[CREATE_NEW_SUB_AGENT])
         return available
 
-    def _create_subagent(self) -> ToolStatelessAgent:
-        return ToolStatelessAgent(
+    def create_subagent(self) -> ToolStatelessAgent:
+        agent = ToolStatelessAgent(
             client=self.client,
             prompt_config=self.prompt_config,
             decomp_config=self.decomp_config,
@@ -45,3 +45,8 @@ class ToolStatelessAgent(ToolPersistentAgent):
             additional_histories=False,
             verbose=self.verbose,
         )
+
+        if self.additional_histories:
+            agent.trajectory.histories = self.trajectory.histories
+            
+        return agent

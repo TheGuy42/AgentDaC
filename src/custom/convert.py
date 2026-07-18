@@ -4,7 +4,7 @@ from verl.experimental.agent_loop.agent_loop import AgentLoopMetrics, AgentLoopO
 
 from src.trajectory import Trajectory
 from src.utils.logging import create_logger
-from src.inference import OAIResponse
+from src.inference import OAIResponse, InferenceResponse
 
 logger = create_logger(__name__)
 
@@ -89,8 +89,8 @@ def convert_trajectory(
         n_zeros, n_ones = len(p_ids) - len(traj_mask), len(r_ids)
         traj_mask += [0] * n_zeros + [1] * n_ones
 
-        # Now ensure that p_ids are a prefix of traj_ids
-        if p_ids != traj_ids[: len(p_ids)]:
+        # Now ensure that [p_ids + r_ids] are a prefix of traj_ids
+        if p_ids + r_ids != traj_ids[: len(p_ids) + len(r_ids)]:
             raise ValueError(
                 f"Turn {i}: the tokenized prompt is not a continuation of the trajectory tokens "
                 f"(chat-template re-tokenization drift). Refusing to build a corrupted token sequence."
@@ -127,9 +127,9 @@ def degenerate_output(trajectory: Trajectory, tokenizer) -> AgentLoopOutput:
     prompt_ids = tokenizer.encode("dummy input")
     response_ids = tokenizer.encode("dummy output")
 
-    responses = [r for r in trajectory.messages_and_responses if isinstance(r, OAIResponse)]
+    responses = [r for r in trajectory.messages_and_responses if isinstance(r, InferenceResponse)]
     metrics = {"is_degenerate": 1.0}
-    
+
     return AgentLoopOutput(
         prompt_ids=prompt_ids,
         response_ids=response_ids,

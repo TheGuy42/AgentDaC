@@ -55,9 +55,9 @@ class DummyAgent(BaseAgent):
         self.metrics.update({f"{prefix}_{counter}": 0 for counter in METRIC_COUNTERS for prefix in METRIC_PREFIXES})
         self.metrics["direct_tokens"] = 0
 
-    async def _call(self, messages: list[Message], **kwargs) -> InferenceResponse:
+    async def call(self, messages: list[Message], **kwargs) -> InferenceResponse:
         kwargs = self.client.update_kwargs(kwargs, include_stop_str_in_output=True)
-        return await super()._call(messages, **kwargs)
+        return await super().call(messages, **kwargs)
 
     async def chat(self, prompt: Message, **kwargs) -> Trajectory:
         if prompt.get("role") != "user":
@@ -77,7 +77,7 @@ class DummyAgent(BaseAgent):
 
         try:
             # Model turn
-            completion = await self._call(self.trajectory.messages(), **kwargs)
+            completion = await self.call(self.trajectory.messages(), **kwargs)
         except Exception as e:
             logger.error(f"Error during model call: {e}")
             self.trajectory.error(kind=DummyErrors.CLIENT_ERROR, message=str(e))

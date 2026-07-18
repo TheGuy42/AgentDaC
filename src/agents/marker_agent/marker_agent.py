@@ -4,8 +4,8 @@ from enum import StrEnum
 
 from src.trajectory import Trajectory
 from src.agents.base import BaseAgent
-import src.agents.marker_agent.markers as markers
 from src.agents.marker_agent.markers import Markers
+from src.agents.marker_agent.parsing import MarkerAction, MarkerParser
 from src.utils.logging import create_logger
 from src.aliases import Message, UserMessage
 from src.inference import InferenceResponse
@@ -21,6 +21,7 @@ METRIC_COUNTERS = ("calls", "tasks", "chats")
 class MarkerErrors(StrEnum):
     CLIENT_ERROR = "client_error"
     PARSE_ERROR = "parse_error"
+    ILLEGAL_ACTION = "illegal_action"
 
 
 class MarkerAgent(BaseAgent):
@@ -28,31 +29,56 @@ class MarkerAgent(BaseAgent):
     def error_kinds(cls) -> type[StrEnum]:
         return MarkerErrors
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args, strict: bool = True, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+
+        self.strict = strict
+        self.parser = MarkerParser(strict=self.strict)
 
         self.metrics.update({f"{prefix}_{counter}": 0 for counter in METRIC_COUNTERS for prefix in METRIC_PREFIXES})
         self.metrics.update({"subtree_depth": 0, "direct_tokens": 0})
 
-    def _create_subagent(self) -> MarkerAgent:
-        return MarkerAgent(
+    def create_subagent(self) -> MarkerAgent:
+        agent = MarkerAgent(
             client=self.client,
             prompt_config=self.prompt_config,
             decomp_config=self.decomp_config,
             current_depth=self.current_depth + 1,
-            additional_histories=False,  
+            additional_histories=False,
+            strict=self.strict,
             verbose=self.verbose,
         )
 
-    async def _call(self, messages: list[Message], **kwargs) -> InferenceResponse:
-        # By default allow only a single task and answer in the response
-        kwargs.setdefault("stop", [Markers.TASK_END, Markers.ANS_END])
-        kwargs = self.client.update_kwargs(kwargs, include_stop_str_in_output=True)
-        return await super()._call(messages, **kwargs)
+        if self.additional_histories:
+            agent.trajectory.histories = self.trajectory.histories
 
-    def _should_stop(self) -> bool:
+        return agent
+
+    async def call(self, messages: list[Message], **kwargs) -> InferenceResponse:
+        kwargs = self.client.update_kwargs(kwargs, include_stop_str_in_output=True)
+        return await super().call(messages, **kwargs)
+
+    def _allowed_actions(self) -> set[MarkerAction]:
         DC = self.decomp_config
-        return DC.is_leaf(self.current_depth) or not DC.has_tasks() or not DC.has_rounds()
+        allowed = {MarkerAction.ANSWER}  # answering is always allowed
+        if (not DC.is_leaf(self.current_depth)) and DC.has_tasks():
+            allowed.add(MarkerAction.TASK)  # can still delegate
+        return allowed
+
+    async def _subagent_forward(self, task_text: str, **kwargs) -> str:
+        """Create a sub-agent to handle the task, and return its answer."""
+        sub_agent = self.create_subagent()
+        answer = await sub_agent.answer(UserMessage(role="user", content=task_text), **kwargs)
+        if answer is None:
+            return "[error] sub-agent failed to produce an answer."
+
+        # Fold in the sub-agent's subtree contribution from this single invocation
+        for q in METRIC_COUNTERS:
+            self.metrics[f"subtree_{q}"] += sub_agent.metrics[f"subtree_{q}"]
+
+        child_depth = 1 + sub_agent.metrics["subtree_depth"]
+        self.metrics["subtree_depth"] = max(self.metrics["subtree_depth"], child_depth)
+        return answer
 
     async def chat(self, prompt: Message, **kwargs) -> Trajectory:
         if prompt["role"] != "user":
@@ -75,7 +101,7 @@ class MarkerAgent(BaseAgent):
 
             try:
                 # Model turn
-                completion = await self._call(self.trajectory.messages(), **kwargs)
+                completion = await self.call(self.trajectory.messages(), stop=self.parser.stop_tags(), **kwargs)
             except Exception as e:
                 logger.error(f"Error during model call: {e}")
                 self.trajectory.error(kind=MarkerErrors.CLIENT_ERROR, message=str(e))
@@ -86,55 +112,63 @@ class MarkerAgent(BaseAgent):
             if completion.total_tokens is not None:
                 self.metrics["direct_tokens"] = completion.total_tokens
 
-            # Extract tasks from the response
             try:
-                tasks_inputs = self._parse_tasks(self.trajectory.messages()[-1])
-                # TODO: note that markers.extract_tasks never raises when it fails, it simply returns an empty list
-                # this should be a place when we also check for malformed parsing of tasks, and insert a corresponding error in the trajectory
-                # but no need to return the trajectory here
+                # Extract raw content and parse it
+                assistant_msg = self.trajectory.messages()[-1]
+                turn = self.parser.parse(assistant_msg.get("content"))
             except Exception as e:
-                logger.error(f"Error parsing tasks from model response: {e}")
-                self.trajectory.error(kind=MarkerErrors.PARSE_ERROR, message=str(e))
+                message = f"Failed to parse model output: {e}"
+                self.trajectory.error(kind=MarkerErrors.PARSE_ERROR, message=message)
+                if not self.decomp_config.has_rounds():
+                    return self.trajectory.finish()
+                self.append_message(UserMessage(role="user", content=f"[error] {message}"))
+                self.decomp_config.update_round(num_tasks=0)
+                continue
+
+            allowed = self._allowed_actions()
+
+            # Malformed: neither block appears
+            if turn.tasks is None and turn.answers is None:
+                message = "No <task> or <answer> block found."
+                self.trajectory.error(kind=MarkerErrors.PARSE_ERROR, message=message)
+                if not self.decomp_config.has_rounds():
+                    return self.trajectory.finish()
+                self.append_message(UserMessage(role="user", content=f"[error] {message}"))
+                self.decomp_config.update_round(num_tasks=0)
+                continue
+
+            # Terminal: answer is present
+            if turn.answers is not None:
+                if turn.tasks is not None:
+                    self.trajectory.error(kind=MarkerErrors.ILLEGAL_ACTION, message="Ambiguous turn: both <task> and <answer> present.")
                 return self.trajectory.finish()
 
-            # If no tasks to delegate then last message
-            if self._should_stop() or len(tasks_inputs) == 0:
-                # TODO: should we add a parse check here for final answer, and add a corresponding error if not found?
-                # i guess this is a good place to check for a final answer, and if not found, we can log an error and return the trajectory with an error state
-                return self.trajectory.finish()
+            elif turn.tasks is not None:
+                # Check if delegating a task is allowed
+                if MarkerAction.TASK not in allowed:
+                    message = "Delegating a task is not allowed in the current state."
+                    self.trajectory.error(kind=MarkerErrors.ILLEGAL_ACTION, message=message)
+                    if not self.decomp_config.has_rounds():
+                        return self.trajectory.finish()
+                    self.append_message(UserMessage(role="user", content=f"[error] {message}"))
+                    self.decomp_config.update_round(num_tasks=0)
+                    continue
 
-            async def subagent_forward(task: UserMessage) -> str:
-                # create a sub-agent and get answer the task
-                sub_agent = self._create_subagent()
-                answer = await sub_agent.answer(task, **kwargs)
-                if answer is None:
-                    return "[error] sub-agent failed to produce an answer."
+                # The direct tasks issued by this agent
+                tasks_answers = await asyncio_tasks.gather(*[self._subagent_forward(task, **kwargs) for task in turn.tasks])
 
-                if self.additional_histories:
-                    self.trajectory.histories.append(sub_agent.trajectory)
+                for prefix in METRIC_PREFIXES:
+                    self.metrics[f"{prefix}_tasks"] += len(turn.tasks)
 
-                # Fold in the sub-agent's subtree contribution from this single invocation
-                for q in METRIC_COUNTERS:
-                    self.metrics[f"subtree_{q}"] += sub_agent.metrics[f"subtree_{q}"]
+                self.decomp_config.update_round(num_tasks=len(turn.tasks))
 
-                child_depth = 1 + sub_agent.metrics["subtree_depth"]
-                self.metrics["subtree_depth"] = max(self.metrics["subtree_depth"], child_depth)
-                return answer
+                # Report all sub-task answers back to the model
+                unified_answer = "\n".join(f"{Markers.ANS_START} {ans} {Markers.ANS_END}" for ans in tasks_answers)
+                joined_message = UserMessage(role="user", name="sub-agent", content=unified_answer)
+                self.append_message(joined_message)
 
-            tasks_answers = await asyncio_tasks.gather(*[subagent_forward(task) for task in tasks_inputs])
-
-            # The direct tasks issued by this agent
-            for prefix in METRIC_PREFIXES:
-                self.metrics[f"{prefix}_tasks"] += len(tasks_inputs)
-
-            self.decomp_config.update_round(num_tasks=len(tasks_inputs))
-
-            # Create a new message with all tasks' answers
-            tasks_answers = [f"{Markers.ANS_START} {ans} {Markers.ANS_END}" for ans in tasks_answers]
-            unified_answer = "\n".join(tasks_answers)
-
-            joined_message = UserMessage(role="user", name="sub-agent", content=unified_answer)
-            self.append_message(joined_message)
+            else:  # This should never happen, but just in case
+                raise ValueError(f"Unexpected turn: {turn}. Allowed actions: {allowed}.")
 
     def parse_answer(self, message: Message | InferenceResponse) -> str | None:
         if not isinstance(message, InferenceResponse):
@@ -146,18 +180,10 @@ class MarkerAgent(BaseAgent):
             logger.error(f"Expected message content to be a string, got {type(content).__name__}")
             return None
 
-        return markers.extract_answer(content, strict=True)
+        try:
+            turn = MarkerParser(strict=False).parse(content)
+            return turn.answers[-1] if turn.answers is not None else None
 
-    def _parse_tasks(self, message: Message) -> list[UserMessage]:
-        if message["role"] != "assistant":
-            raise ValueError("Message role must be 'assistant' to extract tasks.")
-
-        content = message.get("content")
-        if not isinstance(content, str):
-            logger.error(f"Expected message content to be a string, got {type(content).__name__}")
-            raise ValueError("Message content must be a string.")
-
-        # TODO: note that extract_tasks never raises when it fails, it simply returns an empty list
-        # same with extract_answer
-        tasks = markers.extract_tasks(content, strict=True)
-        return [UserMessage(role="user", content=task) for task in tasks]
+        except Exception as e:
+            logger.error(f"Failed to parse final answer: {e}")
+            return None

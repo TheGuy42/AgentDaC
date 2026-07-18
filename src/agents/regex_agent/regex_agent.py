@@ -92,13 +92,13 @@ class RegexAgent(BaseAgent):
 
         return GuidedRegex(*allowed)
 
-    async def _call(self, messages: list[Message], **kwargs) -> InferenceResponse:
+    async def call(self, messages: list[Message], **kwargs) -> InferenceResponse:
         regex: GuidedRegex = kwargs.pop("regex")
         kwargs = self.client.update_kwargs(kwargs, regex_schema=regex.model_pattern, include_stop_str_in_output=True)
-        return await super()._call(messages, **kwargs)
+        return await super().call(messages, **kwargs)
 
-    def _create_subagent(self) -> BaseAgent:
-        return RegexAgent(
+    def create_subagent(self) -> BaseAgent:
+        agent = RegexAgent(
             client=self.client,
             prompt_config=self.prompt_config,
             decomp_config=self.decomp_config,
@@ -106,6 +106,11 @@ class RegexAgent(BaseAgent):
             additional_histories=False,  
             verbose=self.verbose,
         )
+        
+        if self.additional_histories:
+            agent.trajectory.histories = self.trajectory.histories
+            
+        return agent
 
     async def chat(self, prompt: Message, **kwargs) -> Trajectory:
         if prompt.get("role") != "user":
@@ -130,7 +135,7 @@ class RegexAgent(BaseAgent):
                 self.metrics[f"{prefix}_calls"] += 1
 
             try:
-                completion = await self._call(self.trajectory.messages(), regex=regex, **kwargs)
+                completion = await self.call(self.trajectory.messages(), regex=regex, **kwargs)
             except Exception as e:
                 logger.error(f"Error during model call: {e}")
                 self.trajectory.error(kind=RegexErrors.CLIENT_ERROR, message=str(e))
@@ -162,7 +167,7 @@ class RegexAgent(BaseAgent):
 
             # Issue a task and get the answer from a sub-agent
             elif turn.action == TurnAction.ISSUE_TASK:
-                sub_agent = self._create_subagent()
+                sub_agent = self.create_subagent()
                 task = UserMessage(role="user", content=turn.text)
 
                 task_answer = await sub_agent.answer(task, **kwargs)
@@ -171,9 +176,6 @@ class RegexAgent(BaseAgent):
 
                 task_response = UserMessage(role="user", name="sub-agent", content=task_answer)
                 self.append_message(task_response)
-
-                if self.additional_histories:
-                    self.trajectory.histories.append(sub_agent.trajectory)
 
                 # The direct task issued by this agent
                 for prefix in METRIC_PREFIXES:
@@ -205,6 +207,7 @@ class RegexAgent(BaseAgent):
             schema = GuidedRegex(TurnAction.ANSWER)
             turn = schema.parse(content)
             return turn.text
+        
         except Exception as e:
             logger.error(f"Failed to parse final answer: {e}")
             return None
