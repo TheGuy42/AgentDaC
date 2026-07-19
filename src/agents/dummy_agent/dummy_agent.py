@@ -3,9 +3,9 @@ from enum import StrEnum
 
 from src.trajectory import Trajectory
 from src.agents.base import BaseAgent
-from src.configs import DecompConfig
+from src.configs import DecompConfig, PromptConfig
 from src.aliases import Message
-from src.inference import InferenceResponse
+from src.inference import InferenceClient, InferenceResponse
 from src.utils.logging import create_logger
 
 
@@ -32,8 +32,8 @@ class DummyAgent(BaseAgent):
 
     def __init__(
         self,
-        client,
-        prompt_config,
+        client: InferenceClient,
+        prompt_config: PromptConfig,
         verbose: bool = False,
     ):
 
@@ -87,7 +87,6 @@ class DummyAgent(BaseAgent):
         if completion.total_tokens is not None:
             self.metrics["direct_tokens"] = completion.total_tokens
 
-        self.decomp_config.update_round(num_tasks=0)
         return self.trajectory.finish()
 
     def parse_answer(self, message: Message | InferenceResponse) -> str | None:

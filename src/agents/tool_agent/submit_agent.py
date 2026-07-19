@@ -152,7 +152,6 @@ class ToolSubmitAgent(ToolPersistentAgent):
 
             # Terminal: the model submitted an answer, we are done
             if turn.tool_call.function.name == SUBMIT_ANSWER:
-                self.decomp_config.update_round(num_tasks=0)
                 return self.trajectory.finish()
 
             # Terminal: out of rounds, we use last message as the final answer

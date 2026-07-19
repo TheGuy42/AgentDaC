@@ -69,7 +69,7 @@ class PersistentAgent(BaseAgent):
 
         DC = self.decomp_config
 
-        if self.force_thinking and DC.total_rounds == 0:
+        if self.force_thinking and DC.total_rounds == 0 and DC.has_rounds():
             return GuidedRegex(TurnAction.THINK)
 
         allowed = [TurnAction.ANSWER]
@@ -147,7 +147,6 @@ class PersistentAgent(BaseAgent):
 
             # Finish if the model chose to answer
             if turn.action == TurnAction.ANSWER:
-                self.decomp_config.update_round(num_tasks=0)
                 return self.trajectory.finish()
 
             # If the model chose to think, continue

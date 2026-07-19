@@ -26,7 +26,7 @@ class JsonErrors(StrEnum):
 
 @dataclass
 class AgentTurn:
-    action: str | None
+    action: str
     text: str
     raw: dict[str, Any]
 

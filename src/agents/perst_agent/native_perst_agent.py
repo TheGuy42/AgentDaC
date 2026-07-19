@@ -41,7 +41,7 @@ class NativePersistentAgent(PersistentAgent):
     In this case, each turn will start from a native thinking block of the model, followed by a guided regex block.
 
     *Note:* If using this agent without a `reasoning-parser`, then the GuidedRegex will be applied to the entire output
-    and will suppress the native thinking block, so a reasoning-parser is required.
+    and will suppress the native thinking block, resulting in an agent without explicit reasoning.
     """
 
     def __init__(
@@ -64,7 +64,7 @@ class NativePersistentAgent(PersistentAgent):
         )
 
     def _create_regex(self) -> GuidedRegex:
-        # Same as PersistentAgent, but think action is not allowed.
+        # Same as PersistentAgent, but think action is not allowed explicitly.
         regex = super()._create_regex()
         return NativeGuidedRegex(*[a for a in regex.actions if a != TurnAction.THINK])
 

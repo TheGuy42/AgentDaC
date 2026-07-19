@@ -118,8 +118,7 @@ class BaseAgent(ABC):
             **kwargs: Additional keyword arguments to pass to OpenAI API call.
 
         Returns:
-            (Trajectory): The trajectory of the conversation, including messages and choices.
-                This trajectory is used to train an `art.TrainableModel` model.
+            (Trajectory): The trajectory of the conversation, including messages and responses.
         """
         pass
 

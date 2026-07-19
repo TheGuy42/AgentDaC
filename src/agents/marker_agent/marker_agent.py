@@ -3,12 +3,13 @@ from asyncio import tasks as asyncio_tasks
 from enum import StrEnum
 
 from src.trajectory import Trajectory
+from src.configs import DecompConfig, PromptConfig
 from src.agents.base import BaseAgent
 from src.agents.marker_agent.markers import Markers
 from src.agents.marker_agent.parsing import MarkerAction, MarkerParser
 from src.utils.logging import create_logger
 from src.aliases import Message, UserMessage
-from src.inference import InferenceResponse
+from src.inference import InferenceClient, InferenceResponse
 
 
 logger = create_logger(__name__)
@@ -29,8 +30,24 @@ class MarkerAgent(BaseAgent):
     def error_kinds(cls) -> type[StrEnum]:
         return MarkerErrors
 
-    def __init__(self, *args, strict: bool = True, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        client: InferenceClient,
+        prompt_config: PromptConfig,
+        decomp_config: DecompConfig,
+        current_depth: int = 0,
+        strict: bool = True,
+        additional_histories: bool = False,
+        verbose: bool = False,
+    ) -> None:
+        super().__init__(
+            client=client,
+            prompt_config=prompt_config,
+            decomp_config=decomp_config,
+            current_depth=current_depth,
+            additional_histories=additional_histories,
+            verbose=verbose,
+        )
 
         self.strict = strict
         self.parser = MarkerParser(strict=self.strict)

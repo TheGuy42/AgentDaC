@@ -47,7 +47,14 @@ class ToolPersistentAgent(BaseAgent):
         additional_histories: bool = False,
         verbose: bool = False,
     ) -> None:
-        super().__init__(client, prompt_config, decomp_config, current_depth, additional_histories, verbose)
+        super().__init__(
+            client=client,
+            prompt_config=prompt_config,
+            decomp_config=decomp_config,
+            current_depth=current_depth,
+            additional_histories=additional_histories,
+            verbose=verbose,
+        )
 
         self.tool_parser = tool_parser
         self.tool_map = self._build_tools()
@@ -89,16 +96,8 @@ class ToolPersistentAgent(BaseAgent):
         }
 
     async def call(self, messages: list[Message], **kwargs) -> InferenceResponse:
-        # Cap the turn at a single tool call by stopping at its closing tag.
-        stops = kwargs.get("stop") or []
-        if isinstance(stops, str):
-            stops = [stops]  # stop is either string or list of strings
-
-        if self.tool_parser.stop_tag not in stops:
-            stops.append(self.tool_parser.stop_tag)
-        kwargs["stop"] = stops
         kwargs = self.client.update_kwargs(kwargs, include_stop_str_in_output=True)
-        return await super().call(messages, tools=list(self.tool_map.values()) or None, **kwargs)
+        return await super().call(messages, tools=list(self.tool_map.values()) or None, stop=self.tool_parser.stop_tag, **kwargs)
 
     def create_subagent(self) -> ToolPersistentAgent:
         agent = ToolPersistentAgent(
@@ -110,10 +109,10 @@ class ToolPersistentAgent(BaseAgent):
             additional_histories=False,
             verbose=self.verbose,
         )
-        
+
         if self.additional_histories:
             self.trajectory.histories.append(agent.trajectory)
-            
+
         return agent
 
     def available_tools(self) -> list[ToolSchema]:
@@ -240,10 +239,9 @@ class ToolPersistentAgent(BaseAgent):
 
             # Terminal: model chose to answer
             if turn.tool_call is None:
-                self.decomp_config.update_round(num_tasks=0)
                 return self.trajectory.finish()
 
-            # Terminal: out of rounds, use last message as the final answer
+            # Terminal: out of rounds
             if not self.decomp_config.has_rounds():
                 error_text = "[error] Model ran out of rounds."
                 self.trajectory.error(kind=ToolPersistentErrors.OUT_OF_ROUNDS, message=error_text)

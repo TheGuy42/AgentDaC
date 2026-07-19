@@ -6,8 +6,12 @@ from src.agents.tool_agent.schemas import tool_schema
 
 
 class ToolStatelessAgent(ToolPersistentAgent):
-    # NOTE: The same as a persistent agent, 
-    # but only with the ability of creating new sub-agents.
+    """
+    A stateless variant of :class:`ToolPersistentAgent`.
+
+    Unlike its parent, this agent does not retain memory or context between
+    calls. Any sub-agents it creates are also stateless
+    """
 
     def _build_tools(self) -> dict[str, ToolSchema]:
         if self.decomp_config.is_leaf(self.current_depth):
@@ -48,5 +52,5 @@ class ToolStatelessAgent(ToolPersistentAgent):
 
         if self.additional_histories:
             self.trajectory.histories.append(agent.trajectory)
-            
+
         return agent

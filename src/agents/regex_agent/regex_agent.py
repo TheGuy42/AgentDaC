@@ -5,12 +5,12 @@ from dataclasses import dataclass
 import re
 
 from src.trajectory import Trajectory
+from src.configs import PromptConfig, DecompConfig
 from src.agents.base import BaseAgent
 from src.agents.regex_agent.actions import TurnAction
 from src.aliases import Message, UserMessage
-from src.inference import InferenceResponse
+from src.inference import InferenceClient, InferenceResponse
 from src.utils.logging import create_logger
-
 
 logger = create_logger(__name__)
 
@@ -66,8 +66,23 @@ class RegexAgent(BaseAgent):
     def error_kinds(cls) -> type[StrEnum]:
         return RegexErrors
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        client: InferenceClient,
+        prompt_config: PromptConfig,
+        decomp_config: DecompConfig,
+        current_depth: int = 0,
+        additional_histories: bool = False,
+        verbose: bool = False,
+    ) -> None:
+        super().__init__(
+            client=client,
+            prompt_config=prompt_config,
+            decomp_config=decomp_config,
+            current_depth=current_depth,
+            additional_histories=additional_histories,
+            verbose=verbose,
+        )
         self.metrics.update({f"{prefix}_{counter}": 0 for counter in METRIC_COUNTERS for prefix in METRIC_PREFIXES})
         self.metrics.update({"subtree_depth": 0, "direct_tokens": 0})
 
@@ -82,6 +97,7 @@ class RegexAgent(BaseAgent):
         """
         DC = self.decomp_config
         if DC.is_leaf(self.current_depth):
+            # TODO: currently the only agent to mutate decomp_config
             DC.max_rounds = 1  # Force only one round at leaf nodes
 
         allowed = [TurnAction.ANSWER]
@@ -103,13 +119,13 @@ class RegexAgent(BaseAgent):
             prompt_config=self.prompt_config,
             decomp_config=self.decomp_config,
             current_depth=self.current_depth + 1,
-            additional_histories=False,  
+            additional_histories=False,
             verbose=self.verbose,
         )
-        
+
         if self.additional_histories:
             self.trajectory.histories.append(agent.trajectory)
-            
+
         return agent
 
     async def chat(self, prompt: Message, **kwargs) -> Trajectory:
@@ -206,7 +222,7 @@ class RegexAgent(BaseAgent):
             schema = GuidedRegex(TurnAction.ANSWER)
             turn = schema.parse(content)
             return turn.text
-        
+
         except Exception as e:
             logger.error(f"Failed to parse final answer: {e}")
             return None
