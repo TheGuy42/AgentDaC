@@ -121,13 +121,13 @@ class JsonAgent(BaseAgent):
             prompt_config=self.prompt_config,
             decomp_config=self.decomp_config,
             current_depth=self.current_depth + 1,
-            additional_histories=False,  
+            additional_histories=False,
             verbose=self.verbose,
         )
-        
+
         if self.additional_histories:
             self.trajectory.histories.append(agent.trajectory)
-            
+
         return agent
 
     async def chat(self, prompt: Message, **kwargs) -> Trajectory:

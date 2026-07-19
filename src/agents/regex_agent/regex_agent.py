@@ -96,10 +96,6 @@ class RegexAgent(BaseAgent):
         5) ANSWER is always allowed.
         """
         DC = self.decomp_config
-        if DC.is_leaf(self.current_depth):
-            # TODO: currently the only agent to mutate decomp_config
-            DC.max_rounds = 1  # Force only one round at leaf nodes
-
         allowed = [TurnAction.ANSWER]
         if DC.has_rounds():
             allowed.append(TurnAction.THINK)
