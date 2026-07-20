@@ -10,12 +10,9 @@ The repository separates **task logic**, **agent protocols**, and **RL infrastru
 AgentDaC/
 ├── src/
 │   ├── agents/                  # Agent implementations and output parsers
+│   │   ├── base/                # Base class for all agents, should implement `chat()` and `parse_answer()`
 │   │   ├── dummy_agent/         # Direct-response baseline
-│   │   ├── marker_agent/        # Marker-delimited task/answer protocol
-│   │   ├── json_agent/          # JSON-structured actions
-│   │   ├── regex_agent/         # Regex-guided actions
-│   │   ├── perst_agent/         # Persistent recursive sub-agents
-│   │   └── tool_agent/          # Native tool-call agents
+│   │   └──...                   # Different Agent Implementations
 │   ├── inference/               # Backend-independent inference clients
 │   ├── configs/                 # Typed configuration models
 │   ├── custom/                  # VERL dataset, conversion, and PPO extensions
@@ -25,12 +22,8 @@ AgentDaC/
 │
 ├── experiments/
 │   ├── _framework/              # Shared runner, trainer, agent registry, and rewards
-│   ├── math/
-│   ├── easy2hard/
-│   ├── bbeh/
-│   ├── saturn/
-│   ├── memorization/
-│   └── chess/
+│   ├── chess/                   # Next-move selection task, scored via a chess-engine
+│   └── ...                      # Other experiments
 │
 ├── config_files/
 │   ├── prompts/                 # Reusable root, intermediate, and leaf prompts
