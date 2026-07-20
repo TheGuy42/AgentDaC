@@ -1,13 +1,14 @@
 import chess
 
 
+# TODO: biased instruction towards sub-tasks
 INSTRUCTION = (
-    "You are given a chess position. Find the best legal move for the side to move. Important: don't reason too long, you have token limits."
+    "You are given a chess position. Find the best legal move for the side to move. Important: don't reason too long, you have token limits. "
     "Use sub-tasks to break down the problem if needed and break down the reasoning into smaller steps."
 )
 
 ANSWER_FORMAT = (
-    "The final answer must be exactly one legal move in UCI notation. The final move should appear within \\boxed{...} as a single move. "
+    "The final answer must be exactly one legal move in UCI notation. The final move should appear within \\boxed{<uci_move>} as a single move. "
 )
 
 

@@ -65,21 +65,15 @@ def _marker_format_reward(agent: BaseAgent, trajectory: Trajectory) -> float:
 
 
 def format_reward(agent: BaseAgent, trajectory: Trajectory) -> float:
-    """Agent-dispatched formatting penalty.
+    """Agent-dispatched formatting penalty."""
+    # if isinstance(agent, MarkerAgent):
+    #     return _marker_format_reward(agent, trajectory)
 
-    Skeleton: returns 0.0 for every agent except `MarkerAgent`, which keeps its
-    existing marker-structure penalty. The other sub-functions will later read
-    `trajectory.errors` (PARSE_ERROR / CLIENT_ERROR / OUT_OF_ROUNDS / ...).
-
-    The isinstance chain is ordered most-derived-first so it stays correct once the
-    non-marker agents specialize (`NativePersistentAgent` < `PersistentAgent`;
-    `ToolSubmitAgent` / `ToolStatelessAgent` < `ToolPersistentAgent`).
-    """
-    if isinstance(agent, MarkerAgent):
-        return _marker_format_reward(agent, trajectory)
-    return 0.0
+    num_turns = len([m for m in trajectory.messages_and_responses if isinstance(m, InferenceResponse)])
+    num_turns = max(num_turns, 1)  # avoid division by zero
+    return -1.0 * len(trajectory.errors) / (num_turns or 1)
 
 
 def behavior_reward(agent: BaseAgent, trajectory: Trajectory) -> float:
-    """Agent-dispatched behavior shaping. Skeleton: 0.0 for all agents."""
+    """Agent-dispatched behavior shaping."""
     return 0.0
