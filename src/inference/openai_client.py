@@ -25,7 +25,11 @@ class OAIResponse(InferenceResponse):
     
     @property
     def reasoning(self) -> str | None:
-        return getattr(self.choice.message, "reasoning_content", None)
+        result = getattr(self.choice.message, "reasoning", None)
+        if result is None:
+            # NOTE: compatibility with older vLLM versions
+            result = getattr(self.choice.message, "reasoning_content", None)
+        return result
 
     @property
     def finish_reason(self) -> str | None:

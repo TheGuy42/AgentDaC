@@ -51,6 +51,13 @@ def message_string(message: Message, indent: int = 0) -> str:
     role_text = format_field("role", [message["role"].upper()], indent)
     texts.append(role_text)
 
+    if reasoning := message.get("reasoning"):
+        if not isinstance(reasoning, str):
+            raise ValueError("Message reasoning must be a string.")
+        reasoning_lines = normalize_newlines(reasoning).strip().split("\n")
+        reasoning_text = format_field("reasoning", reasoning_lines, indent)
+        texts.append(reasoning_text)
+
     if content := message.get("content"):
         if not isinstance(content, str):
             raise ValueError("Message content must be a string.")

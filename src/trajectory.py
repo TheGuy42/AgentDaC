@@ -1,10 +1,14 @@
 from __future__ import annotations
 from datetime import datetime
-from typing import Any, cast
+from typing import Any
 import dataclasses
 
-from src.aliases import Message, ToolSchema
+from src.aliases import Message, AssistantMessage, ToolSchema
 from src.inference import InferenceResponse
+from src.utils.logging import create_logger
+
+
+logger = create_logger(__name__)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -68,16 +72,20 @@ def get_messages(messages_and_responses: list[Message | InferenceResponse]) -> l
     messages: list[Message] = []
     for message_or_response in messages_and_responses:
         if isinstance(message_or_response, InferenceResponse):
-            content = message_or_response.content or ""
-            tool_calls = message_or_response.tool_calls or []
-            assistant_message: Message = cast(
-                Message,
-                {
-                    "role": "assistant",
-                    "content": content,
-                    **({"tool_calls": [tool_call.model_dump(mode="json") for tool_call in tool_calls]} if tool_calls else {}),
-                },
+            assistant_message = AssistantMessage(
+                role="assistant",
+                content=message_or_response.content,
             )
+
+            if message_or_response.tool_calls:
+                assistant_message["tool_calls"] = [
+                    tool_call.model_dump(mode="json", exclude_none=True) for tool_call in message_or_response.tool_calls
+                ]
+
+            if message_or_response.reasoning:
+                logger.debug("Reasoning is not compatible with `AssistantMessage`, adding custom field `reasoning` to the message dict.")
+                assistant_message["reasoning"] = message_or_response.reasoning  # type: ignore[assignment]
+
             messages.append(assistant_message)
         else:
             # Ensure content is always a string for tokenizer chat templates

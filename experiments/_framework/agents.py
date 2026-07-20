@@ -105,7 +105,7 @@ def _build_tool_stateless(trainer: "ExperimentTrainer", client: VerlClient, stag
         prompt_config=trainer.prompt_config,
         decomp_config=trainer.build_decomp_config(stage),
         tool_parser=build_tool_parser(
-            name=trainer.config.actor_rollout_ref.rollout.multi_turn.format,
+            tool_parser=trainer.config.actor_rollout_ref.rollout.multi_turn.format,
             reasoning_parser=OmegaConf.select(trainer.config, "actor_rollout_ref.rollout.engine_kwargs.vllm.reasoning_parser", default=None),
             tokenizer=trainer.tokenizer,  # type: ignore[arg-type]
         ),
@@ -119,7 +119,7 @@ def _build_tool_persistent(trainer: "ExperimentTrainer", client: VerlClient, sta
         prompt_config=trainer.prompt_config,
         decomp_config=trainer.build_decomp_config(stage),
         tool_parser=build_tool_parser(
-            name=trainer.config.actor_rollout_ref.rollout.multi_turn.format,
+            tool_parser=trainer.config.actor_rollout_ref.rollout.multi_turn.format,
             reasoning_parser=OmegaConf.select(trainer.config, "actor_rollout_ref.rollout.engine_kwargs.vllm.reasoning_parser", default=None),
             tokenizer=trainer.tokenizer,  # type: ignore[arg-type]
         ),
@@ -133,7 +133,7 @@ def _build_tool_submit(trainer: "ExperimentTrainer", client: VerlClient, stage: 
         prompt_config=trainer.prompt_config,
         decomp_config=trainer.build_decomp_config(stage),
         tool_parser=build_tool_parser(
-            name=trainer.config.actor_rollout_ref.rollout.multi_turn.format,
+            tool_parser=trainer.config.actor_rollout_ref.rollout.multi_turn.format,
             reasoning_parser=OmegaConf.select(trainer.config, "actor_rollout_ref.rollout.engine_kwargs.vllm.reasoning_parser", default=None),
             tokenizer=trainer.tokenizer,  # type: ignore[arg-type]
         ),

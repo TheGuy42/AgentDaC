@@ -5,10 +5,11 @@ from vllm.entrypoints.openai.chat_completion.protocol import ChatCompletionReque
 from vllm.entrypoints.openai.engine.protocol import ToolCall
 from vllm.reasoning import ReasoningParserManager
 from vllm.tool_parsers import ToolParserManager
-from vllm.tokenizers import TokenizerLike
+from vllm.tokenizers import TokenizerLike, get_tokenizer
 
 from src.inference import InferenceResponse
 from src.utils.logging import create_logger
+
 
 logger = create_logger(__name__)
 
@@ -47,26 +48,26 @@ class ParsedTurn:
         return self.tool_call is not None
 
 
-class NativeToolParser:
+class NativeParser:
     """Splits an assistant generation into reasoning / content / a single tool call using
     vLLM's native tool and reasoning parsers for the escape-free format `name`."""
 
     def __init__(
         self,
-        name: str,
+        tool_parser: str,
         tokenizer: TokenizerLike,
         reasoning_parser: str | None = None,
     ) -> None:
-        self._name = name
-        self._tokenizer = tokenizer
-        self.stop_tag = STOP_TAGS[name]
 
-        tool_cls = ToolParserManager.get_tool_parser(name)
+        self.stop_tag = STOP_TAGS[tool_parser]
+
+        tool_cls = ToolParserManager.get_tool_parser(tool_parser)
         self._tool_parser = tool_cls(tokenizer)
 
         self._reasoning_parser = None
         if reasoning_parser is not None:
-            self._reasoning_parser = ReasoningParserManager.get_reasoning_parser(reasoning_parser)(tokenizer)
+            reasoning_cls = ReasoningParserManager.get_reasoning_parser(reasoning_parser)
+            self._reasoning_parser = reasoning_cls(tokenizer)
 
     def parse(self, response: InferenceResponse) -> ParsedTurn:
         """
@@ -105,25 +106,32 @@ class NativeToolParser:
 
 
 def build_tool_parser(
-    name: str,
-    tokenizer: TokenizerLike,
+    tool_parser: str,
+    tokenizer: TokenizerLike | str,
     reasoning_parser: str | None = None,
-) -> NativeToolParser:
-    """Build the parser for the escape-free tool format `name`.
+    **kwargs,
+) -> NativeParser:
+    """Build the parser for the escape-free tool format `tool_parser`.
 
     Args:
-        name (str): `multi_turn.format` / vLLM tool-parser name.
-        tokenizer (TokenizerLike): the model tokenizer.
+        tool_parser (str): `multi_turn.format` / vLLM tool-parser name.
+        tokenizer (TokenizerLike | str): tokenizer or tokenizer name.
         reasoning_parser (str | None): optional vLLM reasoning-parser name.
+        **kwargs: additional keyword arguments for the tokenizer initialization (if `tokenizer` is a string).
 
     Raises:
-        ValueError: if `name` is not an escape-free format (JSON/escaping formats such
+        ValueError: if `tool_parser` is not an escape-free format (JSON/escaping formats such
             as ``"hermes"`` are intentionally unsupported).
     """
-    if name not in SUPPORTED_PARSERS:
+
+    if isinstance(tokenizer, str):
+        tokenizer = get_tokenizer(tokenizer, **kwargs, tokenizer_cls=TokenizerLike)
+
+    if tool_parser not in SUPPORTED_PARSERS:
         raise ValueError(
-            f"{name!r} is not a supported tool format. "
+            f"{tool_parser!r} is not a supported tool format. "
             f"Supported: {sorted(SUPPORTED_PARSERS)}. "
-            "JSON/escaping formats (hermes, openai, mistral, kimi_k2, pythonic, ...) are intentionally unsupported."
+            "JSON/escaping formats (hermes, openai, ...) are intentionally unsupported."
         )
-    return NativeToolParser(name, tokenizer, reasoning_parser=reasoning_parser)
+        
+    return NativeParser(tool_parser, tokenizer, reasoning_parser=reasoning_parser)

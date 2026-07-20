@@ -6,7 +6,7 @@ from vllm.entrypoints.openai.engine.protocol import ToolCall
 import json_repair
 
 from src.agents.base import BaseAgent
-from src.agents.tool_agent.parsing import NativeToolParser
+from src.agents.tool_agent.parsing import NativeParser
 from src.agents.tool_agent.schemas import tool_schema
 from src.aliases import Message, UserMessage, ToolMessage, ToolSchema
 from src.configs import PromptConfig, DecompConfig
@@ -42,7 +42,7 @@ class ToolPersistentAgent(BaseAgent):
         client: InferenceClient,
         prompt_config: PromptConfig,
         decomp_config: DecompConfig,
-        tool_parser: NativeToolParser,
+        tool_parser: NativeParser,
         current_depth: int = 0,
         additional_histories: bool = False,
         verbose: bool = False,
