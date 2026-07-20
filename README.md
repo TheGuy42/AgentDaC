@@ -12,8 +12,13 @@ AgentDaC/
 │   ├── agents/                  # Agent implementations and output parsers
 │   │   ├── base/                # Base class for all agents, should implement `chat()` and `parse_answer()`
 │   │   ├── dummy_agent/         # Direct-response baseline
-│   │   └──...                   # Different Agent Implementations
+│   │   └──...
+│   |   
 │   ├── inference/               # Backend-independent inference clients
+│   │   ├── client/              # Base class infrence (token-generation) endpoint
+│   │   ├── openai_client/       # Standard OpenaAI-API compatible client
+│   │   └── verl_client/         # VERL-training compatible token-in-token-out inference client
+│   |
 │   ├── configs/                 # Typed configuration models
 │   ├── custom/                  # VERL dataset, conversion, and PPO extensions
 │   ├── trainer.py               # Base VERL loop for one rollout
@@ -23,7 +28,7 @@ AgentDaC/
 ├── experiments/
 │   ├── _framework/              # Shared runner, trainer, agent registry, and rewards
 │   ├── chess/                   # Next-move selection task, scored via a chess-engine
-│   └── ...                      # Other experiments
+│   └── ...                      
 │
 ├── config_files/
 │   ├── prompts/                 # Reusable root, intermediate, and leaf prompts
