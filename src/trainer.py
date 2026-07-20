@@ -93,9 +93,9 @@ class VerlTrainer(AgentLoopBase, ABC):
 
         except Exception as e:
             logger.error("Rollout failed; emitting degenerate AgentLoopOutput: %s", e, exc_info=True)
-
-            agent.trajectory.log(str(e))
+            agent.trajectory.error(kind="critical", message=f"Rollout failed: {str(e)}")
             trajectory = agent.trajectory.finish()
+            
             self.trajectory_writer.write(
                 trajectory,
                 rollout_id=f"degenerate/{kwargs['uid']}-{kwargs['session_id']}-{kwargs['index']}",

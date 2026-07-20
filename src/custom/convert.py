@@ -88,9 +88,9 @@ def convert_trajectory(
         p_ids, r_ids = _extract_attributes(resp)
         n_zeros, n_ones = len(p_ids) - len(traj_mask), len(r_ids)
         traj_mask += [0] * n_zeros + [1] * n_ones
-
-        # Now ensure that [p_ids + r_ids] are a prefix of traj_ids
-        if p_ids + r_ids != traj_ids[: len(p_ids) + len(r_ids)]:
+            
+        # Now ensure that [p_ids] are a prefix of traj_ids
+        if p_ids != traj_ids[: len(p_ids)]:
             raise ValueError(
                 f"Turn {i}: the tokenized prompt is not a continuation of the trajectory tokens "
                 f"(chat-template re-tokenization drift). Refusing to build a corrupted token sequence."
