@@ -59,7 +59,7 @@ flowchart TD
     A["experiments/&lt;task&gt;/run.py"] --> B["ExperimentRunner"]
     B --> C["Load configs and register dataset"]
     C --> D["Launch VERL / Ray"]
-    D --> E["ExperimentTrainer / VerlTrainer (AgentLoop)"]
+    D --> E["VerlTrainer \n (AgentLoop + extras)"]
     E --> F["Build DacAgent from AGENT_REGISTRY"]
     F --> G["Agent reasoning and delegation loop"]
     G --> H["VerlClient"]
