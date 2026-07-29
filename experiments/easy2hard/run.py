@@ -11,7 +11,8 @@ if str(module_dir) not in sys.path:
     sys.path.append(str(module_dir))
 
 
-from experiments._framework import ExperimentRunner, AgentKey
+from src.agents.registry import AgentKey
+from experiments._framework import ExperimentRunner
 from experiments.easy2hard.dataset import Easy2HardDataset
 from experiments.easy2hard.trainer import Easy2HardTrainer
 

@@ -11,7 +11,8 @@ if str(module_dir) not in sys.path:
     sys.path.append(str(module_dir))
 
 
-from experiments._framework import ExperimentRunner, AgentKey
+from src.agents.registry import AgentKey
+from experiments._framework import ExperimentRunner
 from experiments.memorization.dataset import LABEL_KINDS, MemorizationDataset
 from experiments.memorization.trainer import MemorizationTrainer
 

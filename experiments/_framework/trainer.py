@@ -3,13 +3,12 @@ from __future__ import annotations
 import random
 from typing import Any
 
+from src.agents.registry import create_agent
 from src.agents.base import BaseAgent
 from src.configs import DecompConfig
 from src.inference import InferenceClient
 from src.running.stage import RolloutStage
 from src.backends.verl.loop import VerlLoop
-
-from experiments._framework.agents import build_agent
 
 
 class ExperimentTrainer(VerlLoop):
@@ -40,4 +39,4 @@ class ExperimentTrainer(VerlLoop):
         return DecompConfig(max_depth=max_depth, max_tasks=max_tasks, max_rounds=max_rounds)
 
     def create_agent(self, client: InferenceClient, stage: RolloutStage) -> BaseAgent:
-        return build_agent(self, client, stage, self.agent_key)
+        return create_agent(key=self.agent_key, trainer=self, client=client, stage=stage)

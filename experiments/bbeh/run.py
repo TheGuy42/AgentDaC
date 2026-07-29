@@ -11,7 +11,8 @@ if str(module_dir) not in sys.path:
     sys.path.append(str(module_dir))
 
 
-from experiments._framework import ExperimentRunner, AgentKey
+from src.agents.registry import AgentKey
+from experiments._framework import ExperimentRunner
 from experiments.bbeh.dataset import BbehDataset
 from experiments.bbeh.trainer import BbehTrainer
 from experiments.bbeh.tasks import SupportedTasks

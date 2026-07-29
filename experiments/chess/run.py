@@ -12,7 +12,8 @@ if str(module_dir) not in sys.path:
 
 
 from src.utils.logging import create_logger
-from experiments._framework import ExperimentRunner, AgentKey
+from src.agents.registry import AgentKey
+from experiments._framework import ExperimentRunner
 from experiments.chess.dataset import ChessPerstDataset
 from experiments.chess.trainer import ChessConfig, ChessTrainer
 from experiments.chess.chess_engine import EngineConfig
