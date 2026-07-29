@@ -1,6 +1,7 @@
+# Backend-specific clients (e.g. `src.backends.verl.client.VerlClient`) are deliberately NOT
+# exported here: this package must stay importable without any training framework installed.
 from src.inference.client import InferenceClient, InferenceResponse
 from src.inference.openai_client import OAIClient, OAIResponse
-from src.inference.verl_client import VerlClient, VerlResponse
 
 
 __all__ = [
@@ -8,6 +9,4 @@ __all__ = [
     "InferenceResponse",
     "OAIClient",
     "OAIResponse",
-    "VerlClient",
-    "VerlResponse",
 ]

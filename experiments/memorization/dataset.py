@@ -4,24 +4,23 @@ import random
 
 from datasets import Dataset
 
-from src.custom.dataset import DynamicDataset
+from src.running.dataset import TaskDataset
+from src.running.stage import RolloutStage
 
 LABEL_KINDS = ["random", "const"]
 
 
-class MemorizationDataset(DynamicDataset):
+class MemorizationDataset(TaskDataset):
     """Synthetic memorization data: `num_samples` rows with fixed labels.
 
-    All splits return the same deterministic set (the task is to memorize), seeded by
-    `config.data.custom_dataset.seed` so train/val are identical across instantiations.
+    Seeded by `self.params["seed"]`, so the rows are identical across instantiations.
     """
 
-    def load_split(self, split: str):
-        cfg = self.config.custom_dataset
-        labels: list[str] = list(cfg.labels)
-        num_samples = int(cfg.num_samples)
-        kind = cfg.label_kind
-        rng = random.Random(cfg.seed)
+    def load(self):
+        labels: list[str] = list(self.params["labels"])
+        num_samples = int(self.params["num_samples"])
+        kind = self.params["label_kind"]
+        rng = random.Random(self.params["seed"])
 
         if kind == "random":
             sample_labels = (labels * (num_samples // len(labels) + 1))[:num_samples]
@@ -32,4 +31,7 @@ class MemorizationDataset(DynamicDataset):
             raise ValueError(f"Invalid label_kind: {kind}. Must be one of {LABEL_KINDS}.")
 
         samples = [{"id": i, "answer": sample_labels[i], "labels": labels} for i in range(num_samples)]
-        return Dataset.from_list(samples)
+        data = Dataset.from_list(samples)
+
+        # The task is to memorize, so every stage is deliberately the same set.
+        return {stage: data for stage in RolloutStage}

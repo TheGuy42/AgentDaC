@@ -10,5 +10,8 @@
         "verl"
     ],
     "python.analysis.typeCheckingMode": "standard",
-    "python.analysis.diagnosticMode": "workspace"
+    "python.analysis.diagnosticMode": "workspace",
+    "python.analysis.ignore": [
+        "src/backends/verl/trainer.py"
+    ]
 }

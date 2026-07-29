@@ -21,7 +21,7 @@ from src.utils.env import prepare_environment, set_seed
 from src.utils.io import load_object
 from src.utils.logging import create_logger, setup_logging
 from src.utils.chat_template import resolve_chat_template
-
+from src.running.dataset import TaskDataset
 
 logger = create_logger(__name__)
 
@@ -59,15 +59,12 @@ class ExperimentRunner(ABC):
         return f"experiments/{self.task_name()}/configs/{self.args().agent}"
 
     @abstractmethod
-    def dataset_class(self) -> type:
-        """Return the experiment's `DynamicDataset` subclass.
-
-        verl builds it in-worker via `data.custom_cls` (see `_build_verl_config`);
-        the class implements `load_split` to load + filter its source."""
+    def dataset_class(self) -> type[TaskDataset]:
+        """Return the experiment's `TaskDataset` subclass."""
 
     @abstractmethod
     def trainer_class(self) -> type:
-        """Return the experiment's `VerlTrainer` subclass — the verl agent-loop `_target_`.
+        """Return the experiment's `VerlLoop` subclass — the verl agent-loop `_target_`.
 
         Used to generate the agent-loop registration at runtime (see `_write_agent_loop_yaml`),
         replacing a committed `agent_loop.yaml`."""
@@ -241,11 +238,12 @@ class ExperimentRunner(ABC):
         # `train_files`/`val_files` are split markers the dataset class branches on;
         # `custom_dataset` carries the load params (the dataset only sees `config.data`).
         cls = self.dataset_class()
-        omega_conf.data.custom_cls = {"path": f"pkg://{cls.__module__}", "name": cls.__name__}
+        omega_conf.data.custom_cls = {"path": "pkg://src.backends.verl.dataset", "name": "VerlDataset"}
         omega_conf.data.train_files = "train"
         omega_conf.data.val_files = "val"
         omega_conf.data.custom_dataset = {
             **self.dataset_args(),
+            "task_dataset": f"{cls.__module__}.{cls.__qualname__}",
             "train_size": train_config.train_size,
             "val_size": train_config.val_size,
             "seed": args.seed,
@@ -267,7 +265,7 @@ class ExperimentRunner(ABC):
                 f"rollout.nnodes must be 0 (colocated rollout) for on-policy training; got {omega_conf.actor_rollout_ref.rollout.nnodes}."
             )
 
-        # Embed the custom configs so the per-sample VerlTrainer can rebuild them.
+        # Embed the custom configs so the per-sample VerlLoop can rebuild them.
         omega_conf.custom_configs = {k: (v.model_dump() if hasattr(v, "model_dump") else v) for k, v in configs.items()}
 
         # Patch the rollout/model lengths.
@@ -383,7 +381,7 @@ class ExperimentRunner(ABC):
         from verl.trainer.ppo.utils import need_critic, need_reference_policy
         from verl.utils.config import validate_config
         from verl.utils.device import auto_set_device
-        from src.custom.ppo import CustomTaskRunner
+        from src.backends.verl.trainer import CustomTaskRunner
 
         auto_set_device(config)
         config.transfer_queue.enable = True

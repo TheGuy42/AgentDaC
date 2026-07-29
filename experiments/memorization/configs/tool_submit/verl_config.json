@@ -30,7 +30,7 @@
     },
     "actor_rollout_ref": {
         "rollout": {
-            "n": 8,
+            "n": 16,
             "do_sample": true,
             "temperature": 1.0,
             "top_p": 0.95,
@@ -94,8 +94,8 @@
         "model": {
             "path": "Qwen/Qwen3.5-4B",
             "use_remove_padding": true,
-            "use_liger": true,
-            "use_fused_kernels": true,
+            "use_liger": false,
+            "use_fused_kernels": false,
             "enable_gradient_checkpointing": true,
             "lora_rank": 16,
             "lora_alpha": 32,

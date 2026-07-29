@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from enum import StrEnum
 from typing import Any
 
 from omegaconf import OmegaConf
@@ -10,27 +9,18 @@ from verl.experimental.agent_loop.agent_loop import AgentLoopBase, AgentLoopOutp
 from src.agents.base import BaseAgent
 from src.aliases import UserMessage
 from src.configs import DecompConfig, PromptConfig, RolloutConfig
-from src.custom import convert_trajectory, degenerate_output
-from src.inference import VerlClient
+from src.backends.verl.convert import convert_trajectory, degenerate_output
+from src.backends.verl.client import VerlClient
 from src.trajectory import Trajectory
 from src.utils.logging import create_logger
 from src.utils.trajectory_writer import TrajectoryWriter
+from src.running.stage import RolloutStage
 
 
 logger = create_logger(__name__)
 
 
-class RolloutStage(StrEnum):
-    """
-    Rollout stage, inferred from the dataset's `training_stage` column.
-    """
-
-    TRAIN = "train"
-    VAL = "val"
-    TEST = "test"
-
-
-class VerlTrainer(AgentLoopBase, ABC):
+class VerlLoop(AgentLoopBase, ABC):
     """
     Abstract verl `AgentLoop` = a single rollout. Subclass per experiment.
     Subclasses implement `create_agent` / `format_prompt` / `score_trajectory`.
@@ -95,7 +85,7 @@ class VerlTrainer(AgentLoopBase, ABC):
             logger.error("Rollout failed; emitting degenerate AgentLoopOutput: %s", e, exc_info=True)
             agent.trajectory.error(kind="critical", message=f"Rollout failed: {str(e)}")
             trajectory = agent.trajectory.finish()
-            
+
             self.trajectory_writer.write(
                 trajectory,
                 rollout_id=f"degenerate/{kwargs['uid']}-{kwargs['session_id']}-{kwargs['index']}",

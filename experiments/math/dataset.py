@@ -2,20 +2,22 @@ from __future__ import annotations
 
 from datasets import DatasetDict, load_dataset
 
-from src.custom.dataset import DynamicDataset
+from src.running.dataset import TaskDataset
+from src.running.stage import RolloutStage
 
 
-class MathDataset(DynamicDataset):
-    """Hendrycks MATH benchmark, filtered by difficulty level.
+class MathDataset(TaskDataset):
+    """Hendrycks MATH benchmark, filtered by difficulty level."""
 
-    Load params are read from `config.data.custom_dataset` (embedded by
-    `ExperimentRunner._build_verl_config` from the experiment's CLI args).
-    """
+    def load(self):
+        min_level = self.params["min_level"]
+        max_level = self.params["max_level"]
 
-    def load_split(self, split: str):
-        cfg = self.config.custom_dataset
+        def in_range(sample) -> bool:
+            return max_level >= sample["level"] >= min_level
 
         dataset_dict: DatasetDict = load_dataset(path="nlile/hendrycks-MATH-benchmark", split=None)  # type: ignore
-        ds = dataset_dict["train"] if split == "train" else dataset_dict["test"]  # "val" -> HF "test"
-
-        return ds.filter(lambda sample: cfg.max_level >= sample["level"] >= cfg.min_level)
+        return {
+            RolloutStage.TRAIN: dataset_dict["train"].filter(in_range),
+            RolloutStage.VAL: dataset_dict["test"].filter(in_range),  # the HF "test" split is our val
+        }

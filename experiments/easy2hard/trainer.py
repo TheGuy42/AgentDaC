@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from src.agents.base import BaseAgent
-from src.trainer import RolloutStage
+from src.running.stage import RolloutStage
 from src.trajectory import Trajectory
 
 from experiments._framework.trainer import ExperimentTrainer

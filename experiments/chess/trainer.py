@@ -5,7 +5,7 @@ import chess
 
 from src.trajectory import Trajectory
 from src.agents import BaseAgent
-from src.trainer import RolloutStage
+from src.running.stage import RolloutStage
 
 from experiments._framework.trainer import ExperimentTrainer
 from experiments._framework.rewards import format_reward, behavior_reward

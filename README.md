@@ -16,12 +16,15 @@ AgentDaC/
 │   |   
 │   ├── inference/               # Backend-independent inference clients
 │   │   ├── client/              # Base class infrence (token-generation) endpoint
-│   │   ├── openai_client/       # Standard OpenaAI-API compatible client
-│   │   └── verl_client/         # VERL-training compatible token-in-token-out inference client
+│   │   └── openai_client/       # Standard OpenaAI-API compatible client
 │   |
 │   ├── configs/                 # Typed configuration models
-│   ├── custom/                  # VERL dataset, conversion, and PPO extensions
-│   ├── trainer.py               # Base VERL loop for one rollout
+│   ├── running/                 # Backend-independent running contract
+│   │   ├── dataset.py           # TaskDataset: load a split, shuffle, limit
+│   │   └── task.py              # RolloutTask: prompt, agent, score for one rollout
+│   |
+│   ├── backends/                # Training-framework specific code
+│   │   └── verl/                # VERL dataset, client, rollout loop, conversion, PPO extensions
 │   ├── trajectory.py            # Shared rollout and reward representation
 │   └── utils/                   # Environment, logging, templates, and I/O
 │
@@ -59,7 +62,7 @@ flowchart TD
     A["experiments/&lt;task&gt;/run.py"] --> B["ExperimentRunner"]
     B --> C["Load configs and register dataset"]
     C --> D["Launch VERL / Ray"]
-    D --> E["VerlTrainer \n (AgentLoop + extras)"]
+    D --> E["VerlLoop \n (AgentLoop + extras)"]
     E --> F["Build DacAgent from AGENT_REGISTRY"]
     F --> G["Agent reasoning and delegation loop"]
     G --> H["VerlClient"]
@@ -75,8 +78,8 @@ flowchart TD
 The flow for one training sample is:
 
 1. **`ExperimentRunner`** loads the task and agent configuration, merges `verl_config.json` over VERL's defaults, registers the dataset and agent loop, and launches training.
-2. **`DynamicDataset`** loads the requested split inside the VERL worker, then applies deterministic shuffling, filtering, and sample limits.
-3. **`VerlTrainer`** formats one dataset row, constructs the selected agent, and runs one complete rollout.
+2. **`VerlDataset`** resolves the experiment's **`TaskDataset`** inside the VERL worker and asks it for the requested split, which applies deterministic shuffling, filtering, and sample limits.
+3. **`VerlLoop`** formats one dataset row, constructs the selected agent, and runs one complete rollout.
 4. The agent calls the model through **`VerlClient`**, which applies the chat template and sends token IDs to VERL's vLLM-backed rollout engine.
 5. All messages, model responses, rewards, metrics, and errors are stored in a **`Trajectory`**.
 6. The task trainer parses the final answer and computes the trajectory reward.
@@ -96,12 +99,13 @@ This separation lets task correctness remain independent of the agent protocol.
 | Component           | Responsibility                                                                                              |
 | ------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `ExperimentRunner`  | CLI, config loading, dataset registration, chat-template validation, and VERL launch.                       |
-| `VerlTrainer`       | Runs and scores one rollout, writes optional trajectory logs, and returns `AgentLoopOutput`.                |
+| `VerlLoop`          | Runs and scores one rollout, writes optional trajectory logs, and returns `AgentLoopOutput`.                |
 | `ExperimentTrainer` | Shared task trainer that selects the agent and optionally randomizes decomposition budgets.                 |
 | `BaseAgent`         | Common interface for agent implementations: `chat()`, `parse_answer()`, inference, and trajectory handling. |
 | `Trajectory`        | Canonical record of the conversation, nested histories, reward, metrics, metadata, logs, and errors.        |
 | `InferenceClient`   | Backend-independent inference interface, implemented by `VerlClient` and `OAIClient`.                       |
-| `DynamicDataset`    | VERL-compatible dataset base class that loads task data inside workers.                                     |
+| `TaskDataset`       | Backend-independent dataset base class: loads a split, then shuffles and applies sample limits.             |
+| `VerlDataset`       | VERL adapter building its rows in-worker from an experiment's `TaskDataset` instead of parquet.             |
 | `CustomPPOTrainer`  | Adds aggregation of custom per-trajectory training and validation metrics.                                  |
 | `TrajectoryWriter`  | Optionally writes complete rollouts as readable JSON files.                                                 |
 
@@ -240,7 +244,7 @@ Training metrics use the loggers configured in `verl_config.json`, typically con
 
 To add an experiment:
 
-1. implement a `DynamicDataset`;
+1. implement a `TaskDataset`;
 2. add prompt formatting and reward functions;
 3. subclass `ExperimentTrainer`;
 4. add an `ExperimentRunner` in `run.py`;

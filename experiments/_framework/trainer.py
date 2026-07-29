@@ -5,14 +5,15 @@ from typing import Any
 
 from src.agents.base import BaseAgent
 from src.configs import DecompConfig
-from src.inference import VerlClient
-from src.trainer import RolloutStage, VerlTrainer
+from src.inference import InferenceClient
+from src.running.stage import RolloutStage
+from src.backends.verl.loop import VerlLoop
 
 from experiments._framework.agents import build_agent
 
 
-class ExperimentTrainer(VerlTrainer):
-    """A `VerlTrainer` whose agent is selected at runtime from `custom_configs.agent`.
+class ExperimentTrainer(VerlLoop):
+    """A `VerlLoop` whose agent is selected at runtime from `custom_configs.agent`.
 
     Subclasses implement `format_prompt` and `score_trajectory` (the latter composing
     the task's `answer_reward` with `format_reward`/`behavior_reward`). Agent
@@ -38,5 +39,5 @@ class ExperimentTrainer(VerlTrainer):
 
         return DecompConfig(max_depth=max_depth, max_tasks=max_tasks, max_rounds=max_rounds)
 
-    def create_agent(self, client: VerlClient, stage: RolloutStage) -> BaseAgent:
+    def create_agent(self, client: InferenceClient, stage: RolloutStage) -> BaseAgent:
         return build_agent(self, client, stage, self.agent_key)

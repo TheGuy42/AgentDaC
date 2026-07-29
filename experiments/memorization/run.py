@@ -21,7 +21,7 @@ class Runner(ExperimentRunner):
         return "memorization"
 
     def supported_agents(self) -> list[str]:
-        return [AgentKey.MARKER, AgentKey.DUMMY, AgentKey.PERST]
+        return [AgentKey.MARKER, AgentKey.DUMMY, AgentKey.PERST, AgentKey.TOOL_SUBMIT]
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         super().add_arguments(parser)
