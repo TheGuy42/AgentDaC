@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 import argparse
-import atexit
 import logging
 import os
 import pathlib
 import random
 import sys
-import tempfile
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any
@@ -22,6 +20,7 @@ from src.utils.io import load_object
 from src.utils.logging import create_logger, setup_logging
 from src.utils.chat_template import resolve_chat_template
 from src.running.dataset import TaskDataset
+from src.running.rollout import RolloutTask
 
 logger = create_logger(__name__)
 
@@ -63,11 +62,11 @@ class ExperimentRunner(ABC):
         """Return the experiment's `TaskDataset` subclass."""
 
     @abstractmethod
-    def trainer_class(self) -> type:
-        """Return the experiment's `VerlLoop` subclass — the verl agent-loop `_target_`.
+    def task_class(self) -> type[RolloutTask]:
+        """Return the experiment's `RolloutTask` subclass.
 
-        Used to generate the agent-loop registration at runtime (see `_write_agent_loop_yaml`),
-        replacing a committed `agent_loop.yaml`."""
+        Travels to the Ray workers as an FQDN in `custom_configs.task`; the generic
+        `src.backends.verl.loop.VerlLoop` resolves and constructs it per rollout."""
 
     def dataset_args(self) -> dict[str, Any]:
         """Override to provide experiment-specific dataset params.
@@ -186,7 +185,7 @@ class ExperimentRunner(ABC):
             "train_config": TrainingConfig.load_from_path(dir / "train_config.json", do_raise=True),
             "prompt_config": PromptConfig.load_from_path(dir / "prompt_config.json", do_raise=True),
             "decomp_config": DecompConfig.load_from_path(dir / "decomp_config.json", do_raise=True),
-            "rollout_config": RolloutConfig.load_from_path(dir / "rollout_config.json", do_raise=True),
+            "rollout_config": RolloutConfig.load_from_path(dir / "verl_rollout_config.json", do_raise=True),
             "verl_config": load_object(dir / "verl_config.json", do_raise=True),  # OVERRIDES onto verl defaults
             "extra_config": load_object(dir / "extra_config.json", do_raise=False) or {},
         }
@@ -202,18 +201,6 @@ class ExperimentRunner(ABC):
 
         generated = pathlib.Path(verl.__file__).parent / "trainer" / "config" / "_generated_ppo_trainer.yaml"
         return OmegaConf.load(generated)
-
-    def _write_agent_loop_yaml(self, name: str, target: str) -> pathlib.Path:
-        """Write the verl agent-loop registration to a temp yaml and return its path.
-
-        verl's `AgentLoopWorker` loads this via `OmegaConf.load(agent_loop_config_path)`, so it
-        must be a real file; we generate it from `trainer_class()` instead of committing one."""
-        entries = OmegaConf.create([{"name": name, "_target_": target}])
-        fd, path = tempfile.mkstemp(prefix=f"agent_loop_{name}_", suffix=".yaml")
-        os.close(fd)
-        OmegaConf.save(entries, path)
-        atexit.register(lambda: pathlib.Path(path).unlink(missing_ok=True))
-        return pathlib.Path(path)
 
     def _build_verl_config(self, configs: dict[str, Any], exp_name: str) -> Any:
         args = self.args()
@@ -250,13 +237,9 @@ class ExperimentRunner(ABC):
             "data_source": args.project,
         }
 
-        # Agent-loop registration: generated at runtime from `trainer_class()` (verl loads it
-        # via OmegaConf.load, so it must be a real file).
-        trainer_cls = self.trainer_class()
-        agent_name = trainer_cls.__name__
-        agent_loop_path = self._write_agent_loop_yaml(agent_name, f"{trainer_cls.__module__}.{trainer_cls.__qualname__}")
-        omega_conf.actor_rollout_ref.rollout.agent.agent_loop_config_path = str(agent_loop_path)
-        omega_conf.actor_rollout_ref.rollout.agent.default_agent_loop = agent_name
+        # Agent-loop registration: a committed file, since `VerlLoop` is the `_target_` for every experiment. 
+        omega_conf.actor_rollout_ref.rollout.agent.agent_loop_config_path = str(REPO_ROOT / "src/backends/verl/loop.yaml")
+        omega_conf.actor_rollout_ref.rollout.agent.default_agent_loop = "agentdac"
 
         # On-policy + agent-loop engine invariants.
         omega_conf.actor_rollout_ref.rollout.mode = "async"  # AsyncLLM engine (NOT an off-policy switch)
@@ -282,6 +265,12 @@ class ExperimentRunner(ABC):
 
         # Inject the agent kind into the verl config so the agent-loop can rebuild it.
         OmegaConf.update(omega_conf, "custom_configs.agent", self.args().agent, force_add=True)
+
+        # The experiment's RolloutTask travels as an FQDN, not a class reference: it has to cross a
+        # Ray/hydra boundary, and the generic VerlLoop resolves it per rollout. Same mechanism as
+        # `custom_dataset.task_dataset` above.
+        task_cls = self.task_class()
+        OmegaConf.update(omega_conf, "custom_configs.task", f"{task_cls.__module__}.{task_cls.__qualname__}", force_add=True)
 
         return omega_conf
 
@@ -314,7 +303,7 @@ class ExperimentRunner(ABC):
     def _patch_lengths(self, config: Any) -> None:
         """Patch sizes of rollout/model lengths for multi-turn trajectory."""
 
-        # DOCS:
+        # NOTE DOCS:
         # config.data.max_prompt_length:
         #   Maximum initial prompt length: tokens before the first assistant-generated token.
         #   In multi-turn RL, this should cover system + user prompt + chat template + tool schemas

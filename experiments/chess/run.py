@@ -15,8 +15,8 @@ from src.utils.logging import create_logger
 from src.agents.registry import AgentKey
 from experiments._framework import ExperimentRunner
 from experiments.chess.dataset import ChessPerstDataset
-from experiments.chess.trainer import ChessConfig, ChessTrainer
-from experiments.chess.chess_engine import EngineConfig
+from experiments.chess.task import ChessTask
+from experiments.chess.chess_engine import ChessConfig, EngineConfig
 from experiments.chess.data import ChessDataset, SUPPORTED_DATASETS
 
 
@@ -59,8 +59,8 @@ class Runner(ExperimentRunner):
     def dataset_class(self) -> type:
         return ChessPerstDataset
 
-    def trainer_class(self) -> type:
-        return ChessTrainer
+    def task_class(self) -> type:
+        return ChessTask
 
     def dataset_args(self) -> dict[str, Any]:
         args = self.args()

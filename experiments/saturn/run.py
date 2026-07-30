@@ -12,7 +12,7 @@ if str(module_dir) not in sys.path:
 from src.agents.registry import AgentKey
 from experiments._framework import ExperimentRunner
 from experiments.saturn.dataset import SaturnDataset
-from experiments.saturn.trainer import SaturnTrainer
+from experiments.saturn.task import SaturnTask
 
 
 class Runner(ExperimentRunner):
@@ -25,8 +25,8 @@ class Runner(ExperimentRunner):
     def dataset_class(self) -> type:
         return SaturnDataset
 
-    def trainer_class(self) -> type:
-        return SaturnTrainer
+    def task_class(self) -> type:
+        return SaturnTask
 
 
 if __name__ == "__main__":

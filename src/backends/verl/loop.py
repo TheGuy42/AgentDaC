@@ -1,116 +1,104 @@
 from __future__ import annotations
-
-from abc import ABC, abstractmethod
 from typing import Any
+import random
 
 from omegaconf import OmegaConf
 from verl.experimental.agent_loop.agent_loop import AgentLoopBase, AgentLoopOutput
+from verl.utils.import_utils import load_class_from_fqn
 
-from src.agents.base import BaseAgent
-from src.aliases import UserMessage
+from src.agents.registry import AgentContext, create_agent
 from src.configs import DecompConfig, PromptConfig, RolloutConfig
-from src.backends.verl.convert import convert_trajectory, degenerate_output
 from src.backends.verl.client import VerlClient
-from src.trajectory import Trajectory
+from src.backends.verl.convert import convert_trajectory, degenerate_output
+from src.running.rollout import RolloutError, RolloutTask
+from src.running.stage import RolloutStage
 from src.utils.logging import create_logger
 from src.utils.trajectory_writer import TrajectoryWriter
-from src.running.stage import RolloutStage
 
 
 logger = create_logger(__name__)
 
 
-class VerlLoop(AgentLoopBase, ABC):
-    """
-    Abstract verl `AgentLoop` = a single rollout. Subclass per experiment.
-    Subclasses implement `create_agent` / `format_prompt` / `score_trajectory`.
-    """
-
+class VerlLoop(AgentLoopBase):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
         # Rebuild the pydantic configs from the OmegaConf config, so we can use type validation and defaults.
-        custom_configs = self.config.custom_configs
-        self.prompt_config = PromptConfig.model_validate(OmegaConf.to_container(custom_configs.prompt_config, resolve=True))
-        self.decomp_config = DecompConfig.model_validate(OmegaConf.to_container(custom_configs.decomp_config, resolve=True))
-        self.rollout_kwargs = RolloutConfig.model_validate(OmegaConf.to_container(custom_configs.rollout_config, resolve=True))
-        self.extra_config: dict[str, Any] = OmegaConf.to_container(custom_configs.extra_config, resolve=True)  # type: ignore
+        self.custom_config = self.config.custom_configs
+        self.prompt_config = PromptConfig.model_validate(OmegaConf.to_container(self.custom_config.prompt_config, resolve=True))
+        self.decomp_config = DecompConfig.model_validate(OmegaConf.to_container(self.custom_config.decomp_config, resolve=True))
+        self.rollout_kwargs = RolloutConfig.model_validate(OmegaConf.to_container(self.custom_config.rollout_config, resolve=True))
+        self.extra_config: dict[str, Any] = OmegaConf.to_container(self.custom_config.extra_config, resolve=True)  # type: ignore
 
         # Initialize the TrajectoryWriter for logging rollouts to disk.
-        self.trajectory_writer = TrajectoryWriter(
-            custom_configs.traj_writer.dir,
-            enabled=custom_configs.traj_writer.enabled,
+        self.writer = TrajectoryWriter(
+            self.custom_config.traj_writer.dir,
+            enabled=self.custom_config.traj_writer.enabled,
         )
-
-    @abstractmethod
-    def create_agent(self, client: VerlClient, stage: RolloutStage) -> BaseAgent:
-        """Build the agent for one rollout."""
-
-    @abstractmethod
-    def format_prompt(self, sample: dict[str, Any]) -> str:
-        """Build the user-prompt string from the dataset row (`kwargs`)."""
-
-    @abstractmethod
-    async def score_trajectory(self, sample: dict[str, Any], trajectory: Trajectory, stage: RolloutStage, agent: BaseAgent) -> Trajectory:
-        """Score the trajectory, updating its `reward` / `metrics` / `metadata`."""
 
     async def run(self, sampling_params: dict[str, Any], **kwargs: Any) -> AgentLoopOutput:
 
         stage = self._stage(kwargs)
         client = VerlClient(self)
-        agent = self.create_agent(client, stage)
-        chat_kw = self.chat_kwargs(stage, sampling_params)
+        chat_kw = self._backend_kwargs(stage, sampling_params)
+        agent_ctx = self._agent_context(stage)
+        rollout_task = self._create_task(stage)
+
+        # UUID assigned per prompt dispatch
+        # session_id is rollout.n sample index: 0, 1, ..., n-1
+        # index is dataset/batch sample index
+        rollout_id = f"{kwargs['uid']}-{kwargs['session_id']}-{kwargs['index']}"
 
         try:
-            trajectory = await self.forward_step(agent, kwargs, stage, chat_kw)
-            trajectory = await self.score_trajectory(kwargs, trajectory, stage, agent)
+            agent = create_agent(client=client, ctx=agent_ctx)
+            trajectory = await rollout_task.rollout(agent=agent, sample=kwargs, stage=stage, chat_kwargs=chat_kw)
 
-            # UUID assigned per prompt dispatch
-            # session_id is rollout.n sample index: 0, 1, ..., n-1
-            # index is dataset/batch sample index
-            self.trajectory_writer.write(
-                trajectory,
-                rollout_id=f"{kwargs['uid']}-{kwargs['session_id']}-{kwargs['index']}",
-                stage=stage,
-                step=kwargs["global_steps"],
-            )
+        except RolloutError as e:
+            logger.error("Rollout %s failed; emitting degenerate AgentLoopOutput: %s", rollout_id, e, exc_info=True)
+            self.writer.write(e.trajectory, rollout_id=f"degenerate/{rollout_id}", stage=stage, step=kwargs["global_steps"])
+            return degenerate_output(e.trajectory, self.tokenizer)
 
-            return convert_trajectory(
-                trajectory,
-                self.rollout_config.prompt_length,
-                self.rollout_config.response_length,
-            )
+        self.writer.write(trajectory, rollout_id=rollout_id, stage=stage, step=kwargs["global_steps"])
 
-        except Exception as e:
-            logger.error("Rollout failed; emitting degenerate AgentLoopOutput: %s", e, exc_info=True)
-            agent.trajectory.error(kind="critical", message=f"Rollout failed: {str(e)}")
-            trajectory = agent.trajectory.finish()
-
-            self.trajectory_writer.write(
-                trajectory,
-                rollout_id=f"degenerate/{kwargs['uid']}-{kwargs['session_id']}-{kwargs['index']}",
-                stage=stage,
-                step=kwargs["global_steps"],
-            )
-
-            return degenerate_output(trajectory, self.tokenizer)
-
-    async def forward_step(
-        self,
-        agent: BaseAgent,
-        sample: dict[str, Any],
-        stage: RolloutStage,
-        chat_kwargs: dict[str, Any],
-    ) -> Trajectory:
-        """Run the agent on the formatted prompt and return its trajectory."""
-        message = UserMessage(role="user", content=self.format_prompt(sample))
-        return await agent.chat(message, **chat_kwargs)
+        return convert_trajectory(
+            trajectory,
+            self.rollout_config.prompt_length,
+            self.rollout_config.response_length,
+        )
 
     def _stage(self, kwargs: dict[str, Any]) -> RolloutStage:
         raw = kwargs.get("training_stage")
         return RolloutStage.TRAIN if raw is None else RolloutStage(str(raw))
 
-    def chat_kwargs(self, stage: RolloutStage, sampling_params: dict[str, Any]) -> dict[str, Any]:
+    def build_decomp_config(self, stage: RolloutStage) -> DecompConfig:
+        """The decomposition budget for one rollout, optionally randomized during training."""
+
+        dc = self.decomp_config
+        max_depth, max_tasks, max_rounds = dc.max_depth, dc.max_tasks, dc.max_rounds
+
+        if stage == RolloutStage.TRAIN:
+            if self.extra_config.get("randomize_decomp_depth", False):
+                max_depth = random.randint(0, dc.max_depth)
+            if self.extra_config.get("randomize_decomp_tasks", False):
+                max_tasks = random.randint(0, dc.max_tasks)
+            if self.extra_config.get("randomize_decomp_rounds", False):
+                max_rounds = random.randint(0, dc.max_rounds)
+
+        return DecompConfig(max_depth=max_depth, max_tasks=max_tasks, max_rounds=max_rounds)
+
+    def _agent_context(self, stage: RolloutStage) -> AgentContext:
+        return AgentContext(
+            agent_key=str(self.custom_config.agent),
+            prompt_config=self.prompt_config,
+            decomp_config=self.build_decomp_config(stage=stage),
+            extra_config=self.extra_config,
+            tool_parser=self.config.actor_rollout_ref.rollout.multi_turn.format,
+            reasoning_parser=OmegaConf.select(self.config, "actor_rollout_ref.rollout.engine_kwargs.vllm.reasoning_parser", default=None),
+            tokenizer=self.tokenizer,
+        )
+
+    def _backend_kwargs(self, stage: RolloutStage, sampling_params: dict[str, Any]) -> dict[str, Any]:
+        """Build the kwargs for the agent's `call` method, merging the sampling params with any stage-specific overrides from the verl config."""
         extra_kwargs = self.rollout_kwargs.get_kwargs(stage)
         if "n" in extra_kwargs:
             raise ValueError("rollout_kwargs must not set 'n'; verl controls the number of rollouts per prompt.")
@@ -127,3 +115,8 @@ class VerlLoop(AgentLoopBase, ABC):
                     f"rollout_config.train_kwargs."
                 )
         return kwargs
+
+    def _create_task(self, stage: RolloutStage) -> RolloutTask:
+        """Rebuild the experiment's RolloutTask from its FQDN in the verl config."""
+        task_cls = load_class_from_fqn(self.custom_config.task, description="RolloutTask")
+        return task_cls(self.custom_config)

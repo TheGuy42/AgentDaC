@@ -14,7 +14,7 @@ if str(module_dir) not in sys.path:
 from src.agents.registry import AgentKey
 from experiments._framework import ExperimentRunner
 from experiments.easy2hard.dataset import Easy2HardDataset
-from experiments.easy2hard.trainer import Easy2HardTrainer
+from experiments.easy2hard.task import Easy2HardTask
 
 
 class Runner(ExperimentRunner):
@@ -32,8 +32,8 @@ class Runner(ExperimentRunner):
     def dataset_class(self) -> type:
         return Easy2HardDataset
 
-    def trainer_class(self) -> type:
-        return Easy2HardTrainer
+    def task_class(self) -> type:
+        return Easy2HardTask
 
     def dataset_args(self) -> dict[str, Any]:
         return {"min_difficulty": self.args().min_difficulty, "max_difficulty": self.args().max_difficulty}

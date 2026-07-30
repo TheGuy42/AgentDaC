@@ -4,15 +4,15 @@ from typing import Any
 
 from src.agents.base import BaseAgent
 from src.running.stage import RolloutStage
+from src.running.rollout import RolloutTask
 from src.trajectory import Trajectory
 
-from experiments._framework.trainer import ExperimentTrainer
 from experiments._framework.rewards import format_reward, behavior_reward
-from experiments.math.format import format_prompt
-from experiments.math.rewards import answer_reward
+from experiments.bbeh.format import format_prompt
+from experiments.bbeh.rewards import answer_reward
 
 
-class MathTrainer(ExperimentTrainer):
+class BbehTask(RolloutTask):
     def format_prompt(self, sample: dict[str, Any]) -> str:
         return format_prompt(sample)
 
@@ -45,11 +45,9 @@ class MathTrainer(ExperimentTrainer):
 
         trajectory.metadata.update(
             {
-                "answer": sample["answer"],
+                "answer": sample["target"],
                 "agent_answer": agent_answer,
-                "subject": sample["subject"],
-                "level": sample["level"],
-                "unique_id": sample["unique_id"],
+                "task": sample["task"],
             }
         )
 

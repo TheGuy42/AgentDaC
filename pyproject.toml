@@ -19,7 +19,7 @@ dependencies = [
     # version with reliable CUDA 12.8 support and Transformers v5 compatibility.
     "verl==0.8.0",
     # Flash attention for the exact hardware
-    # "flash-attn @ https://github.com/lesj0610/flash-attention/releases/download/v2.8.3-cu12-torch2.10-cp312/flash_attn-2.8.3%2Bcu12torch2.10cxx11abiTRUE-cp312-cp312-linux_x86_64.whl",
+    "flash-attn @ https://github.com/lesj0610/flash-attention/releases/download/v2.8.3-cu12-torch2.10-cp312/flash_attn-2.8.3%2Bcu12torch2.10cxx11abiTRUE-cp312-cp312-linux_x86_64.whl",
     "chess>=1.11.2",
     "transferqueue>=0.1.8",
     "trl>=1.6.0",

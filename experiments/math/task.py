@@ -4,15 +4,15 @@ from typing import Any
 
 from src.agents.base import BaseAgent
 from src.running.stage import RolloutStage
+from src.running.rollout import RolloutTask
 from src.trajectory import Trajectory
 
-from experiments._framework.trainer import ExperimentTrainer
 from experiments._framework.rewards import format_reward, behavior_reward
-from experiments.easy2hard.format import format_prompt
-from experiments.easy2hard.rewards import answer_reward
+from experiments.math.format import format_prompt
+from experiments.math.rewards import answer_reward
 
 
-class Easy2HardTrainer(ExperimentTrainer):
+class MathTask(RolloutTask):
     def format_prompt(self, sample: dict[str, Any]) -> str:
         return format_prompt(sample)
 
@@ -45,12 +45,11 @@ class Easy2HardTrainer(ExperimentTrainer):
 
         trajectory.metadata.update(
             {
-                "answer": sample["answer"].strip(),
+                "answer": sample["answer"],
                 "agent_answer": agent_answer,
-                "item_difficulty": sample["item_difficulty"],
-                "rating": sample["rating"],
-                "rating_quantile": sample["rating_quantile"],
-                "contest": sample["contest"],
+                "subject": sample["subject"],
+                "level": sample["level"],
+                "unique_id": sample["unique_id"],
             }
         )
 

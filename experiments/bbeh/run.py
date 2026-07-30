@@ -14,7 +14,7 @@ if str(module_dir) not in sys.path:
 from src.agents.registry import AgentKey
 from experiments._framework import ExperimentRunner
 from experiments.bbeh.dataset import BbehDataset
-from experiments.bbeh.trainer import BbehTrainer
+from experiments.bbeh.task import BbehTask
 from experiments.bbeh.tasks import SupportedTasks
 
 
@@ -39,8 +39,8 @@ class Runner(ExperimentRunner):
     def dataset_class(self) -> type:
         return BbehDataset
 
-    def trainer_class(self) -> type:
-        return BbehTrainer
+    def task_class(self) -> type:
+        return BbehTask
 
     def dataset_args(self) -> dict[str, Any]:
         return {"tasks": self.args().tasks}

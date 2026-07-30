@@ -13,7 +13,7 @@ if str(module_dir) not in sys.path:
 from src.agents.registry import AgentKey
 from experiments._framework import ExperimentRunner
 from experiments.math.dataset import MathDataset
-from experiments.math.trainer import MathTrainer
+from experiments.math.task import MathTask
 
 
 class Runner(ExperimentRunner):
@@ -31,8 +31,8 @@ class Runner(ExperimentRunner):
     def dataset_class(self) -> type:
         return MathDataset
 
-    def trainer_class(self) -> type:
-        return MathTrainer
+    def task_class(self) -> type:
+        return MathTask
 
     def dataset_args(self) -> dict[str, Any]:
         return {"min_level": self.args().min_level, "max_level": self.args().max_level}

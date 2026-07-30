@@ -1,0 +1,2 @@
+- name: agentdac
+  _target_: src.backends.verl.loop.VerlLoop

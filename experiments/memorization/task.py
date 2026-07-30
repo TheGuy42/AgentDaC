@@ -4,15 +4,15 @@ from typing import Any
 
 from src.agents.base import BaseAgent
 from src.running.stage import RolloutStage
+from src.running.rollout import RolloutTask
 from src.trajectory import Trajectory
 
-from experiments._framework.trainer import ExperimentTrainer
 from experiments._framework.rewards import format_reward, behavior_reward
-from experiments.bbeh.format import format_prompt
-from experiments.bbeh.rewards import answer_reward
+from experiments.memorization.format import format_prompt
+from experiments.memorization.rewards import answer_reward
 
 
-class BbehTrainer(ExperimentTrainer):
+class MemorizationTask(RolloutTask):
     def format_prompt(self, sample: dict[str, Any]) -> str:
         return format_prompt(sample)
 
@@ -45,9 +45,9 @@ class BbehTrainer(ExperimentTrainer):
 
         trajectory.metadata.update(
             {
-                "answer": sample["target"],
+                "id": sample["id"],
+                "answer": sample["answer"],
                 "agent_answer": agent_answer,
-                "task": sample["task"],
             }
         )
 

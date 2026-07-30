@@ -14,7 +14,7 @@ if str(module_dir) not in sys.path:
 from src.agents.registry import AgentKey
 from experiments._framework import ExperimentRunner
 from experiments.memorization.dataset import LABEL_KINDS, MemorizationDataset
-from experiments.memorization.trainer import MemorizationTrainer
+from experiments.memorization.task import MemorizationTask
 
 
 class Runner(ExperimentRunner):
@@ -33,8 +33,8 @@ class Runner(ExperimentRunner):
     def dataset_class(self) -> type:
         return MemorizationDataset
 
-    def trainer_class(self) -> type:
-        return MemorizationTrainer
+    def task_class(self) -> type:
+        return MemorizationTask
 
     def dataset_args(self) -> dict[str, Any]:
         return {

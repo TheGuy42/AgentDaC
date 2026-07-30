@@ -1,24 +1,23 @@
 from typing import Any
 
-from omegaconf import OmegaConf
 import chess
 
 from src.trajectory import Trajectory
 from src.agents import BaseAgent
 from src.running.stage import RolloutStage
+from src.running.rollout import RolloutTask
 
-from experiments._framework.trainer import ExperimentTrainer
 from experiments._framework.rewards import format_reward, behavior_reward
 from experiments.chess.format import format_prompt
 from experiments.chess.rewards import compute_reward, parse_move
 from experiments.chess.chess_engine import EngineConfig, ChessConfig, MoveEvaluator
 
 
-class ChessTrainer(ExperimentTrainer):
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self.engine_config = EngineConfig.model_validate(OmegaConf.to_container(self.config.custom_configs.engine_config, resolve=True))
-        self.chess_config = ChessConfig.model_validate(OmegaConf.to_container(self.config.custom_configs.chess_config, resolve=True))
+class ChessTask(RolloutTask):
+    def __init__(self, configs: dict[str, Any]) -> None:
+        super().__init__(configs)
+        self.engine_config = EngineConfig.model_validate(configs["engine_config"])
+        self.chess_config = ChessConfig.model_validate(configs["chess_config"])
 
     def format_prompt(self, sample: dict[str, Any]) -> str:
         return format_prompt(sample)
