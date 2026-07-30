@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import argparse
 import pathlib
 import sys
-from typing import Any
 
 # set pythonpath to the main module directory
 module_dir = pathlib.Path(__file__).parent.parent.parent.resolve()
@@ -11,31 +9,23 @@ if str(module_dir) not in sys.path:
     sys.path.append(str(module_dir))
 
 from src.agents.registry import AgentKey
-from experiments._framework import ExperimentRunner
+from experiments._framework import VerlRunner
 from experiments.math.dataset import MathDataset
 from experiments.math.task import MathTask
 
 
-class Runner(ExperimentRunner):
+class Runner(VerlRunner):
     def task_name(self) -> str:
         return "math"
 
     def supported_agents(self) -> list[str]:
         return [AgentKey.MARKER, AgentKey.DUMMY, AgentKey.JSON, AgentKey.REGEX, AgentKey.PERST]
 
-    def add_arguments(self, parser: argparse.ArgumentParser) -> None:
-        super().add_arguments(parser)
-        parser.add_argument("--min_level", type=int, default=1)
-        parser.add_argument("--max_level", type=int, default=5)
-
     def dataset_class(self) -> type:
         return MathDataset
 
     def task_class(self) -> type:
         return MathTask
-
-    def dataset_args(self) -> dict[str, Any]:
-        return {"min_level": self.args().min_level, "max_level": self.args().max_level}
 
 
 if __name__ == "__main__":

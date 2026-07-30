@@ -1,0 +1,12 @@
+{
+    "train_size": 50000,
+    "val_size": 250,
+    "test_size": 250,
+    "seed": 0,
+    "num_samples": 10,
+    "labels": [
+        "A",
+        "B"
+    ],
+    "label_kind": "random"
+}

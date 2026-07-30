@@ -10,12 +10,12 @@ if str(module_dir) not in sys.path:
 
 
 from src.agents.registry import AgentKey
-from experiments._framework import ExperimentRunner
+from experiments._framework import VerlRunner
 from experiments.saturn.dataset import SaturnDataset
 from experiments.saturn.task import SaturnTask
 
 
-class Runner(ExperimentRunner):
+class Runner(VerlRunner):
     def task_name(self) -> str:
         return "saturn"
 

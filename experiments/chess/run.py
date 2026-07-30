@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import argparse
 import pathlib
 import sys
 from typing import Any
@@ -13,17 +12,16 @@ if str(module_dir) not in sys.path:
 
 from src.utils.logging import create_logger
 from src.agents.registry import AgentKey
-from experiments._framework import ExperimentRunner
+from experiments._framework import VerlRunner
 from experiments.chess.dataset import ChessPerstDataset
 from experiments.chess.task import ChessTask
 from experiments.chess.chess_engine import ChessConfig, EngineConfig
-from experiments.chess.data import ChessDataset, SUPPORTED_DATASETS
 
 
 logger = create_logger(__name__)
 
 
-class Runner(ExperimentRunner):
+class Runner(VerlRunner):
     def task_name(self) -> str:
         return "chess"
 
@@ -43,33 +41,11 @@ class Runner(ExperimentRunner):
         configs["chess_config"] = ChessConfig.load_from_path(pathlib.Path(dir) / "chess_config.json", do_raise=True)
         return configs
 
-    def add_arguments(self, parser: argparse.ArgumentParser) -> None:
-        super().add_arguments(parser)
-        parser.add_argument(
-            "--datasets",
-            nargs="+",
-            choices=SUPPORTED_DATASETS,
-            default=[ChessDataset.PUZZLES],
-            help="Which chess dataset(s) to load positions from (pooled when more than one).",
-        )
-        parser.add_argument("--data_seed", type=int, default=1234, help="Seed for reproducible data loading/shuffling.")
-        parser.add_argument("--min_rating", type=int, default=None, help="Minimum puzzle rating (lichess-puzzles only).")
-        parser.add_argument("--max_rating", type=int, default=None, help="Maximum puzzle rating (lichess-puzzles only).")
-
     def dataset_class(self) -> type:
         return ChessPerstDataset
 
     def task_class(self) -> type:
         return ChessTask
-
-    def dataset_args(self) -> dict[str, Any]:
-        args = self.args()
-        return {
-            "datasets": args.datasets,
-            "data_seed": args.data_seed,
-            "min_rating": args.min_rating,
-            "max_rating": args.max_rating,
-        }
 
 
 if __name__ == "__main__":

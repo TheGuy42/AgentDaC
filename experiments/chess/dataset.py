@@ -14,7 +14,7 @@ class ChessPerstDataset(TaskDataset):
         if train_size is None or val_size is None:
             raise ValueError(
                 "ChessPerstDataset requires concrete train_size and val_size "
-                "(set them in train_config.json); the chess loader needs a finite "
+                "(set them in data_config.json); the chess loader needs a finite "
                 "budget to bound the streaming pull."
             )
 
@@ -22,7 +22,7 @@ class ChessPerstDataset(TaskDataset):
             list(self.params["datasets"]),
             num_train=train_size,
             num_val=val_size,
-            seed=self.params["data_seed"],
+            seed=self.params["seed"],
             min_rating=self.params["min_rating"],
             max_rating=self.params["max_rating"],
         )

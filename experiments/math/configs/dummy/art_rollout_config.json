@@ -1,0 +1,14 @@
+{
+    "kwargs": {
+        "temperature": 0.7,
+        "top_p": 0.8,
+        "extra_body": {
+            "chat_template_kwargs": {
+                "enable_thinking": false
+            }
+        }
+    },
+    "train_kwargs": {},
+    "val_kwargs": {},
+    "test_kwargs": {}
+}

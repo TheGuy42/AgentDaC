@@ -22,7 +22,7 @@ class OAIResponse(InferenceResponse):
     @property
     def tool_calls(self) -> list[Any] | None:
         return self.choice.message.tool_calls
-    
+
     @property
     def reasoning(self) -> str | None:
         result = getattr(self.choice.message, "reasoning", None)
@@ -42,8 +42,14 @@ class OAIResponse(InferenceResponse):
 
 
 class OAIClient(InferenceClient):
-    def __init__(self, model_name: str, base_url: str | None = None, api_key: str | None = "EMPTY"):
-        self.client = openai.AsyncOpenAI(base_url=base_url, api_key=api_key)
+    def __init__(
+        self,
+        model_name: str,
+        base_url: str | None = None,
+        api_key: str | None = "EMPTY",
+        client: openai.AsyncOpenAI | None = None,
+    ):
+        self.client = client or openai.AsyncOpenAI(base_url=base_url, api_key=api_key)
         self.model_name = model_name
 
     def list_models(self) -> list[str]:

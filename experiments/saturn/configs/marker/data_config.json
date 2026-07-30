@@ -1,5 +1,6 @@
 {
     "train_size": null,
     "val_size": null,
-    "test_size": null
+    "test_size": null,
+    "seed": 0
 }

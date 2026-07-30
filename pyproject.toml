@@ -5,34 +5,76 @@ description = "DAC Agents with RL"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 
+# Intentionally almost empty: a backend extra is required. Each extra below is self-contained, so verl and
+# ART can be re-pinned independently without a shared constraint to keep in sync.
 dependencies = [
+    "python-dotenv>=1.0",
     "json-repair>=0.59.10",
-    "wrapt-timeout-decorator>=1.5.1",
-    "jupyter>=1.1.1",
-    "math-verify>=0.9.0",
-    "transformers>=5.5.3,<6", # Qwen3.5 needs Transformers 5.x support.
-    "datasets==4.3.0", # Keep this pinned if you need it for the pyarrow conflict you mentioned.
-    "torch==2.10.0", # CUDA 12.8-compatible PyTorch stack.
-    "vllm==0.19.1",
-    # VERL 0.8.0 + newer vLLM stack.
-    # vLLM 0.20+ wheels are compiled against CUDA 12.9+; 0.19.1 is the last
-    # version with reliable CUDA 12.8 support and Transformers v5 compatibility.
-    "verl==0.8.0",
-    # Flash attention for the exact hardware
-    "flash-attn @ https://github.com/lesj0610/flash-attention/releases/download/v2.8.3-cu12-torch2.10-cp312/flash_attn-2.8.3%2Bcu12torch2.10cxx11abiTRUE-cp312-cp312-linux_x86_64.whl",
-    "chess>=1.11.2",
-    "transferqueue>=0.1.8",
-    "trl>=1.6.0",
-    "huggingface-hub[cli]>=0.36.2",
-    "pytest>=9.1.1",
-    "pytest-async>=0.1.1",
-    "liger-kernel>=0.8.0",
 ]
 
-# VERL 0.8.0 requires numpy<2 but its over-conservative
-# Its own docker image uses vllm 0.20.x which requires numpy>=2
-# So we override the dependency here to allow the installation.
+[project.optional-dependencies]
+# Each extra is self-contained: library deps + experiment deps + its own trainer stack. The overlap
+# between the two lists is intentional -- it is what lets either stack be re-pinned without checking the other.
+verl = [
+    # --- src/ library ---
+    "huggingface-hub[cli]>=1.3.0",
+    "numpy>=2",
+    "datasets==4.3.0",        # pinned for the pyarrow conflict
+    # --- the verl stack ---
+    "verl==0.8.0",
+    "vllm==0.19.1",           # last release with reliable CUDA 12.8 + Transformers v5
+    "torch==2.10.0",
+    "transformers>=5.5.3,<6", # Qwen3.5 support
+    "trl==1.7.0",             # chat_template_utils only, deps stripped -- EXACT pin, see
+    # the dependency-metadata note below before changing it
+    "transferqueue>=0.1.8",
+    "liger-kernel>=0.8.0",
+    "flash-attn @ https://github.com/lesj0610/flash-attention/releases/download/v2.8.3-cu12-torch2.10-cp312/flash_attn-2.8.3%2Bcu12torch2.10cxx11abiTRUE-cp312-cp312-linux_x86_64.whl",
+]
+
+art = [
+    # --- src/ library ---
+    "huggingface-hub[cli]>=0.34.0,<1.0", # ceiling from transformers 4.57.3
+    "numpy>=2",
+    "datasets>=3.0.0",
+    # --- the ART stack: brings torch, transformers, trl, vllm, unsloth, peft, wandb ---
+    "openpipe-art[backend]==0.5.17",
+]
+
+experiments = [
+    "chess>=1.11.2",
+    "math-verify>=0.9.0",
+    "sympy>=1.13",
+    "regex>=2024.11.6",
+    "tqdm>=4.67",
+    "wrapt-timeout-decorator>=1.5.1",
+]
+
+[dependency-groups]
+# A group, not an extra: dev tooling is for working in this repo, not for installing the library, and
+# `default-groups` below installs it automatically so `uv sync --extra verl` is the whole command.
+# It IS resolved in both forks, unlike the extras above -- acceptable because test and notebook
+# tooling cannot plausibly fight a trainer stack (ART itself asks for pytest>=8.4.1).
+dev = [
+    "pytest>=9.1.1",
+    "pytest-async>=0.1.1",
+    "jupyter>=1.1.1",
+]
+
 [tool.uv]
+# verl and art pin incompatible transformers/trl/vllm/openai. Declaring the conflict makes uv fork the
+# lockfile so one uv.lock holds both resolutions; without it `uv lock` resolves all extras together
+# and fails. Only the extras named here are forked -- anything else (the `dev` group) is resolved in
+# both, which is why the library and experiment deps live inside the two extras instead.
+conflicts = [[{ extra = "verl" }, { extra = "art" }]]
+
+default-groups = [
+    "dev",
+] # uv's default; stated for clarity. There is no `default-extras`,
+# so the backend extra is always explicit -- which is the point.
+
+# verl pins numpy<2 over-conservatively (its own image ships vllm 0.20.x, which needs numpy>=2).
+# uv has no per-extra override, so this applies to the art resolve too.
 override-dependencies = ["numpy>=2"]
 index-strategy = "unsafe-best-match"
 
@@ -46,8 +88,13 @@ name = "pytorch-cu128"
 url = "https://download.pytorch.org/whl/cu128"
 explicit = true
 
-# Install trl without any of its dependencies
-# since we only need trl/chat_template_utils.py
+# verl needs exactly one module (trl/chat_template_utils.py), and trl 1.7.0's real metadata demands
+# `datasets>=4.7.0`, which contradicts the `datasets==4.3.0` pin -- hence the stripped dependencies.
+#
+# `version` is REQUIRED here and must be exact: without it uv applies the empty requires-dist to
+# *every* trl version, including the trl==0.20.0 that ART pins and uses fully. Scoped to the verl-side
+# pin only, so the two must move together.
 [[tool.uv.dependency-metadata]]
 name = "trl"
+version = "1.7.0"
 requires-dist = []

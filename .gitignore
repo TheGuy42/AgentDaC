@@ -10,6 +10,7 @@ wandb/
 # Virtual environments
 .venv
 .venv_backup
+.venv_verl
 .art
 unsloth_compiled_cache
 

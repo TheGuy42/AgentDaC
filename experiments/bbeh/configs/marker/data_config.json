@@ -1,0 +1,10 @@
+{
+    "train_size": null,
+    "val_size": 350,
+    "test_size": null,
+    "seed": 0,
+    "tasks": [
+        "boolean_expressions",
+        "multistep_arithmetic"
+    ]
+}

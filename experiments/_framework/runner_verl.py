@@ -14,11 +14,11 @@ import torch
 from omegaconf import OmegaConf
 from transformers import AutoConfig
 
-from src.configs import DecompConfig, PromptConfig, RolloutConfig, TrainingConfig
+from src.configs import DataConfig, DecompConfig, PromptConfig, RolloutConfig
 from src.utils.env import prepare_environment, set_seed
 from src.utils.io import load_object
 from src.utils.logging import create_logger, setup_logging
-from src.utils.chat_template import resolve_chat_template
+from src.backends.verl.template import resolve_chat_template
 from src.running.dataset import TaskDataset
 from src.running.rollout import RolloutTask
 
@@ -32,7 +32,7 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 # but also overall code readability is important, and things shouldnt be scattered around too much
 
 
-class ExperimentRunner(ABC):
+class VerlRunner(ABC):
     def __init__(self) -> None:
         self._parser_args = None
 
@@ -67,13 +67,6 @@ class ExperimentRunner(ABC):
 
         Travels to the Ray workers as an FQDN in `custom_configs.task`; the generic
         `src.backends.verl.loop.VerlLoop` resolves and constructs it per rollout."""
-
-    def dataset_args(self) -> dict[str, Any]:
-        """Override to provide experiment-specific dataset params.
-
-        Embedded under `config.data.custom_dataset` and read by the dataset class's
-        `load_split` (e.g. `{"min_level": ..., "max_level": ...}`)."""
-        return {}
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
         """Override to add custom command line arguments."""
@@ -182,7 +175,7 @@ class ExperimentRunner(ABC):
     def _load_configs(self, dir: str | pathlib.Path) -> dict[str, Any]:
         dir = pathlib.Path(dir)
         return {
-            "train_config": TrainingConfig.load_from_path(dir / "train_config.json", do_raise=True),
+            "data_config": DataConfig.load_from_path(dir / "data_config.json", do_raise=True),
             "prompt_config": PromptConfig.load_from_path(dir / "prompt_config.json", do_raise=True),
             "decomp_config": DecompConfig.load_from_path(dir / "decomp_config.json", do_raise=True),
             "rollout_config": RolloutConfig.load_from_path(dir / "verl_rollout_config.json", do_raise=True),
@@ -204,7 +197,7 @@ class ExperimentRunner(ABC):
 
     def _build_verl_config(self, configs: dict[str, Any], exp_name: str) -> Any:
         args = self.args()
-        train_config: TrainingConfig = configs["train_config"]
+        data_config: DataConfig = configs["data_config"]
 
         overrides = dict(configs.pop("verl_config"))
         omega_conf = OmegaConf.merge(self._verl_default_config(), OmegaConf.create(overrides))
@@ -223,17 +216,15 @@ class ExperimentRunner(ABC):
 
         # Dataset: verl builds it in-worker via `data.custom_cls` (no parquet on disk).
         # `train_files`/`val_files` are split markers the dataset class branches on;
-        # `custom_dataset` carries the load params (the dataset only sees `config.data`).
+        # `custom_dataset` is the whole `data_config.json` (sizes, dataset seed, load params),
+        # which is what the dataset reads as `TaskDataset.params`.
         cls = self.dataset_class()
         omega_conf.data.custom_cls = {"path": "pkg://src.backends.verl.dataset", "name": "VerlDataset"}
         omega_conf.data.train_files = "train"
         omega_conf.data.val_files = "val"
         omega_conf.data.custom_dataset = {
-            **self.dataset_args(),
+            **data_config.model_dump(),
             "task_dataset": f"{cls.__module__}.{cls.__qualname__}",
-            "train_size": train_config.train_size,
-            "val_size": train_config.val_size,
-            "seed": args.seed,
             "data_source": args.project,
         }
 
@@ -390,10 +381,10 @@ class ExperimentRunner(ABC):
 
         configs = self._load_configs(args.config_dir)
 
-        train_config = configs["train_config"]
+        data_config = configs["data_config"]
         if args.test_run:
-            train_config.train_size = 20
-            train_config.val_size = 10
+            data_config.train_size = 20
+            data_config.val_size = 10
 
         model_name = str(configs["verl_config"]["actor_rollout_ref"]["model"]["path"])
         exp_name = args.run or self.default_run_name(model_name)
