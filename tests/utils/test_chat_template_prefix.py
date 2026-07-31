@@ -164,7 +164,7 @@ def _load_tokenizer():
         tokenizer.chat_template = open(candidate).read()
         return tokenizer, f"candidate template {candidate}"
 
-    from src.utils.chat_template import resolve_chat_template
+    from src.backends.verl.template import resolve_chat_template
 
     tokenizer.chat_template = resolve_chat_template(MODEL, None)  # the current TRL auto-patch
     return tokenizer, "TRL auto-patched default template"

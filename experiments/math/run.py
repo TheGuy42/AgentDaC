@@ -9,24 +9,21 @@ if str(module_dir) not in sys.path:
     sys.path.append(str(module_dir))
 
 from src.agents.registry import AgentKey
-from experiments._framework import VerlRunner
+from experiments._framework.experiment import Experiment
 from experiments.math.dataset import MathDataset
 from experiments.math.task import MathTask
 
 
-class Runner(VerlRunner):
-    def task_name(self) -> str:
-        return "math"
-
-    def supported_agents(self) -> list[str]:
-        return [AgentKey.MARKER, AgentKey.DUMMY, AgentKey.JSON, AgentKey.REGEX, AgentKey.PERST]
-
-    def dataset_class(self) -> type:
-        return MathDataset
-
-    def task_class(self) -> type:
-        return MathTask
-
-
 if __name__ == "__main__":
-    Runner().run()
+    Experiment(
+        task_name="math",
+        supported_agents=[
+            AgentKey.MARKER,
+            AgentKey.DUMMY,
+            AgentKey.JSON,
+            AgentKey.REGEX,
+            AgentKey.PERST,
+        ],
+        task_cls=MathTask,
+        dataset_cls=MathDataset,
+    ).run()

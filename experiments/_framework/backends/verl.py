@@ -1,187 +1,65 @@
 from __future__ import annotations
 
-import argparse
-import logging
-import os
 import pathlib
-import random
-import sys
-from abc import ABC, abstractmethod
-from datetime import datetime
 from typing import Any
 
-import torch
 from omegaconf import OmegaConf
 from transformers import AutoConfig
 
-from src.configs import DataConfig, DecompConfig, PromptConfig, RolloutConfig
-from src.utils.env import prepare_environment, set_seed
-from src.utils.io import load_object
-from src.utils.logging import create_logger, setup_logging
+import verl
+from verl.trainer.main_ppo import run_ppo
+from verl.trainer.ppo.utils import need_critic, need_reference_policy
+from verl.utils.config import validate_config
+from verl.utils.device import auto_set_device
+
+from src.backends.verl.trainer import CustomTaskRunner
 from src.backends.verl.template import resolve_chat_template
-from src.running.dataset import TaskDataset
-from src.running.rollout import RolloutTask
+from src.configs import DataConfig, RolloutConfig, PromptConfig, DecompConfig
+from src.utils.io import load_object
+from src.utils.logging import create_logger
+from experiments._framework.backends.backend import Backend
+
 
 logger = create_logger(__name__)
+
 
 # Repo root, so the Ray workers can import experiment `_target_` FQDNs
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 
-# TODO: clean up this overall file, we need to make it more clean
-# and better structured / more maintainable
-# but also overall code readability is important, and things shouldnt be scattered around too much
 
+class VerlBackend(Backend):
+    @property
+    def name(self) -> str:
+        return "verl"
 
-class VerlRunner(ABC):
-    def __init__(self) -> None:
-        self._parser_args = None
-
-    def args(self) -> argparse.Namespace:
-        if self._parser_args is None:
-            raise ValueError("Arguments have not been parsed yet. Call _parse_args() first.")
-        return self._parser_args
-
-    @abstractmethod
-    def task_name(self) -> str:
-        """Short task identifier, e.g. 'math'. Roots the config dir and project name."""
-
-    @abstractmethod
-    def supported_agents(self) -> list[str]:
-        """Agent kinds this task supports."""
-
-    def default_project_name(self) -> str:
-        """Override to specify default project name."""
-        return f"{self.task_name()}_{self.args().agent}"
-
-    def default_config_dir(self) -> str:
-        """Override to specify the experiment's config directory (holds the JSON configs)."""
-        return f"experiments/{self.task_name()}/configs/{self.args().agent}"
-
-    @abstractmethod
-    def dataset_class(self) -> type[TaskDataset]:
-        """Return the experiment's `TaskDataset` subclass."""
-
-    @abstractmethod
-    def task_class(self) -> type[RolloutTask]:
-        """Return the experiment's `RolloutTask` subclass.
-
-        Travels to the Ray workers as an FQDN in `custom_configs.task`; the generic
-        `src.backends.verl.loop.VerlLoop` resolves and constructs it per rollout."""
-
-    def add_arguments(self, parser: argparse.ArgumentParser) -> None:
-        """Override to add custom command line arguments."""
-
-    def default_run_name(self, base_model: str) -> str:
-        """Default run name to use."""
-        base_model = base_model.split("/")[-1]
-        date_str = datetime.now().strftime("%m_%d_%H_%M")
-        return f"{base_model}_{date_str}"
-
-    def _parse_args(self) -> argparse.Namespace:
-        parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
-        parser.add_argument(
-            "--agent",
-            type=str,
-            required=True,
-            help="The agent kind to run",
-            choices=self.supported_agents(),
-        )
-
-        parser.add_argument(
-            "--project",
-            type=str,
-            default=None,
-            help="Project name. If not provided, defaults to `default_project_name()`.",
-        )
-
-        parser.add_argument(
-            "--run",
-            type=str,
-            default=None,
-            help="Experiment run name. If not provided, defaults to `default_run_name()`.",
-        )
-
-        parser.add_argument(
-            "--resume",
-            type=str,
-            default=None,
-            help="Checkpoint path to resume from.",
-        )
-
-        parser.add_argument(
-            "--gpus",
-            type=int,
-            nargs="+",
-            default=[0],
-            help="GPU IDs to use.",
-        )
-
-        parser.add_argument(
-            "--config_dir",
-            type=str,
-            default=None,
-            help="Config directory. If not provided, defaults to `default_config_dir()`.",
-        )
-
-        parser.add_argument(
-            "--traj_dir",
-            type=str,
-            default=None,
-            help=(
-                "Base directory for logging full rollout trajectories to disk "
-                "(one JSON file per rollout, grouped by training step). Disabled when not provided."
-            ),
-        )
-
-        parser.add_argument(
-            "--seed",
-            type=int,
-            default=random.randint(0, 1000000),
-            help="Random seed.",
-        )
-
-        parser.add_argument(
-            "--silent",
-            action="store_true",
-            help="Disable verbose outputs.",
-        )
-
-        parser.add_argument(
-            "--test_run",
-            action="store_true",
-            help="Quick minimal run for debugging.",
-        )
-
-        self.add_arguments(parser)
-        self._parser_args = parser.parse_args()
-        args = self.args()
-
-        if args.project is None:
-            args.project = self.default_project_name()
-
-        if args.config_dir is None:
-            args.config_dir = self.default_config_dir()
-
-        if not all(0 <= gpu < torch.cuda.device_count() for gpu in args.gpus):
-            raise ValueError(f"Invalid GPU IDs {args.gpus}. Available: {list(range(torch.cuda.device_count()))}")
-
-        print("\nParsed arguments:")
-        for arg, value in vars(args).items():
-            print(f"  {arg}: {value}")
-        print()
-        return args
-
-    def _load_configs(self, dir: str | pathlib.Path) -> dict[str, Any]:
-        dir = pathlib.Path(dir)
+    def load_configs(self, config_dir: pathlib.Path) -> dict[str, Any]:
         return {
-            "data_config": DataConfig.load_from_path(dir / "data_config.json", do_raise=True),
-            "prompt_config": PromptConfig.load_from_path(dir / "prompt_config.json", do_raise=True),
-            "decomp_config": DecompConfig.load_from_path(dir / "decomp_config.json", do_raise=True),
-            "rollout_config": RolloutConfig.load_from_path(dir / "verl_rollout_config.json", do_raise=True),
-            "verl_config": load_object(dir / "verl_config.json", do_raise=True),  # OVERRIDES onto verl defaults
-            "extra_config": load_object(dir / "extra_config.json", do_raise=False) or {},
+            "data_config": DataConfig.load_from_path(config_dir / "data_config.json", do_raise=True),
+            "prompt_config": PromptConfig.load_from_path(config_dir / "prompt_config.json", do_raise=True),
+            "decomp_config": DecompConfig.load_from_path(config_dir / "decomp_config.json", do_raise=True),
+            "rollout_config": RolloutConfig.load_from_path(config_dir / "verl_rollout_config.json", do_raise=True),
+            "verl_config": load_object(config_dir / "verl_config.json", do_raise=True),  # OVERRIDES onto verl defaults
+            "extra_config": load_object(config_dir / "extra_config.json", do_raise=False) or {},
         }
+
+    def launch(self, configs: dict[str, Any]) -> None:
+        args = self.args.args
+
+        base_model = str(configs["verl_config"]["actor_rollout_ref"]["model"]["path"])
+        exp_name = args.run or self.default_run_name(base_model)
+        logger.info(f"Experiment name: {exp_name}")
+
+        # verl constructs the real TrajectoryWriter inside VerlLoop, in the Ray worker.
+        configs["traj_writer"] = self.traj_writer_config(exp_name)
+
+        if args.test_run:
+            data_config: DataConfig = configs["data_config"]
+            data_config.train_size = 20
+            data_config.val_size = 10
+
+        config = self._build_verl_config(configs, exp_name)
+        logger.info("Starting training (main_ppo_sync)...")
+        self._launch(config)
 
     def _verl_default_config(self) -> Any:
         """The complete flattened verl `ppo_trainer` default config (our merge base).
@@ -190,26 +68,22 @@ class VerlRunner(ABC):
         We load verl's shipped flattened default and merge the experiment overrides onto it.
         (Equivalent canonical form: `hydra.compose(config_name="ppo_trainer")`.)
         """
-        import verl
-
         generated = pathlib.Path(verl.__file__).parent / "trainer" / "config" / "_generated_ppo_trainer.yaml"
         return OmegaConf.load(generated)
 
     def _build_verl_config(self, configs: dict[str, Any], exp_name: str) -> Any:
-        args = self.args()
+        args = self.args.args
         data_config: DataConfig = configs["data_config"]
 
         overrides = dict(configs.pop("verl_config"))
         omega_conf = OmegaConf.merge(self._verl_default_config(), OmegaConf.create(overrides))
         OmegaConf.set_struct(omega_conf, False)
 
-        # Naming, seed, resume.
+        # Naming and seed. Resume is set natively in verl_config.json, via
+        # `trainer.resume_mode` / `trainer.resume_from_path`.
         omega_conf.trainer.project_name = args.project
         omega_conf.trainer.experiment_name = exp_name
         omega_conf.data.seed = args.seed
-        if args.resume:
-            omega_conf.trainer.resume_mode = "resume_path"
-            omega_conf.trainer.resume_from_path = args.resume
 
         # TransferQueue is required by main_ppo_sync (default enable=False).
         omega_conf.transfer_queue.enable = True
@@ -218,7 +92,7 @@ class VerlRunner(ABC):
         # `train_files`/`val_files` are split markers the dataset class branches on;
         # `custom_dataset` is the whole `data_config.json` (sizes, dataset seed, load params),
         # which is what the dataset reads as `TaskDataset.params`.
-        cls = self.dataset_class()
+        cls = self.args.dataset_cls
         omega_conf.data.custom_cls = {"path": "pkg://src.backends.verl.dataset", "name": "VerlDataset"}
         omega_conf.data.train_files = "train"
         omega_conf.data.val_files = "val"
@@ -228,7 +102,7 @@ class VerlRunner(ABC):
             "data_source": args.project,
         }
 
-        # Agent-loop registration: a committed file, since `VerlLoop` is the `_target_` for every experiment. 
+        # Agent-loop registration: a committed file, since `VerlLoop` is the `_target_` for every experiment.
         omega_conf.actor_rollout_ref.rollout.agent.agent_loop_config_path = str(REPO_ROOT / "src/backends/verl/loop.yaml")
         omega_conf.actor_rollout_ref.rollout.agent.default_agent_loop = "agentdac"
 
@@ -255,12 +129,12 @@ class VerlRunner(ABC):
         self._patch_chat_template(omega_conf)
 
         # Inject the agent kind into the verl config so the agent-loop can rebuild it.
-        OmegaConf.update(omega_conf, "custom_configs.agent", self.args().agent, force_add=True)
+        OmegaConf.update(omega_conf, "custom_configs.agent", self.args.agent_name, force_add=True)
 
         # The experiment's RolloutTask travels as an FQDN, not a class reference: it has to cross a
         # Ray/hydra boundary, and the generic VerlLoop resolves it per rollout. Same mechanism as
         # `custom_dataset.task_dataset` above.
-        task_cls = self.task_class()
+        task_cls = self.args.task_cls
         OmegaConf.update(omega_conf, "custom_configs.task", f"{task_cls.__module__}.{task_cls.__qualname__}", force_add=True)
 
         return omega_conf
@@ -357,11 +231,6 @@ class VerlRunner(ABC):
 
     def _launch(self, config: Any) -> None:
         """Replicate `main_ppo_sync.main` (we bypass its @hydra.main entrypoint)."""
-        from verl.trainer.main_ppo import run_ppo
-        from verl.trainer.ppo.utils import need_critic, need_reference_policy
-        from verl.utils.config import validate_config
-        from verl.utils.device import auto_set_device
-        from src.backends.verl.trainer import CustomTaskRunner
 
         auto_set_device(config)
         config.transfer_queue.enable = True
@@ -371,41 +240,3 @@ class VerlRunner(ABC):
             use_critic=need_critic(config),
         )
         run_ppo(config, task_runner_class=CustomTaskRunner)
-
-    def _main(self) -> None:
-        args = self.args()
-        logger.info(f"Current working directory: {os.getcwd()}")
-
-        set_seed(args.seed)
-        os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, args.gpus))
-
-        configs = self._load_configs(args.config_dir)
-
-        data_config = configs["data_config"]
-        if args.test_run:
-            data_config.train_size = 20
-            data_config.val_size = 10
-
-        model_name = str(configs["verl_config"]["actor_rollout_ref"]["model"]["path"])
-        exp_name = args.run or self.default_run_name(model_name)
-        logger.info(f"Experiment name: {exp_name}")
-
-        # Inject the trajectory writer config
-        configs["traj_writer"] = {
-            "dir": (pathlib.Path(args.traj_dir or "trajectories") / args.project / exp_name).as_posix(),
-            "enabled": args.traj_dir is not None,
-        }
-
-        config = self._build_verl_config(configs, exp_name)
-        logger.info("Starting training (main_ppo_sync)...")
-        self._launch(config)
-
-    def run(self) -> None:
-        try:
-            self._parse_args()
-            prepare_environment()
-            setup_logging(level=logging.WARNING if self.args().silent else logging.INFO)
-            self._main()
-        except KeyboardInterrupt:
-            logger.info("Training interrupted by user.")
-            sys.exit(0)

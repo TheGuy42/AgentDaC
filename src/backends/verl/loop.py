@@ -70,7 +70,7 @@ class VerlLoop(AgentLoopBase):
         raw = kwargs.get("training_stage")
         return RolloutStage.TRAIN if raw is None else RolloutStage(str(raw))
 
-    def build_decomp_config(self, stage: RolloutStage) -> DecompConfig:
+    def _decomp_config(self, stage: RolloutStage) -> DecompConfig:
         """The decomposition budget for one rollout, optionally randomized during training."""
 
         dc = self.decomp_config
@@ -90,7 +90,7 @@ class VerlLoop(AgentLoopBase):
         return AgentContext(
             agent_key=str(self.custom_config.agent),
             prompt_config=self.prompt_config,
-            decomp_config=self.build_decomp_config(stage=stage),
+            decomp_config=self._decomp_config(stage=stage),
             extra_config=self.extra_config,
             tool_parser=self.config.actor_rollout_ref.rollout.multi_turn.format,
             reasoning_parser=OmegaConf.select(self.config, "actor_rollout_ref.rollout.engine_kwargs.vllm.reasoning_parser", default=None),

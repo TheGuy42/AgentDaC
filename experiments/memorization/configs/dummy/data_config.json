@@ -8,5 +8,5 @@
         "A",
         "B"
     ],
-    "label_kind": "random"
+    "label_kind": "const"
 }
