@@ -1,17 +1,17 @@
 {
     "model": {
-        "base_model": "Qwen/Qwen3-0.6B",
+        "base_model": "Qwen/Qwen3-4B",
         "tool_parser": null,
         "reasoning_parser": null,
         "internal_config": {
             "init_args": {
                 "load_in_4bit": false,
-                "gpu_memory_utilization": 0.5,
+                "gpu_memory_utilization": 0.7,
                 "max_lora_rank": 16
             },
             "engine_args": {
-                "max_model_len": 1024,
-                "gpu_memory_utilization": 0.5,
+                "max_model_len": 14336,
+                "gpu_memory_utilization": 0.75,
                 "max_lora_rank": 16
             },
             "peft_args": {
@@ -25,13 +25,13 @@
         }
     },
     "train": {
-        "epochs": 30,
+        "epochs": 3000,
         "num_groups": 8,
         "group_size": 8,
-        "val_log_steps": 30,
+        "val_log_steps": 10,
         "delete_checkpoints": true,
         "checkpoint_metric": "reward",
-        "max_exceptions": 0,
+        "max_exceptions": 5,
         "verbose": false,
         "train_params": {
             "learning_rate": 0.00005,

@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import random
 from typing import Any
+import statistics
 
 import art
 from art.local import LocalBackend
@@ -21,6 +22,37 @@ from src.utils.trajectory_writer import TrajectoryWriter
 
 
 logger = create_logger(__name__)
+
+
+def aggregate_metrics(groups: list[art.TrajectoryGroup]) -> dict[str, float]:
+    """Mean of `reward` and of every trajectory metric across `groups`."""
+    sums: dict[str, float] = {}
+    counts: dict[str, int] = {}
+
+    def add(key: str, value: float) -> None:
+        sums[key] = sums.get(key, 0.0) + float(value)
+        counts[key] = counts.get(key, 0) + 1
+
+    std_devs: list[float] = []
+    for group in groups:
+        for _ in group.exceptions:
+            add("exception_rate", 1.0)
+
+        rewards: list[float] = []
+        for trajectory in group.trajectories:
+            add("exception_rate", 0.0)
+            add("reward", trajectory.reward)
+            rewards.append(trajectory.reward)
+            for key, value in trajectory.metrics.items():
+                add(key, value)
+
+        # Within-group reward spread: 0 means the group carries no GRPO signal.
+        if len(rewards) > 1:
+            std_devs.append(statistics.pstdev(rewards))
+
+    metrics = {key: total / counts[key] for key, total in sums.items()}
+    metrics["reward_std_dev"] = sum(std_devs) / len(std_devs) if std_devs else 0.0
+    return metrics
 
 
 class ArtTrainer:
@@ -169,7 +201,7 @@ class ArtTrainer:
         for sample_index, sample in enumerate(dataset):
             group = art.TrajectoryGroup(
                 [
-                    self.rollout_one(sample=sample, stage=stage, step=step, rollout_id=f"{step}-{sample_index}-{group_index}")
+                    self.rollout_one(sample=sample, stage=stage, step=step, rollout_id=f"step-{step}-sample-{sample_index}-group-{group_index}")
                     for group_index in range(group_size)
                 ]
             )
@@ -234,7 +266,12 @@ class ArtTrainer:
                         step=train_batch.step,
                     ),
                 )
-                await self.model.log(val_groups, split=RolloutStage.VAL)
+
+                await self.model.log(
+                    split=RolloutStage.VAL,
+                    metrics=aggregate_metrics(val_groups),
+                    step=train_batch.step,
+                )
 
             else:
                 # Perform training rollout
@@ -254,11 +291,9 @@ class ArtTrainer:
                 verbose=train_config.verbose,
             )
 
-            # Log training trajectories and metrics
             await self.model.log(
-                train_groups,
                 split=RolloutStage.TRAIN,
-                metrics=result.metrics,
+                metrics={**result.metrics, **aggregate_metrics(train_groups)},
                 step=result.step,
             )
 

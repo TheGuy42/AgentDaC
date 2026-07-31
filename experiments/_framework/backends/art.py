@@ -30,7 +30,7 @@ class ArtBackend(Backend):
     @property
     def name(self) -> str:
         return "art"
-    
+
     def load_configs(self, config_dir: pathlib.Path) -> dict[str, Any]:
         return {
             "data_config": DataConfig.load_from_path(config_dir / "data_config.json", do_raise=True),

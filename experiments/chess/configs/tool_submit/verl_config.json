@@ -100,7 +100,7 @@
             "lora_rank": 16,
             "lora_alpha": 32,
             "target_modules": "all-linear",
-            "custom_chat_template": "config_files/templates/Qwen3.5-4B.jinja",
+            "custom_chat_template": "config_files/templates/Qwen3.5.jinja",
             "override_config": {
                 "attn_implementation": "flash_attention_2"
             }

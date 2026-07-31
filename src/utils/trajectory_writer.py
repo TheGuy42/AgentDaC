@@ -27,13 +27,17 @@ class TrajectoryWriter:
         self.output_dir = Path(output_dir)
         self.enabled = enabled
 
+    def stage_dir(self, stage: str, step: int | None) -> Path:
+        """Directory holding one stage's trajectories for one step."""
+        step_dir = f"step_{step:05d}" if step is not None else "step_unknown"
+        return self.output_dir / step_dir / stage
+
     def write(self, trajectory: Trajectory, *, rollout_id: str, stage: str, step: int | None) -> Path:
         if not self.enabled:
             logger.debug("Trajectory writing is disabled; skipping write.")
             return Path()
 
-        step_dir = f"step_{step:05d}" if step is not None else "step_unknown"
-        path = self.output_dir / step_dir / stage / f"{rollout_id}.json"
+        path = self.stage_dir(stage, step) / f"{rollout_id}.json"
 
         payload = {
             "rollout_id": rollout_id,

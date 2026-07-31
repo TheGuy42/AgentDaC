@@ -51,7 +51,7 @@ for i, (tid, piece) in enumerate(zip(tids, tokenizer.convert_ids_to_tokens(tids)
 
 
 # now switch to my patched (prefix-preserving) chat template and print the token ids again
-PATCHED_TEMPLATE = pathlib.Path(__file__).resolve().parents[2] / "config_files" / "templates" / "Qwen3.5-4B.jinja"
+PATCHED_TEMPLATE = pathlib.Path(__file__).resolve().parents[2] / "config_files" / "templates" / "Qwen3.5.jinja"
 tokenizer.chat_template = PATCHED_TEMPLATE.read_text()
 
 ids = tokenizer.apply_chat_template(

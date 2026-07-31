@@ -11,6 +11,7 @@ logger = create_logger(__name__)
 class BackendName(StrEnum):
     ART = "art"
     VERL = "verl"
+    VLLM = "vllm"
 
 
 REGISTRY: dict[BackendName, Callable[[BackendArgs], Backend]] = {}
@@ -51,6 +52,13 @@ def _build_verl_backend(args: BackendArgs) -> Backend:
     from experiments._framework.backends.verl import VerlBackend
 
     return VerlBackend(args)
+
+
+@register_backend(BackendName.VLLM)
+def _build_vllm_backend(args: BackendArgs) -> Backend:
+    from experiments._framework.backends.vllm import VllmBackend
+
+    return VllmBackend(args)
 
 
 def create_backend(args: BackendArgs, kind: BackendName | None = None) -> Backend:

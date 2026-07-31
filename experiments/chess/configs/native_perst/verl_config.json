@@ -102,7 +102,7 @@
             "override_config": {
                 "attn_implementation": "sdpa"
             },
-            "custom_chat_template": "/home/fre.gilad/source/AgentDac-AGL/AgentDaC/config_files/templates/Qwen3-4B-Thinking-2507.jinja"
+            "custom_chat_template": "/home/fre.gilad/source/AgentDac-AGL/AgentDaC/config_files/templates/Qwen3-Thinking-2507.jinja"
         }
     }
 }

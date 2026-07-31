@@ -52,8 +52,9 @@ class OAIClient(InferenceClient):
         self.client = client or openai.AsyncOpenAI(base_url=base_url, api_key=api_key)
         self.model_name = model_name
 
-    def list_models(self) -> list[str]:
-        return [model.id for model in self.client.models.list().data]  # type: ignore
+    async def list_models(self) -> list[openai.types.Model]:
+        page = await self.client.models.list()
+        return page.data
 
     def update_kwargs(
         self,
