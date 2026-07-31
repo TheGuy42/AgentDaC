@@ -92,13 +92,13 @@ class VerlBackend(Backend):
         # `train_files`/`val_files` are split markers the dataset class branches on;
         # `custom_dataset` is the whole `data_config.json` (sizes, dataset seed, load params),
         # which is what the dataset reads as `TaskDataset.params`.
-        cls = self.args.dataset_cls
+        dataset_cls = self.args.dataset_cls
         omega_conf.data.custom_cls = {"path": "pkg://src.backends.verl.dataset", "name": "VerlDataset"}
         omega_conf.data.train_files = "train"
         omega_conf.data.val_files = "val"
         omega_conf.data.custom_dataset = {
             **data_config.model_dump(),
-            "task_dataset": f"{cls.__module__}.{cls.__qualname__}",
+            "task_dataset": f"{dataset_cls.__module__}.{dataset_cls.__qualname__}",
             "data_source": args.project,
         }
 
