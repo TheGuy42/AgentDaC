@@ -1,14 +1,15 @@
 from __future__ import annotations
-
 import asyncio
 import random
 from typing import Any
 import statistics
+import pathlib
 
 import art
 from art.local import LocalBackend
 from art.utils import iterate_dataset
 from wandb.sdk.wandb_run import Run as WandbRun
+from transformers import AutoImageProcessor, AutoTokenizer
 
 from src.agents.registry import AgentContext, create_agent
 from src.backends.art.config import ArtConfig
@@ -55,6 +56,47 @@ def aggregate_metrics(groups: list[art.TrajectoryGroup]) -> dict[str, float]:
     return metrics
 
 
+def _patch_local_backend(local_backend: LocalBackend, art_config: ArtConfig) -> None:
+    """
+    Patch the local backend (tokenizers, image processors) with the chat template from the ART config.
+    This is necessary because ART does not automatically apply the chat template to its own training tokenizers.
+
+    - This method also populates the `trainer.backend._tokenizers` for the current model
+    """
+    model_name = art_config.model.base_model
+    chat_template = (art_config.model.openai_config or {}).get("server_args", {}).get("chat_template")
+
+    if chat_template is None:
+        return
+
+    # load chat template if it's a file path
+    if pathlib.Path(chat_template).is_file():
+        logger.info(f"Loading manual chat template from {chat_template} (encoding='utf-8').")
+        chat_template = pathlib.Path(chat_template).read_text(encoding="utf-8")
+
+    # get tokenizer and image processor for the model, or create them
+    if (tokenizer := local_backend._tokenizers.get(model_name)) is None:
+        tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+
+    if (image_processor := local_backend._image_processors.get(model_name)) is None:
+        try:
+            image_processor = AutoImageProcessor.from_pretrained(model_name, use_fast=True)
+        except Exception:
+            image_processor = None
+
+    # update chat template
+    if tokenizer is not None:
+        tokenizer.chat_template = chat_template
+
+    if image_processor is not None:
+        image_processor.chat_template = chat_template  # type: ignore[assignment]
+
+    # store the updated tokenizer
+    local_backend._tokenizers[model_name] = tokenizer  # type: ignore[assignment]
+    local_backend._image_processors[model_name] = image_processor
+    logger.info(f"ART BUGFIX: Patched LocalBackend with chat template for model {model_name}.")
+
+
 class ArtTrainer:
     def __init__(
         self,
@@ -77,6 +119,9 @@ class ArtTrainer:
         self.decomp_config = decomp_config
         self.extra_config: dict[str, Any] = extra_config or {}
         self.writer = writer
+
+        # NOTE: Temp solution to address ART bug.
+        _patch_local_backend(self.backend, art_config=config)
 
     @property
     def wandb_run(self) -> WandbRun | None:
@@ -134,8 +179,7 @@ class ArtTrainer:
             extra_config=self.extra_config,
             tool_parser=self.config.model.tool_parser,
             reasoning_parser=self.config.model.reasoning_parser,
-            # TODO: probably instantiate a tokenizer here and pass it instead?
-            tokenizer=self.config.model.base_model,
+            tokenizer=self.backend._tokenizers[self.model.base_model],
         )
 
     def _chat_kwargs(self, stage: RolloutStage) -> dict[str, Any]:

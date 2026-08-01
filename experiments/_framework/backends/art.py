@@ -8,7 +8,6 @@ os.environ["IMPORT_PEFT"] = "1"
 
 import asyncio
 from typing import Any
-from transformers import AutoImageProcessor, AutoTokenizer
 
 from src.backends.art.config import ArtConfig
 from src.backends.art.loaders import load_art_model
@@ -89,8 +88,6 @@ class ArtBackend(Backend):
             writer=writer,
         )
 
-        self._patch_local_backend(trainer, configs)
-
         if trainer.wandb_run is not None:
             for root in ("src", "experiments"):
                 trainer.wandb_run.log_code(root=root, name=root)
@@ -121,41 +118,3 @@ class ArtBackend(Backend):
         art_config.train.delete_checkpoints = False
         data_config.train_size = 20
         data_config.val_size = 10
-
-    def _patch_local_backend(self, trainer: ArtTrainer, configs: dict[str, Any]) -> None:
-        """
-        Patch the local backend (tokenizers, image processors) with the chat template from the ART config.
-        This is necessary because ART does not automatically apply the chat template to its own training tokenizers.
-        """
-        art_config: ArtConfig = configs["art_config"]
-        model_name = trainer.model.base_model
-        art_backend = trainer.backend
-        
-        chat_template = (art_config.model.openai_config or {}).get("server_args", {}).get("chat_template")
-        if chat_template is not None:
-            if pathlib.Path(chat_template).is_file():
-                logger.info(f"Loading manual chat template from {chat_template} (encoding='utf-8').")
-                chat_template = pathlib.Path(chat_template).read_text(encoding="utf-8")
-
-            if (tokenizer := art_backend._tokenizers.get(model_name)) is None:
-                tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-
-            if (image_processor := art_backend._image_processors.get(model_name)) is None:
-                try:
-                    image_processor = AutoImageProcessor.from_pretrained(model_name, use_fast=True)
-                except Exception:
-                    image_processor = None
-
-            if tokenizer is not None:
-                tokenizer.chat_template = chat_template
-                art_backend._tokenizers[model_name] = tokenizer
-
-            if image_processor is not None:
-                image_processor.chat_template = chat_template  # type: ignore[assignment]
-                art_backend._image_processors[model_name] = image_processor
-
-            if model_name not in art_backend._tokenizers:
-                art_backend._tokenizers[model_name] = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True).tokenizer
-
-            art_backend._tokenizers[model_name] = tokenizer  # type: ignore[assignment]
-            art_backend._image_processors[model_name] = image_processor
