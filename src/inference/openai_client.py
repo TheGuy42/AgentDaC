@@ -65,7 +65,8 @@ class OAIClient(InferenceClient):
         include_stop_str_in_output: bool | None = None,
     ) -> dict[str, Any]:
 
-        assert not (json_schema and regex_schema), "Cannot specify both json_schema and regex_schema."
+        if json_schema is not None and regex_schema is not None:
+            raise ValueError("Cannot specify both json_schema and regex_schema.")
 
         kwargs = copy.deepcopy(kwargs)
 

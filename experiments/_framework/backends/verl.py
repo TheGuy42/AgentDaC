@@ -197,6 +197,9 @@ class VerlBackend(Backend):
         hf_config = AutoConfig.from_pretrained(config.actor_rollout_ref.model.path, trust_remote_code=True)
         hf_model_length: int | None = getattr(hf_config, "max_position_embeddings", getattr(hf_config, "model_max_length", None))
 
+        if hf_model_length and prompt_length >= hf_model_length:
+            raise ValueError(f"max_prompt_length={prompt_length} must be smaller than the model context length {hf_model_length}")
+
         if hf_model_length and model_length > hf_model_length:
             logger.warning(f"Computed model length exceeds max_position_embeddings: {model_length} > {hf_model_length}. ")
             logger.warning("Decreasing response_length to fit within the model's max_position_embeddings.")

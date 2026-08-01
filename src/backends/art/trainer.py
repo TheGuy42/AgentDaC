@@ -74,26 +74,16 @@ def _patch_local_backend(local_backend: LocalBackend, art_config: ArtConfig) -> 
         logger.info(f"Loading manual chat template from {chat_template} (encoding='utf-8').")
         chat_template = pathlib.Path(chat_template).read_text(encoding="utf-8")
 
-    # get tokenizer and image processor for the model, or create them
-    if (tokenizer := local_backend._tokenizers.get(model_name)) is None:
-        tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-
-    if (image_processor := local_backend._image_processors.get(model_name)) is None:
-        try:
-            image_processor = AutoImageProcessor.from_pretrained(model_name, use_fast=True)
-        except Exception:
-            image_processor = None
+    # get tokenizer and image processor for the model
+    tokenizer = local_backend._tokenizers[model_name]
+    image_processor = local_backend._image_processors[model_name]
 
     # update chat template
     if tokenizer is not None:
         tokenizer.chat_template = chat_template
-
     if image_processor is not None:
         image_processor.chat_template = chat_template  # type: ignore[assignment]
 
-    # store the updated tokenizer
-    local_backend._tokenizers[model_name] = tokenizer  # type: ignore[assignment]
-    local_backend._image_processors[model_name] = image_processor
     logger.info(f"ART BUGFIX: Patched LocalBackend with chat template for model {model_name}.")
 
 
@@ -133,7 +123,22 @@ class ArtTrainer:
 
     @property
     def backend(self) -> LocalBackend:
-        return self.model.backend()  # type: ignore[return-value]
+        backend: LocalBackend = self.model.backend()  # type: ignore[return-value]
+
+        # populate tokenizer in advance since we count on it for agent context
+        # NOTE: logic must match ART's `LocalBackend._get_tokenizer` lazy-initialization code
+        if self.model.base_model not in backend._tokenizers:
+            tokenizer = AutoTokenizer.from_pretrained(self.model.base_model)
+            backend._tokenizers[self.model.base_model] = tokenizer
+
+        if self.model.base_model not in backend._image_processors:
+            try:
+                image_processor = AutoImageProcessor.from_pretrained(self.model.base_model, use_fast=True)
+                backend._image_processors[self.model.base_model] = image_processor
+            except Exception:
+                backend._image_processors[self.model.base_model] = None
+
+        return backend
 
     def log_hparams(self, d: dict) -> None:
         run = self.wandb_run

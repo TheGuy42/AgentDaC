@@ -20,7 +20,8 @@ class MemorizationDataset(TaskDataset):
         kind = self.params["label_kind"]
         rng = random.Random(self.params["seed"])
 
-        assert kind in LABEL_KINDS, f"Invalid label_kind: {kind}. Must be one of {LABEL_KINDS}."
+        if kind not in LABEL_KINDS:
+            raise ValueError(f"Invalid label_kind: {kind}. Must be one of {LABEL_KINDS}.")
 
         if kind == "random":
             sample_labels = (labels * (num_samples // len(labels) + 1))[:num_samples]
