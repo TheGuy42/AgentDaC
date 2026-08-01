@@ -16,9 +16,9 @@ model:
             # - src.backends.utils.thinking_budget:ThinkingBudgetLogitsProcessor
         peft_args:
             r: 16
-    # openai_config:
-    #     server_args:
-    #         chat_template: config_files/templates/Qwen3.jinja
+    openai_config:
+        server_args:
+            chat_template: config_files/templates/Qwen3.original.jinja
 train:
     epochs: 1000
     num_groups: 16

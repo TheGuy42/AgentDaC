@@ -15,7 +15,7 @@ model:
             r: 16
     openai_config:
         server_args:
-            chat_template: config_files/templates/Qwen3.jinja
+            chat_template: config_files/templates/Qwen3.original.jinja
 train:
     epochs: 30
     num_groups: 8

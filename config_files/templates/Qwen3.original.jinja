@@ -1,14 +1,21 @@
-{#- Training / prefix-preserving variant.
-    Modifications vs the original:
-    - {%- if '</think>' in content %} → {%- if '<think>' in content and '</think>' in content %}
-      Always check for both tags before extracting reasoning.
-    - Removed the loop.index0 > ns.last_query_index conditional from assistant rendering.
-      Assistant messages are always serialized with a <think>...</think> block.
-      This makes the template prefix-preserving for [user, assistant] → [user, assistant, tool].
-    - Added {% generation %} / {% endgeneration %} around assistant message output.
-      This supports assistant-only loss masking in SFT training.
-    - The ns.last_query_index computation is intentionally left in place as dead code,
-      to keep changes minimal.
+{#- Qwen/Qwen3-14B chat template, verbatim variant.
+    Derived from the model's own template; the ONLY change is the assistant branch.
+
+    Why: ART re-renders each trajectory with continue_final_message=True and splices the raw
+    generated tokens in at a sentinel (art/preprocessing/tokenize.py). The stock branch parses
+    assistant content into (reasoning, body) and re-emits a canonical
+    '<think>\n' + reasoning.strip('\n') + '\n</think>\n\n' + body.lstrip('\n'), so it only ever
+    reproduces its own whitespace. Any deviation (empty <think></think>, an extra newline, an
+    unterminated block) is rewritten -- which makes transformers' verbatim check raise, and makes
+    the training context differ from the prompt the turn was actually generated from.
+
+    Fix: the trainable (last) assistant message is emitted EXACTLY as generated, re-adding only the
+    prefix that add_generation_prompt injected. Earlier turns keep the stock treatment, which is
+    what inference saw. `body` is the post-</think> text, kept only for the tool_calls spacing test.
+
+    NOT token-prefix-preserving, intentionally: a verbatim leading newline merges with the injected
+    one ('\n'+'\n' -> '\n\n', a different token). Use this variant for ART, which does not need
+    prefix preservation. Use Qwen3.preserving.jinja for verl, which does.
 -#}
 {%- if tools %}
     {{- '<|im_start|>system\n' }}
@@ -44,20 +51,30 @@
         {{- '<|im_start|>' + message.role + '\n' + content + '<|im_end|>' + '\n' }}
     {%- elif message.role == "assistant" %}
         {%- set reasoning_content = '' %}
+        {%- set body = content %}
         {%- if message.reasoning_content is string %}
             {%- set reasoning_content = message.reasoning_content %}
         {%- else %}
             {%- if '</think>' in content %}
                 {%- set reasoning_content = content.split('</think>')[0].rstrip('\n').split('<think>')[-1].lstrip('\n') %}
-                {%- set content = content.split('</think>')[-1].lstrip('\n') %}
+                {%- set body = content.split('</think>')[-1].lstrip('\n') %}
             {%- endif %}
         {%- endif %}
-        {{- '<|im_start|>' + message.role + '\n' }}
-        {%- generation %}
-        {{- '<think>\n' + reasoning_content.strip('\n') + '\n</think>\n\n' + content.lstrip('\n') }}
+        {%- if loop.last and message.reasoning_content is not string %}
+            {{- '<|im_start|>' + message.role + '\n' }}
+            {%- if '<think>' in content %}
+                {{- content }}
+            {%- else %}
+                {{- '<think>\n\n</think>\n\n' + content }}
+            {%- endif %}
+        {%- elif loop.index0 > ns.last_query_index and (loop.last or reasoning_content) %}
+            {{- '<|im_start|>' + message.role + '\n<think>\n' + reasoning_content.strip('\n') + '\n</think>\n\n' + body.lstrip('\n') }}
+        {%- else %}
+            {{- '<|im_start|>' + message.role + '\n' + body }}
+        {%- endif %}
         {%- if message.tool_calls %}
             {%- for tool_call in message.tool_calls %}
-                {%- if (loop.first and content) or (not loop.first) %}
+                {%- if (loop.first and body) or (not loop.first) %}
                     {{- '\n' }}
                 {%- endif %}
                 {%- if tool_call.function %}
@@ -75,7 +92,6 @@
             {%- endfor %}
         {%- endif %}
         {{- '<|im_end|>\n' }}
-        {%- endgeneration %}
     {%- elif message.role == "tool" %}
         {%- if loop.first or (messages[loop.index0 - 1].role != "tool") %}
             {{- '<|im_start|>user' }}
@@ -89,5 +105,8 @@
     {%- endif %}
 {%- endfor %}
 {%- if add_generation_prompt %}
-    {{- '<|im_start|>assistant\n<think>\n' }}
+    {{- '<|im_start|>assistant\n' }}
+    {%- if enable_thinking is defined and enable_thinking is false %}
+        {{- '<think>\n\n</think>\n\n' }}
+    {%- endif %}
 {%- endif %}

@@ -1,16 +1,32 @@
-{#- Training variant of the Qwen3.5 chat template, Think flavor (see qwen3_5_think.jinja for the original).
-    Modifications vs the original:
-    - {%- if '</think>' in content %} → {%- if '<think>' in content and '</think>' in content %}
-      Always check for both tags to avoid edge cases where the model generates only one tag.
-    - Removed the loop.index0 > ns.last_query_index conditional; always include thinking block.
-      This makes the template prefix-preserving for the [user, assistant] → [user, assistant, tool] transition.
-    - Assistant think block emitted VERBATIM: '<think>\n' + content (was
-      '<think>\n' + reasoning_content + '\n</think>\n\n' + content). The stored content is the raw
-      generation (its own </think> + exact whitespace; the opening <think> is injected by the
-      generation prompt), so reproducing it verbatim is token-prefix-preserving for every turn,
-      whereas the split/reconstruct canonicalised whitespace and drifted.
-    - Added {% generation %} / {% endgeneration %} around assistant message output to support
-      assistant-only loss masking in SFT training.
+{#- Qwen/Qwen3.5-4B chat template, verbatim variant.
+    Derived from the model's own template; changes are confined to the assistant branch.
+
+    Why: ART re-renders each trajectory with continue_final_message=True and splices the raw
+    generated tokens in at a sentinel (art/preprocessing/tokenize.py). The stock branch parses
+    assistant content into (reasoning, body) and re-emits a canonical form, so it only ever
+    reproduces its own whitespace; any deviation is rewritten, which makes transformers' verbatim
+    check raise and makes the training context differ from the prompt the turn was generated from.
+
+    NOTE this model pre-opens the think block: add_generation_prompt emits '<think>\n' (or the
+    closed empty block when enable_thinking is false), so the opening <think> is INJECTED and is not
+    part of the generated content. History therefore re-adds '<think>\n' and then the content
+    verbatim -- it must not reassemble a <think>...</think> pair from the content.
+
+    Changes:
+    - render_content() is called ONCE (it increments the vision counter) and kept untrimmed as
+      `raw_content`; the |trim was eating leading newlines. Other roles keep the trimmed `content`.
+    - the trainable (last) assistant message is emitted verbatim after whatever prefix
+      add_generation_prompt injected -- '<think>\n', or the closed empty block when
+      enable_thinking is false. The branch mirrors this file's own add_generation_prompt block.
+    - `body` is the post-</think> text, kept for earlier turns and the tool_calls spacing test.
+    - the first tool_call skips the injected '\n\n' ONLY on the verbatim path: vLLM's qwen3coder
+      parser leaves trailing whitespace on content (its .rstrip() is commented out), so a verbatim
+      emit already carries it and the separator would double. Every other turn keeps stock's
+      `body|trim` conditional, so earlier turns stay byte-identical to the model's own template.
+
+    NOT token-prefix-preserving, intentionally: a verbatim leading newline merges with the injected
+    one ('\n'+'\n' -> '\n\n', a different token). Use this variant for ART; use Qwen3.5.preserving.jinja for
+    verl, which requires prefix preservation.
 -#}
 {%- set image_count = namespace(value=0) %}
 {%- set video_count = namespace(value=0) %}
@@ -93,7 +109,8 @@
     {{- raise_exception('No user query found in messages.') }}
 {%- endif %}
 {%- for message in messages %}
-    {%- set content = render_content(message.content, true)|trim %}
+    {%- set raw_content = render_content(message.content, true) %}
+    {%- set content = raw_content|trim %}
     {%- if message.role == "system" %}
         {%- if not loop.first %}
             {{- raise_exception('System message must be at the beginning.') }}
@@ -102,28 +119,39 @@
         {{- '<|im_start|>' + message.role + '\n' + content + '<|im_end|>' + '\n' }}
     {%- elif message.role == "assistant" %}
         {%- set reasoning_content = '' %}
+        {%- set body = content %}
         {%- if message.reasoning_content is string %}
             {%- set reasoning_content = message.reasoning_content %}
         {%- else %}
-            {%- if '<think>' in content and '</think>' in content %}
+            {%- if '</think>' in content %}
                 {%- set reasoning_content = content.split('</think>')[0].rstrip('\n').split('<think>')[-1].lstrip('\n') %}
-                {%- set content = content.split('</think>')[-1].lstrip('\n') %}
+                {%- set body = content.split('</think>')[-1].lstrip('\n') %}
             {%- endif %}
         {%- endif %}
         {%- set reasoning_content = reasoning_content|trim %}
-        {{- '<|im_start|>' + message.role + '\n' }}
-        {%- generation %}
-        {{- '<think>\n' + content }}
+        {%- set is_verbatim = loop.last and message.reasoning_content is not string %}
+        {%- if is_verbatim %}
+            {{- '<|im_start|>' + message.role + '\n' }}
+            {%- if enable_thinking is defined and enable_thinking is false %}
+                {{- '<think>\n\n</think>\n\n' + raw_content }}
+            {%- else %}
+                {{- '<think>\n' + raw_content }}
+            {%- endif %}
+        {%- elif loop.index0 > ns.last_query_index %}
+            {{- '<|im_start|>' + message.role + '\n<think>\n' + reasoning_content + '\n</think>\n\n' + body }}
+        {%- else %}
+            {{- '<|im_start|>' + message.role + '\n' + body }}
+        {%- endif %}
         {%- if message.tool_calls and message.tool_calls is iterable and message.tool_calls is not mapping %}
             {%- for tool_call in message.tool_calls %}
                 {%- if tool_call.function is defined %}
                     {%- set tool_call = tool_call.function %}
                 {%- endif %}
                 {%- if loop.first %}
-                    {%- if content|trim %}
-                        {{- '\n\n<tool_call>\n<function=' + tool_call.name + '>\n' }}
-                    {%- else %}
+                    {%- if is_verbatim or not body|trim %}
                         {{- '<tool_call>\n<function=' + tool_call.name + '>\n' }}
+                    {%- else %}
+                        {{- '\n\n<tool_call>\n<function=' + tool_call.name + '>\n' }}
                     {%- endif %}
                 {%- else %}
                     {{- '\n<tool_call>\n<function=' + tool_call.name + '>\n' }}
@@ -140,7 +168,6 @@
             {%- endfor %}
         {%- endif %}
         {{- '<|im_end|>\n' }}
-        {%- endgeneration %}
     {%- elif message.role == "tool" %}
         {%- if loop.previtem and loop.previtem.role != "tool" %}
             {{- '<|im_start|>user' }}
