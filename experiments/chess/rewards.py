@@ -12,7 +12,7 @@ def parse_move(board: chess.Board, text: str) -> chess.Move | None:
     Extract a single legal move from `text` in UCI format.
     The text is expected to contain only a single valid move.
 
-    1. Extract the first boxed move if present (e.g. \boxed{e2e4}).
+    1. Extract the first boxed move if present (e.g. \\boxed{e2e4}).
     2. Tokenize the text: split on whitespace and punctuation (commas, periods).
     3. Attempt to parse each token as a UCI move. If a token is a valid UCI move and legal in the given board position, return it.
     4. If no valid moves are found, or if multiple valid moves are found, return None. Otherwise, return the single valid move found.

@@ -24,7 +24,7 @@ logger = create_logger(__name__)
 
 
 # Repo root, so the Ray workers can import experiment `_target_` FQDNs
-REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 
 
 class VerlBackend(Backend):
