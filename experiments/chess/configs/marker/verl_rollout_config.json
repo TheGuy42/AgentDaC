@@ -1,0 +1,8 @@
+{
+    "kwargs": {
+        "min_tokens": 5
+    },
+    "train_kwargs": {},
+    "val_kwargs": {},
+    "test_kwargs": {}
+}

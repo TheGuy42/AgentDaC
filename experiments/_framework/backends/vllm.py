@@ -43,7 +43,9 @@ class VllmBackend(Backend):
         inference = vllm_config.inference
 
         if args.test_run:
-            data_config.train_size = data_config.val_size = data_config.test_size = 10
+            data_config.train_size = 10
+            data_config.val_size = 10
+            data_config.test_size = 10
             inference.group_size = 1
 
         logger.info(f"Serving model: {vllm_config.server.model_name} at {vllm_config.server.base_url}")

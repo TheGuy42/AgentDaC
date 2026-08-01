@@ -28,7 +28,14 @@ class ChessExperiment(Experiment):
 if __name__ == "__main__":
     ChessExperiment(
         task_name="chess",
-        supported_agents=[AgentKey.PERST, AgentKey.NATIVE_PERST, AgentKey.TOOL_STATELESS, AgentKey.TOOL_PERSISTENT, AgentKey.TOOL_SUBMIT],
+        supported_agents=[
+            AgentKey.MARKER,
+            AgentKey.PERST,
+            AgentKey.NATIVE_PERST,
+            AgentKey.TOOL_STATELESS,
+            AgentKey.TOOL_PERSISTENT,
+            AgentKey.TOOL_SUBMIT,
+        ],
         task_cls=ChessTask,
         dataset_cls=ChessPerstDataset,
     ).run()

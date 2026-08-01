@@ -48,8 +48,9 @@ class OAIClient(InferenceClient):
         base_url: str | None = None,
         api_key: str | None = "EMPTY",
         client: openai.AsyncOpenAI | None = None,
+        **kwargs,
     ):
-        self.client = client or openai.AsyncOpenAI(base_url=base_url, api_key=api_key)
+        self.client = client or openai.AsyncOpenAI(base_url=base_url, api_key=api_key, **kwargs)
         self.model_name = model_name
 
     async def list_models(self) -> list[openai.types.Model]:

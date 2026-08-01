@@ -72,7 +72,7 @@ class ArtTrainer:
         self.task = task
         self.config = config
         self.rollout_config = rollout_config
-        self.agent_key = agent_name
+        self.agent_name = agent_name
         self.prompt_config = prompt_config
         self.decomp_config = decomp_config
         self.extra_config: dict[str, Any] = extra_config or {}
@@ -128,7 +128,7 @@ class ArtTrainer:
 
     def _agent_context(self, stage: RolloutStage) -> AgentContext:
         return AgentContext(
-            agent_key=self.agent_key,
+            agent_key=self.agent_name,
             prompt_config=self.prompt_config,
             decomp_config=self._decomp_config(stage),
             extra_config=self.extra_config,
@@ -223,7 +223,7 @@ class ArtTrainer:
         # Log hyperparameters
         self.log_hparams(
             {
-                "agent": self.agent_key,
+                "agent": self.agent_name,
                 "task": type(self.task).__name__,
                 "model": self.model.model_dump(),
                 "config": self.config.model_dump(),

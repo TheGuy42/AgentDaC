@@ -10,9 +10,13 @@
                 "max_lora_rank": 16
             },
             "engine_args": {
-                "max_model_len": 14336,
+                "max_model_len": 8192,
                 "gpu_memory_utilization": 0.75,
-                "max_lora_rank": 16
+                "generation_config": "vllm",
+                "max_lora_rank": 16,
+                "logits_processors": [
+                    "src.backends.utils.thinking_budget:ThinkingBudgetLogitsProcessor"
+                ]
             },
             "peft_args": {
                 "r": 16
@@ -26,7 +30,7 @@
     },
     "train": {
         "epochs": 3000,
-        "num_groups": 8,
+        "num_groups": 16,
         "group_size": 8,
         "val_log_steps": 10,
         "delete_checkpoints": true,

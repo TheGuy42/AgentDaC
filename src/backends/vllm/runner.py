@@ -97,7 +97,12 @@ class VllmRunner:
             self._wandb_run.finish()
             self._wandb_run = None
 
-    def report(self, summary: dict[str, float], stage: RolloutStage, step: int = 0) -> None:
+    def log_hparams(self, d: dict) -> dict:
+        if (run := self.wandb_run) is not None:
+            run.config.update(d, allow_val_change=True)
+        return d
+
+    def report(self, summary: dict[str, float], stage: RolloutStage, step: int = 0) -> dict[str, float]:
         """Log the summary, send it to wandb, and write it beside the trajectories."""
         logger.info(f"[{stage.value}] " + "  ".join(f"{k}={v:.4f}" for k, v in sorted(summary.items())))
 
@@ -116,6 +121,8 @@ class VllmRunner:
 
             save_object(data, path, overwrite=True)
             logger.info(f"Wrote summary to {path}")
+
+        return summary
 
     def _agent_context(self, stage: RolloutStage) -> AgentContext:
         return AgentContext(
@@ -138,22 +145,25 @@ class VllmRunner:
         rollout_id: str,
         step: int = 0,
     ) -> Trajectory | RolloutError:
-        async with self._semaphore:
-            try:
-                agent = create_agent(client=self.client, ctx=self._agent_context(stage))
-                chat_kw = self._chat_kwargs(stage)
+
+        chat_kw = self._chat_kwargs(stage)
+        agent_ctx = self._agent_context(stage)
+
+        try:
+            async with self._semaphore:
+                agent = create_agent(client=self.client, ctx=agent_ctx)
                 trajectory = await self.task.rollout(agent=agent, sample=sample, stage=stage, chat_kwargs=chat_kw)
 
-            except RolloutError as e:
-                logger.error("Rollout %s failed: %s", rollout_id, e, exc_info=True)
-                if self.writer:
-                    self.writer.write(e.trajectory, rollout_id=f"failed/{rollout_id}", stage=stage, step=step)
-                return e
-
+        except RolloutError as e:
+            logger.error("Rollout %s failed: %s", rollout_id, e, exc_info=True)
             if self.writer:
-                self.writer.write(trajectory, rollout_id=rollout_id, stage=stage, step=step)
+                self.writer.write(e.trajectory, rollout_id=f"failed/{rollout_id}", stage=stage, step=step)
+            return e
 
-            return trajectory
+        if self.writer:
+            self.writer.write(trajectory, rollout_id=rollout_id, stage=stage, step=step)
+
+        return trajectory
 
     async def rollout(
         self,
@@ -178,11 +188,30 @@ class VllmRunner:
     ) -> dict[RolloutStage, list[Trajectory | RolloutError]]:
         """Roll out every stage and report each one as it finishes."""
 
+        # Log hyperparameters
+        self.log_hparams(
+            {
+                "agent": self.agent_name,
+                "task": type(self.task).__name__,
+                "config": self.config.model_dump(),
+                "prompt_config": self.prompt_config.model_dump(),
+                "decomp_config": self.decomp_config.model_dump(),
+                "rollout_config": self.rollout_config.model_dump(),
+                "extra_config": self.extra_config,
+                "task_config": self.task.configs,
+            }
+        )
+
         results: dict[RolloutStage, list[Trajectory | RolloutError]] = {}
 
+        # Run each stage in order, reporting as we go
         for stage, dataset in datasets.items():
             logger.info(f"Running {stage.value} inference over {len(dataset)} samples...")
             results[stage] = await self.rollout(dataset, stage=stage, step=step)
-            self.report(aggregate_metrics(results[stage]), stage, step)
+            summary = self.report(aggregate_metrics(results[stage]), stage, step)
+
+            print(f"Metrics for {stage.value}:")
+            for k, v in sorted(summary.items()):
+                print(f"  {k}: {v:.4f}")
 
         return results
