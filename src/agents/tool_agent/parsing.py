@@ -80,7 +80,7 @@ class NativeParser:
             ParsedTurn: the parsed reasoning, content, and tool call.
         """
         if response.tool_calls and len(response.tool_calls) > 1:
-            logger.warning("Expected at most one tool call per turn, but got multiple.")
+            logger.debug("Expected at most one tool call per turn, but got multiple.")
 
         # Minimal request object; vLLM's only need its presence.
         dummy_request = ChatCompletionRequest(messages=[], model="_", seed=None)
@@ -97,7 +97,7 @@ class NativeParser:
         if (content is not None) and (tool_call is None):
             tools_info = self._tool_parser.extract_tool_calls(content, dummy_request)
             if tools_info.tools_called and len(tools_info.tool_calls) > 1:
-                logger.warning("Expected at most one tool call per turn, but parsed multiple.")
+                logger.debug("Expected at most one tool call per turn, but parsed multiple.")
 
             content = tools_info.content
             tool_call = tools_info.tool_calls[0] if tools_info.tool_calls else None

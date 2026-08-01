@@ -92,7 +92,7 @@ class ToolSubmitAgent(ToolPersistentAgent):
                 # Model turn
                 completion = await self.call(self.trajectory.messages(), **kwargs)
             except Exception as e:
-                logger.error(f"Error during model call: {e}")
+                logger.debug(f"Error during model call: {e}")
                 self.trajectory.error(kind=ToolPersistentErrors.CLIENT_ERROR, message=str(e))
                 return self.trajectory.finish()
 
@@ -105,7 +105,7 @@ class ToolSubmitAgent(ToolPersistentAgent):
                 # Parse reasoning and tool calls from the model's output
                 turn = self.tool_parser.parse(completion)
             except Exception as e:
-                logger.warning(f"Failed to parse model output: {e}")
+                logger.debug(f"Failed to parse model output: {e}")
                 self.trajectory.error(kind=ToolPersistentErrors.PARSE_ERROR, message=str(e))
                 return self.trajectory.finish()
 
@@ -192,7 +192,7 @@ class ToolSubmitAgent(ToolPersistentAgent):
 
     def parse_answer(self, message: Message | InferenceResponse) -> str | None:
         if not isinstance(message, InferenceResponse):
-            logger.error(f"Expected an InferenceResponse, got {type(message)}")
+            logger.debug(f"Expected an InferenceResponse, got {type(message)}")
             return None
 
         try:
@@ -204,5 +204,5 @@ class ToolSubmitAgent(ToolPersistentAgent):
             return args["answer"].strip()
 
         except Exception as e:
-            logger.error(f"Failed to parse answer from tool call: {e}")
+            logger.debug(f"Failed to parse answer from tool call: {e}")
             return None

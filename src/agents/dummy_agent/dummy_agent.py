@@ -79,7 +79,7 @@ class DummyAgent(BaseAgent):
             # Model turn
             completion = await self.call(self.trajectory.messages(), **kwargs)
         except Exception as e:
-            logger.error(f"Error during model call: {e}")
+            logger.debug(f"Error during model call: {e}")
             self.trajectory.error(kind=DummyErrors.CLIENT_ERROR, message=str(e))
             return self.trajectory.finish()
 
@@ -91,12 +91,12 @@ class DummyAgent(BaseAgent):
 
     def parse_answer(self, message: Message | InferenceResponse) -> str | None:
         if not isinstance(message, InferenceResponse):
-            logger.error(f"Expected an InferenceResponse, got {type(message)}")
+            logger.debug(f"Expected an InferenceResponse, got {type(message)}")
             return None
 
         content = message.content
         if not isinstance(content, str):
-            logger.error(f"Expected message content to be a string, got {type(content)}")
+            logger.debug(f"Expected message content to be a string, got {type(content)}")
             return None
 
         return content

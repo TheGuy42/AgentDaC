@@ -120,7 +120,7 @@ class MarkerAgent(BaseAgent):
                 # Model turn
                 completion = await self.call(self.trajectory.messages(), stop=self.parser.stop_tags(), **kwargs)
             except Exception as e:
-                logger.error(f"Error during model call: {e}")
+                logger.debug(f"Error during model call: {e}")
                 self.trajectory.error(kind=MarkerErrors.CLIENT_ERROR, message=str(e))
                 return self.trajectory.finish()
 
@@ -183,12 +183,12 @@ class MarkerAgent(BaseAgent):
 
     def parse_answer(self, message: Message | InferenceResponse) -> str | None:
         if not isinstance(message, InferenceResponse):
-            logger.error(f"Expected an InferenceResponse, got {type(message)}")
+            logger.debug(f"Expected an InferenceResponse, got {type(message)}")
             return None
 
         content = message.content
         if not isinstance(content, str):
-            logger.error(f"Expected message content to be a string, got {type(content).__name__}")
+            logger.debug(f"Expected message content to be a string, got {type(content).__name__}")
             return None
 
         try:
@@ -196,5 +196,5 @@ class MarkerAgent(BaseAgent):
             return turn.answers[-1] if turn.answers is not None else None
 
         except Exception as e:
-            logger.error(f"Failed to parse final answer: {e}")
+            logger.debug(f"Failed to parse final answer: {e}")
             return None

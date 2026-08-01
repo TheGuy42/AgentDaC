@@ -85,12 +85,12 @@ class NativePersistentAgent(PersistentAgent):
 
     def parse_answer(self, message: Message | InferenceResponse) -> str | None:
         if not isinstance(message, InferenceResponse):
-            logger.error(f"Expected an InferenceResponse, got {type(message)}")
+            logger.debug(f"Expected an InferenceResponse, got {type(message)}")
             return None
 
         content = message.content
         if not isinstance(content, str):
-            logger.error(f"Expected message content to be a string, got {type(content)}")
+            logger.debug(f"Expected message content to be a string, got {type(content)}")
             return None
 
         try:
@@ -99,5 +99,5 @@ class NativePersistentAgent(PersistentAgent):
             return turn.text
         
         except Exception as e:
-            logger.error(f"Failed to parse final answer: {e}")
+            logger.debug(f"Failed to parse final answer: {e}")
             return None
