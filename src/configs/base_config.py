@@ -11,10 +11,12 @@ from src.utils.io import save_base_model, load_base_model
 T = TypeVar("T", bound="BaseConfig")
 
 
-class BaseConfig(BaseModel, ABC):
+class BaseConfig(BaseModel, ABC, extra="forbid"):
     """
     Base configuration class that provides common functionality.
-    All configuration classes should inherit from this class.
+    All configuration classes should inherit from this class. Unknown fields are rejected
+    by default; configuration models that intentionally carry extension parameters must opt
+    into ``extra="allow"`` explicitly.
     """
 
     def save(self, dir_name: str | Path, file_name: str | None = None, overwrite: bool = False) -> None:

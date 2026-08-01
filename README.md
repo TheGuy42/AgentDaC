@@ -1,266 +1,250 @@
 # AgentDaC
 
-AgentDaC is a research framework for training recursive LLM agents with [VERL](https://github.com/volcengine/verl). Agents can solve tasks directly, reason across multiple turns, or delegate subproblems to fresh or persistent sub-agents.
+AgentDaC is a research framework for training and evaluating recursive LLM agents. An
+agent can answer directly, reason over several turns, delegate independent subproblems,
+or maintain a persistent conversation with a sub-agent.
 
-The repository separates **task logic**, **agent protocols**, and **RL infrastructure**, allowing the same task to be trained with different decomposition and communication strategies.
+The core agent and task code is independent of the training framework. Backend adapters
+connect the same rollout logic to VERL, ART, or an OpenAI-compatible vLLM server.
 
-## Repository Structure
+## Architecture
 
-```text
-AgentDaC/
-├── src/
-│   ├── agents/                  # Agent implementations and output parsers
-│   │   ├── base/                # Base class for all agents, should implement `chat()` and `parse_answer()`
-│   │   ├── dummy_agent/         # Direct-response baseline
-│   │   └──...
-│   |   
-│   ├── inference/               # Backend-independent inference clients
-│   │   ├── client/              # Base class infrence (token-generation) endpoint
-│   │   └── openai_client/       # Standard OpenaAI-API compatible client
-│   |
-│   ├── configs/                 # Typed configuration models
-│   ├── running/                 # Backend-independent running contract
-│   │   ├── dataset.py           # TaskDataset: load a split, shuffle, limit
-│   │   └── task.py              # RolloutTask: prompt, agent, score for one rollout
-│   |
-│   ├── backends/                # Training-framework specific code
-│   │   └── verl/                # VERL dataset, client, rollout loop, conversion, PPO extensions
-│   ├── trajectory.py            # Shared rollout and reward representation
-│   └── utils/                   # Environment, logging, templates, and I/O
-│
-├── experiments/
-│   ├── _framework/              # Shared runner, trainer, agent registry, and rewards
-│   ├── chess/                   # Next-move selection task, scored via a chess-engine
-│   └── ...                      
-│
-├── config_files/
-│   ├── prompts/                 # Reusable root, intermediate, and leaf prompts
-│   └── templates/               # Model chat-template overrides
-│
-├── notebooks/                   # Data preparation, testing, and analysis
-├── pyproject.toml
-└── uv.lock
-```
+The main abstractions are:
 
-A task usually follows this layout:
+- `RolloutTask`: formats one dataset sample and scores the resulting trajectory.
+- `BaseAgent`: implements an agent protocol and its delegation behavior.
+- `InferenceClient`: sends chat turns to a backend without exposing backend details to
+  the agent.
+- `Trajectory`: records messages, model responses, nested histories, rewards, metrics,
+  metadata, logs, and errors.
+- `TaskDataset`: loads task data and prepares deterministic train, validation, and test
+  splits.
+- Backend adapters: assemble configurations, run rollouts, and optionally train the model.
 
 ```text
-experiments/<task>/
-├── run.py                       # CLI entry point
-├── dataset.py                   # Dataset loading and filtering
-├── format.py                    # Dataset row -> user prompt
-├── rewards.py                   # Task-specific rewards
-├── trainer.py                   # Prompt formatting and trajectory scoring
-└── configs/
-    └── <agent>/                 # Configuration for one task/agent combination
+experiment entry point
+        |
+        v
+dataset -> task -> agent -> inference client -> model backend
+                   |                              |
+                   +--------- trajectory <-------+
+                                  |
+                                  v
+                         scoring and training
 ```
 
-## System and Data Flow
+Repository layout:
 
-```mermaid
-flowchart TD
-    A["experiments/&lt;task&gt;/run.py"] --> B["ExperimentRunner"]
-    B --> C["Load configs and register dataset"]
-    C --> D["Launch VERL / Ray"]
-    D --> E["VerlLoop \n (AgentLoop + extras)"]
-    E --> F["Build DacAgent from AGENT_REGISTRY"]
-    F --> G["Agent reasoning and delegation loop"]
-    G --> H["VerlClient"]
-    H --> I["VERL server manager / vLLM"]
-    I --> G
-    G --> J["Trajectory"]
-    J --> K["Task-specific scoring"]
-    K --> L["convert_trajectory"]
-    L --> M["AgentLoopOutput"]
-    M --> N["VERL policy update"]
+```text
+src/
+  agents/          agent protocols and parsers
+  inference/       backend-independent inference interface
+  running/         task, dataset, and rollout contracts
+  backends/        VERL, ART, and vLLM adapters
+  configs/         typed shared configuration
+  trajectory.py    canonical rollout representation
+experiments/
+  _framework/      shared experiment runner and backend dispatch
+  <task>/           task-specific data, prompting, scoring, and configs
+config_files/
+  prompts/         reusable system prompts
+  templates/       chat-template overrides
+tests/              focused regression tests
+notebooks/          development and analysis notebooks
 ```
 
-The flow for one training sample is:
+## Installation
 
-1. **`ExperimentRunner`** loads the task and agent configuration, merges `verl_config.yaml` over VERL's defaults, registers the dataset and agent loop, and launches training.
-2. **`VerlDataset`** resolves the experiment's **`TaskDataset`** inside the VERL worker and asks it for the requested split, which applies deterministic shuffling, filtering, and sample limits.
-3. **`VerlLoop`** formats one dataset row, constructs the selected agent, and runs one complete rollout.
-4. The agent calls the model through **`VerlClient`**, which applies the chat template and sends token IDs to VERL's vLLM-backed rollout engine.
-5. All messages, model responses, rewards, metrics, and errors are stored in a **`Trajectory`**.
-6. The task trainer parses the final answer and computes the trajectory reward.
-7. **`convert_trajectory()`** converts the interaction into VERL training data while preserving the exact sampled token IDs.
-
-The converted `AgentLoopOutput` contains:
-
-* `prompt_ids`: tokens before the first assistant generation;
-* `response_ids`: the remaining multi-turn interaction;
-* `response_mask`: `1` for model-generated tokens and `0` for user, controller, tool, or returned sub-agent messages;
-* `reward_score`: the final scalar trajectory reward.
-
-This separation lets task correctness remain independent of the agent protocol.
-
-## Main Components
-
-| Component           | Responsibility                                                                                              |
-| ------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `ExperimentRunner`  | CLI, config loading, dataset registration, chat-template validation, and VERL launch.                       |
-| `VerlLoop`          | Runs and scores one rollout, writes optional trajectory logs, and returns `AgentLoopOutput`.                |
-| `ExperimentTrainer` | Shared task trainer that selects the agent and optionally randomizes decomposition budgets.                 |
-| `BaseAgent`         | Common interface for agent implementations: `chat()`, `parse_answer()`, inference, and trajectory handling. |
-| `Trajectory`        | Canonical record of the conversation, nested histories, reward, metrics, metadata, logs, and errors.        |
-| `InferenceClient`   | Backend-independent inference interface, implemented by `VerlClient` and `OAIClient`.                       |
-| `TaskDataset`       | Backend-independent dataset base class: loads a split, then shuffles and applies sample limits.             |
-| `VerlDataset`       | VERL adapter building its rows in-worker from an experiment's `TaskDataset` instead of parquet.             |
-| `CustomPPOTrainer`  | Adds aggregation of custom per-trajectory training and validation metrics.                                  |
-| `TrajectoryWriter`  | Optionally writes complete rollouts as readable JSON files.                                                 |
-
-## Agent Protocols
-
-| Agent key         | Description                                                                                   |
-| ----------------- | --------------------------------------------------------------------------------------------- |
-| `dummy`           | Direct-response baseline without decomposition.                                               |
-| `marker`          | Uses marker-delimited task and answer blocks and can delegate fresh sub-tasks.                |
-| `json`            | Represents actions through structured JSON output.                                            |
-| `regex`           | Uses guided regex output for constrained actions.                                             |
-| `perst`           | Maintains a persistent current sub-agent across follow-up tasks.                              |
-| `native_perst`    | Persistent agent designed for models with native reasoning followed by a guided action block. |
-| `tool_stateless`  | Uses native tool calls and creates a fresh sub-agent for every task.                          |
-| `tool_persistent` | Uses native tool calls and can continue with the current sub-agent.                           |
-| `tool_submit`     | Persistent tool agent that returns its final answer through `submit_answer`.                  |
-
-Supported agents are defined separately by each experiment's `run.py`.
-
-## Quick Start
-
-### Requirements
-
-* Linux with an NVIDIA GPU;
-* Python 3.12;
-* [`uv`](https://docs.astral.sh/uv/);
-* a CUDA 12.8-compatible environment.
-
-The current environment pins PyTorch 2.10, vLLM 0.19.1, and VERL 0.8.0.
-
-### Installation
+AgentDaC uses Python 3.12 and `uv`. Choose exactly one backend extra; the backend extras
+are intentionally mutually exclusive. The `experiments` extra adds the dependencies used
+by the checked-in tasks.
 
 ```bash
-git clone --branch verl-migration https://github.com/TheGuy42/AgentDaC.git
-cd AgentDaC
-uv sync
+# VERL training
+uv sync --extra verl --extra experiments
+
+# ART training
+uv sync --extra art --extra experiments
+
+# Inference/evaluation against a running vLLM server
+uv sync --extra vllm --extra experiments
 ```
 
-Create a `.env` file when the corresponding services are used:
+Run commands from the repository root. Checked-in prompt and chat-template paths are
+repository-relative.
 
-```bash
+Depending on the selected backend and its logging configuration, a `.env` file may
+contain:
+
+```dotenv
 HF_TOKEN=...
 WANDB_API_KEY=...
-
-# Only needed when using OAIClient directly:
 OPENAI_API_KEY=...
 ```
 
-### Minimal pipeline test
+Not every experiment/agent directory provides configuration for every backend. Select a
+combination that contains the backend-specific files described below.
+
+## Backends
+
+### VERL
+
+The VERL backend performs reinforcement-learning rollouts and training. It adapts a
+multi-turn `Trajectory` into VERL's token-level agent-loop output while retaining the
+sampled response token IDs and masking controller, user, tool, and returned sub-agent
+tokens from the policy loss.
+
+Required backend files:
+
+```text
+verl_config.yaml
+verl_rollout_config.yaml
+```
+
+Example:
 
 ```bash
 uv run python experiments/math/run.py \
-    --agent marker \
-    --gpus 0 \
-    --test_run
+  --backend verl \
+  --agent marker \
+  --gpus 0 \
+  --test_run
 ```
 
-### Standard run
+### ART
+
+The ART backend runs local ART rollout groups and training. It supports training a whole
+trajectory or splitting a multi-turn trajectory into episodes, depending on the ART
+configuration.
+
+Required backend files:
+
+```text
+art_config.yaml
+art_rollout_config.yaml
+```
+
+Example:
 
 ```bash
-uv run python experiments/math/run.py \
-    --agent marker \
-    --gpus 0 \
-    --project math_marker \
-    --run qwen3_marker \
-    --traj_dir trajectories
+uv run python experiments/memorization/run.py \
+  --backend art \
+  --agent dummy \
+  --gpus 0 \
+  --test_run
 ```
 
-Common arguments:
+### vLLM
 
-* `--agent`: agent protocol; required;
-* `--gpus`: local GPU IDs;
-* `--config_dir`: override `experiments/<task>/configs/<agent>`;
-* `--resume`: resume from a VERL checkpoint;
-* `--traj_dir`: enable full trajectory logging;
-* `--seed`: experiment seed;
-* `--silent`: reduce logging;
-* `--test_run`: run a small end-to-end training test.
+The vLLM backend is inference-only. It connects to an already running
+OpenAI-compatible server, performs scored rollouts, and optionally logs trajectories and
+metrics. It does not launch the server or train a model.
 
-Use the task entry point for task-specific options:
+Required backend files:
+
+```text
+vllm_config.yaml
+vllm_rollout_config.yaml
+```
+
+Example:
+
+```bash
+uv run python experiments/chess/run.py \
+  --backend vllm \
+  --agent tool_submit \
+  --gpus 0 \
+  --test_run
+```
+
+The server URL, served model name, parser settings, requested splits, group size, and
+concurrency are configured in `vllm_config.yaml`.
+
+If `--backend` is omitted, AgentDaC selects the first supported backend it detects in the
+active environment. Passing it explicitly is clearer when more than one backend package
+is installed.
+
+## Experiments and agents
+
+Checked-in experiments include mathematical reasoning, Easy2Hard, BBEH, Saturn,
+synthetic memorization, and chess move selection. Each experiment's `run.py` is the source
+of truth for its supported agent protocols.
+
+The available protocols include direct response, marker-delimited actions, guided JSON
+or regex actions, persistent sub-agents, and native tool-calling variants. Agent builders
+are registered in `src/agents/registry.py`.
+
+Common command-line options:
+
+- `--agent`: agent protocol; required.
+- `--backend`: `verl`, `art`, or `vllm`; optional auto-detection when omitted.
+- `--gpus`: visible local GPU IDs.
+- `--config_dir`: override the default `experiments/<task>/configs/<agent>` directory.
+- `--project`: logging project name.
+- `--run`: run name.
+- `--traj_dir`: enable full trajectory JSON logging under this directory.
+- `--seed`: experiment seed.
+- `--silent`: reduce logging.
+- `--test_run`: apply small, backend-specific smoke-run settings.
+
+Use an experiment entry point for its exact choices:
 
 ```bash
 uv run python experiments/chess/run.py --help
 ```
 
-Validation is configured through `verl_config.yaml`. The shared runner currently does not provide a separate evaluation-only CLI mode.
-
-## Active Experiments
-
-| Experiment     | Task                                                  | Supported agents                                                            |
-| -------------- | ----------------------------------------------------- | --------------------------------------------------------------------------- |
-| `math`         | Hendrycks MATH, optionally filtered by level          | `dummy`, `marker`, `json`, `regex`, `perst`                                 |
-| `easy2hard`    | Easy2Hard-Bench E2H-AMC, filtered by difficulty       | `marker`, `regex`                                                           |
-| `bbeh`         | Selected BBEH benchmark tasks                         | `marker`                                                                    |
-| `saturn`       | Local Saturn dataset                                  | `marker`                                                                    |
-| `memorization` | Synthetic label-memorization task                     | `dummy`, `marker`, `perst`                                                  |
-| `chess`        | Chess positions and puzzles with engine-based scoring | `perst`, `native_perst`, `tool_stateless`, `tool_persistent`, `tool_submit` |
-
 ## Configuration
 
-Each task/agent combination normally contains:
+Every configured experiment/agent combination starts with shared files:
 
 ```text
-experiments/<task>/configs/<agent>/
-├── data_config.yaml             # Dataset size limits
-├── prompt_config.yaml           # Root, intermediate, and leaf prompts
-├── decomp_config.yaml           # Depth, delegation, and round budgets
-├── rollout_config.yaml          # Generation arguments by stage
-├── verl_config.yaml             # Model, RL, vLLM, optimizer, FSDP, and logging
-└── extra_config.yaml            # Optional agent- or task-specific settings
+data_config.yaml       dataset sizes, seed, and task-specific loader parameters
+prompt_config.yaml     root, intermediate, and leaf system prompts
+decomp_config.yaml     depth, delegation, and round budgets
+extra_config.yaml      optional experiment or agent extension settings
 ```
 
-Some experiments add task-specific files. Chess configurations, for example, also include `chess_config.yaml` and `engine_config.yaml`.
+It then adds the two files required by its backend. Tasks may add their own typed files;
+chess, for example, adds `chess_config.yaml` and `engine_config.yaml`.
 
-The default config directory is:
+Typed structural configuration rejects unknown fields. Deliberate extension surfaces
+remain open: dataset-specific fields in `data_config.yaml`, raw `extra_config.yaml`, raw
+VERL overrides, rollout argument dictionaries, and backend-native ART model settings.
+
+Generation arguments are layered as:
 
 ```text
-experiments/<task>/configs/<agent>
+kwargs < train_kwargs | val_kwargs | test_kwargs
 ```
 
-Pass `--config_dir` to use an alternative configuration.
+The stage-specific dictionary overrides the shared dictionary.
 
-## Outputs
+## Trajectory output
 
-When `--traj_dir <directory>` is supplied, trajectories are written under:
+Passing `--traj_dir <directory>` writes readable JSON trajectories beneath a
+backend/project/run directory:
 
 ```text
-<directory>/<project>/<run>/step_<step>/<train|val|test>/<rollout_id>.json
+<traj_dir>/<backend>/<project>/<run>/step_<step>/<train|val|test>/<rollout_id>.json
 ```
 
-Each file contains the conversation, tool schemas, reward, metrics, metadata, logs, errors, and optional nested histories.
+Each record includes the conversation, tool schemas, reward, custom metrics, metadata,
+logs, errors, and any retained nested histories.
 
-Training metrics use the loggers configured in `verl_config.yaml`, typically console and Weights & Biases. Custom trajectory metrics are aggregated under `train-custom/` and `val-custom/`.
+## Extending AgentDaC
 
-## Extending the Repository
+To add a task:
 
-To add an experiment:
-
-1. implement a `TaskDataset`;
-2. add prompt formatting and reward functions;
-3. subclass `ExperimentTrainer`;
-4. add an `ExperimentRunner` in `run.py`;
-5. add configurations for each supported agent.
+1. Implement `TaskDataset` and `RolloutTask` subclasses.
+2. Add task formatting and reward logic.
+3. Create an experiment `run.py` with its supported agents.
+4. Add shared and backend-specific configuration files.
 
 To add an agent protocol:
 
-1. subclass `BaseAgent`;
-2. implement `chat()`, `parse_answer()`, and `error_kinds()`;
-3. add any required parser or tool schemas;
-4. register the agent in `experiments/_framework/agents.py`.
+1. Implement `BaseAgent.chat()`, `parse_answer()`, and `error_kinds()`.
+2. Add any parser, action, or tool-schema support it needs.
+3. Register its builder in `src/agents/registry.py`.
 
-## Implementation Notes
-
-* Multi-turn conversion requires a prefix-preserving chat template. The runner validates or patches the effective template before training.
-* Parent trajectories train only tokens generated directly by the parent agent. Returned sub-agent answers and tool/controller messages are context-only in that trajectory.
-* Nested sub-agent histories can be logged but are not currently converted into additional VERL training spans.
-* Training generation temperature must match VERL's rollout temperature so recomputed log-probabilities remain on-policy.
-
+The backend-independent contracts should remain free of trainer-specific types; backend
+conversion belongs under `src/backends/`.

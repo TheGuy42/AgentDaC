@@ -106,14 +106,14 @@ class TrainArgs(BaseConfig):
 
 
 class ArtTrainConfig(BaseConfig, frozen=False):
-    epochs: int = 1
-    num_groups: int = 12
+    epochs: int = Field(default=1, ge=1)
+    num_groups: int = Field(default=12, ge=1)
     train_episodes: bool = False
-    group_size: int = 8
-    val_log_steps: int = 5
+    group_size: int = Field(default=8, ge=1)
+    val_log_steps: int = Field(default=5, ge=1)
     delete_checkpoints: bool = True
     checkpoint_metric: str = "reward"
-    max_exceptions: int | float = 0
+    max_exceptions: int | float = Field(default=0, ge=0)
     verbose: bool = False
 
     train_params: TrainArgs = Field(default_factory=TrainArgs)

@@ -25,8 +25,8 @@ class ServerConfig(BaseConfig, frozen=False):
 
 class InferenceConfig(BaseConfig, frozen=False):
     splits: list[RolloutStage] = Field(default_factory=lambda: [RolloutStage.TEST])
-    group_size: int = 1
-    max_concurrency: int = 512
+    group_size: int = Field(default=1, ge=1)
+    max_concurrency: int = Field(default=512, ge=1)
 
 
 class VllmConfig(BaseConfig, frozen=False):

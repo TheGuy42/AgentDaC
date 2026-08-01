@@ -4,9 +4,9 @@ from src.configs.base_config import BaseConfig
 
 
 class DecompConfig(BaseConfig):
-    max_depth: int = 1
-    max_tasks: int = 4
-    max_rounds: int = 5
+    max_depth: int = Field(default=1, ge=0)
+    max_tasks: int = Field(default=4, ge=0)
+    max_rounds: int = Field(default=5, ge=0)
 
     # Internal counter fields
     total_rounds: int = Field(default=0, exclude=True, init=False)

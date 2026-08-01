@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Literal
 from chess.engine import Limit
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from src.configs.base_config import BaseConfig
 
 
@@ -11,12 +11,12 @@ class EngineConfig(BaseConfig):
     engine_path: str = "stockfish"
     """Path to the UCI engine binary — a name on PATH or an absolute path. Any UCI engine works."""
 
-    threads: int = 2
+    threads: int = Field(default=2, ge=1)
     """UCI search threads per engine process. Threads=1 is deterministic; multi-threaded Lazy-SMP
     is not. One engine process runs per rollout worker, so keep (workers * threads) within the
     core count."""
 
-    hash_mb: int = 64
+    hash_mb: int = Field(default=64, ge=1)
     """Engine transposition-table size in MB (the UCI `Hash` option), per engine process."""
 
 
@@ -44,22 +44,22 @@ class ChessConfig(BaseConfig):
     """Whether to compute the reward relative to the best move in the position. Only applies to
     `mode=root_multipv`."""
 
-    mate_score: int = 10_000
+    mate_score: int = Field(default=10_000, gt=0)
     """Centipawn magnitude a forced mate maps to (scaled down by distance to mate)."""
 
-    win_scale: float = 600.0
+    win_scale: float = Field(default=600.0, gt=0)
     """Logistic scale for the win_prob reward; larger = less saturation (400 ~ Elo expectancy)."""
 
-    mate_margin: float = 0.05
+    mate_margin: float = Field(default=0.05, gt=0, lt=0.5)
     """Width of the reserved end-bands that keep mate rewards distinct from any centipawn eval."""
 
-    mate_decay: float = 0.005
+    mate_decay: float = Field(default=0.005, ge=0)
     """Per-ply reward step within a mate band, so a faster mate scores higher."""
 
-    kwargs: dict = {}
+    kwargs: dict = Field(default_factory=dict)
     """Extra kwargs to pass to the engine's `analyse()` method, e.g. `info` or `options`."""
 
-    validation_overwrites: dict = {}
+    validation_overwrites: dict = Field(default_factory=dict)
     """Optional overwrites for a second validation search. Keys are any of the above fields, and values are the new values to use for validation."""
 
     @model_validator(mode="after")

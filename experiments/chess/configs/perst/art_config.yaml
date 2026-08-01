@@ -15,7 +15,7 @@ model:
             r: 16
     openai_config:
         server_args:
-            chat_template: /home/fre.gilad/source/AgentDac-AGL/AgentDaC/config_files/templates/Qwen3.jinja
+            chat_template: config_files/templates/Qwen3.jinja
 train:
     epochs: 3000
     num_groups: 8
