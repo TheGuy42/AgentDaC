@@ -49,8 +49,6 @@ experiments/
 config_files/
   prompts/         reusable system prompts
   templates/       chat-template overrides
-tests/              focused regression tests
-notebooks/          development and analysis notebooks
 ```
 
 ## Installation
