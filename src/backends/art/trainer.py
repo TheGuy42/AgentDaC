@@ -174,7 +174,10 @@ class ArtTrainer:
         if self.writer:
             self.writer.write(trajectory, rollout_id=rollout_id, stage=stage, step=step)
 
-        return convert_trajectory(trajectory)
+        return convert_trajectory(
+            trajectory=trajectory,
+            episodic_split=self.config.train.train_episodes,
+        )
 
     async def rollout(
         self,

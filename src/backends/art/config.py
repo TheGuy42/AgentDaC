@@ -108,6 +108,7 @@ class TrainArgs(BaseConfig):
 class ArtTrainConfig(BaseConfig, frozen=False):
     epochs: int = 1
     num_groups: int = 12
+    train_episodes: bool = False
     group_size: int = 8
     val_log_steps: int = 5
     delete_checkpoints: bool = True

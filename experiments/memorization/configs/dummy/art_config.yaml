@@ -21,6 +21,7 @@ train:
     num_groups: 8
     group_size: 8
     val_log_steps: 30
+    train_episodes: true
     delete_checkpoints: true
     checkpoint_metric: reward
     max_exceptions: 0
