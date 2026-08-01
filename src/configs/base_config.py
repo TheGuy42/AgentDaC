@@ -27,11 +27,11 @@ class BaseConfig(BaseModel, ABC):
             overwrite: Whether to overwrite existing file.
         """
         if file_name is None:
-            # Generate filename from class name: PromptConfig -> prompt_config.json
+            # Generate filename from class name: PromptConfig -> prompt_config.yaml
             # Convert CamelCase to snake_case
             class_name = self.__class__.__name__
             snake_case = re.sub(r"(?<!^)(?=[A-Z])", "_", class_name).lower()
-            file_name = f"{snake_case}.json"
+            file_name = f"{snake_case}.yaml"
 
         if isinstance(dir_name, str):
             dir_name = Path(dir_name)
@@ -93,7 +93,7 @@ class BaseConfig(BaseModel, ABC):
             import re
 
             snake_case = re.sub(r"(?<!^)(?=[A-Z])", "_", class_name).lower()
-            file_name = f"{snake_case}.json"
+            file_name = f"{snake_case}.yaml"
 
         if isinstance(dir_name, str):
             dir_name = Path(dir_name)

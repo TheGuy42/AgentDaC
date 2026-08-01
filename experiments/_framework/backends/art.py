@@ -33,12 +33,12 @@ class ArtBackend(Backend):
 
     def load_configs(self, config_dir: pathlib.Path) -> dict[str, Any]:
         return {
-            "data_config": DataConfig.load_from_path(config_dir / "data_config.json", do_raise=True),
-            "prompt_config": PromptConfig.load_from_path(config_dir / "prompt_config.json", do_raise=True),
-            "decomp_config": DecompConfig.load_from_path(config_dir / "decomp_config.json", do_raise=True),
-            "rollout_config": RolloutConfig.load_from_path(config_dir / "art_rollout_config.json", do_raise=True),
-            "art_config": ArtConfig.load_from_path(config_dir / "art_config.json", do_raise=True),
-            "extra_config": load_object(config_dir / "extra_config.json", do_raise=False) or {},
+            "data_config": DataConfig.load_from_path(config_dir / "data_config.yaml", do_raise=True),
+            "prompt_config": PromptConfig.load_from_path(config_dir / "prompt_config.yaml", do_raise=True),
+            "decomp_config": DecompConfig.load_from_path(config_dir / "decomp_config.yaml", do_raise=True),
+            "rollout_config": RolloutConfig.load_from_path(config_dir / "art_rollout_config.yaml", do_raise=True),
+            "art_config": ArtConfig.load_from_path(config_dir / "art_config.yaml", do_raise=True),
+            "extra_config": load_object(config_dir / "extra_config.yaml", do_raise=False) or {},
         }
 
     def launch(self, configs: dict[str, Any]) -> None:

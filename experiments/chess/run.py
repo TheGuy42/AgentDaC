@@ -20,8 +20,8 @@ class ChessExperiment(Experiment):
     def task_configs(self, config_dir: pathlib.Path) -> dict[str, Any]:
         """The chess-specific engine configs."""
         return {
-            "engine_config": EngineConfig.load_from_path(config_dir / "engine_config.json", do_raise=True),
-            "chess_config": ChessConfig.load_from_path(config_dir / "chess_config.json", do_raise=True),
+            "engine_config": EngineConfig.load_from_path(config_dir / "engine_config.yaml", do_raise=True),
+            "chess_config": ChessConfig.load_from_path(config_dir / "chess_config.yaml", do_raise=True),
         }
 
 

@@ -1,0 +1,5 @@
+mode: path
+system_root: config_files/prompts/perst/v3_root.txt
+system_inter: config_files/prompts/perst/v3_root.txt
+system_leaf: config_files/prompts/perst/v3_leaf.txt
+tasks_depleted: null

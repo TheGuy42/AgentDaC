@@ -1,0 +1,9 @@
+train_size: null
+val_size: null
+test_size: null
+seed: 0
+num_samples: 10
+labels:
+- A
+- B
+label_kind: const

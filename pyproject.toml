@@ -7,7 +7,11 @@ requires-python = ">=3.12,<3.13"
 
 # Intentionally almost empty: a backend extra is required. Each extra below is self-contained, so verl and
 # ART can be re-pinned independently without a shared constraint to keep in sync.
-dependencies = ["python-dotenv>=1.0", "json-repair>=0.59.10"]
+dependencies = [
+    "python-dotenv>=1.0",
+    "json-repair>=0.59.10",
+    "pyyaml>=6.0.3",
+]
 
 [project.optional-dependencies]
 # Each extra is self-contained: library deps + experiment deps + its own trainer stack. The overlap

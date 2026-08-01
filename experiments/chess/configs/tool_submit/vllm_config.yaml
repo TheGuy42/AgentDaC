@@ -1,0 +1,14 @@
+server:
+    base_url: http://localhost:8000/v1
+    api_key: EMPTY
+    model_name: Qwen/Qwen3.5-4B
+inference:
+    splits:
+    - test
+    group_size: 1
+    max_concurrency: 32
+agent:
+    tool_parser: qwen3_xml
+    reasoning_parser: qwen3
+    tokenizer: null
+wandb_project: null

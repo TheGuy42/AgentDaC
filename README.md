@@ -77,7 +77,7 @@ flowchart TD
 
 The flow for one training sample is:
 
-1. **`ExperimentRunner`** loads the task and agent configuration, merges `verl_config.json` over VERL's defaults, registers the dataset and agent loop, and launches training.
+1. **`ExperimentRunner`** loads the task and agent configuration, merges `verl_config.yaml` over VERL's defaults, registers the dataset and agent loop, and launches training.
 2. **`VerlDataset`** resolves the experiment's **`TaskDataset`** inside the VERL worker and asks it for the requested split, which applies deterministic shuffling, filtering, and sample limits.
 3. **`VerlLoop`** formats one dataset row, constructs the selected agent, and runs one complete rollout.
 4. The agent calls the model through **`VerlClient`**, which applies the chat template and sends token IDs to VERL's vLLM-backed rollout engine.
@@ -191,7 +191,7 @@ Use the task entry point for task-specific options:
 uv run python experiments/chess/run.py --help
 ```
 
-Validation is configured through `verl_config.json`. The shared runner currently does not provide a separate evaluation-only CLI mode.
+Validation is configured through `verl_config.yaml`. The shared runner currently does not provide a separate evaluation-only CLI mode.
 
 ## Active Experiments
 
@@ -210,15 +210,15 @@ Each task/agent combination normally contains:
 
 ```text
 experiments/<task>/configs/<agent>/
-├── train_config.json            # Dataset size limits
-├── prompt_config.json           # Root, intermediate, and leaf prompts
-├── decomp_config.json           # Depth, delegation, and round budgets
-├── rollout_config.json          # Generation arguments by stage
-├── verl_config.json             # Model, RL, vLLM, optimizer, FSDP, and logging
-└── extra_config.json            # Optional agent- or task-specific settings
+├── data_config.yaml             # Dataset size limits
+├── prompt_config.yaml           # Root, intermediate, and leaf prompts
+├── decomp_config.yaml           # Depth, delegation, and round budgets
+├── rollout_config.yaml          # Generation arguments by stage
+├── verl_config.yaml             # Model, RL, vLLM, optimizer, FSDP, and logging
+└── extra_config.yaml            # Optional agent- or task-specific settings
 ```
 
-Some experiments add task-specific files. Chess configurations, for example, also include `chess_config.json` and `engine_config.json`.
+Some experiments add task-specific files. Chess configurations, for example, also include `chess_config.yaml` and `engine_config.yaml`.
 
 The default config directory is:
 
@@ -238,7 +238,7 @@ When `--traj_dir <directory>` is supplied, trajectories are written under:
 
 Each file contains the conversation, tool schemas, reward, metrics, metadata, logs, errors, and optional nested histories.
 
-Training metrics use the loggers configured in `verl_config.json`, typically console and Weights & Biases. Custom trajectory metrics are aggregated under `train-custom/` and `val-custom/`.
+Training metrics use the loggers configured in `verl_config.yaml`, typically console and Weights & Biases. Custom trajectory metrics are aggregated under `train-custom/` and `val-custom/`.
 
 ## Extending the Repository
 

@@ -2,18 +2,21 @@ version = 1
 revision = 3
 requires-python = "==3.12.*"
 resolution-markers = [
-    "sys_platform == 'linux' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl'",
-    "sys_platform != 'linux' and sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl'",
-    "sys_platform == 'win32' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl'",
-    "sys_platform == 'linux' and extra == 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl'",
-    "sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl'",
-    "sys_platform == 'win32' and extra == 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl'",
-    "sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl'",
-    "sys_platform == 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl'",
+    "sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm'",
+    "sys_platform == 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm'",
+    "sys_platform == 'linux' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform != 'linux' and sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform == 'win32' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform == 'linux' and extra == 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform == 'win32' and extra == 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform == 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
 ]
 conflicts = [[
     { package = "agentdac", extra = "art" },
     { package = "agentdac", extra = "verl" },
+    { package = "agentdac", extra = "vllm" },
 ]]
 
 [manifest]
@@ -60,8 +63,8 @@ dependencies = [
     { name = "psutil" },
     { name = "pyyaml" },
     { name = "safetensors" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/97/33/47bbd507e3a851d33d19ce7b2141c5ea3689bfae91ba168044d7db24b0e9/accelerate-1.7.0.tar.gz", hash = "sha256:e8a2a5503d6237b9eee73cc8d36cf543f9c2d8dd2c6713450b322f5e6d53a610", size = 376026, upload-time = "2025-05-15T10:00:52.117Z" }
 wheels = [
@@ -84,8 +87,8 @@ dependencies = [
     { name = "psutil" },
     { name = "pyyaml" },
     { name = "safetensors" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8d/75/94cd5d389649578aca399e5aa822637eec18319a1dadc400ffe2f9a7493f/accelerate-1.14.0.tar.gz", hash = "sha256:41b9c4377a54e0b460a959b0defa1b736e4ca0a2373252d9a539964c2afe3c8d", size = 412167, upload-time = "2026-06-11T13:45:52.326Z" }
 wheels = [
@@ -94,19 +97,20 @@ wheels = [
 
 [[package]]
 name = "agentdac"
-version = "0.6.0"
+version = "0.8.0"
 source = { virtual = "." }
 dependencies = [
     { name = "json-repair" },
     { name = "python-dotenv" },
+    { name = "pyyaml" },
 ]
 
 [package.optional-dependencies]
 art = [
     { name = "datasets" },
-    { name = "huggingface-hub", version = "0.36.2", source = { registry = "https://pypi.org/simple" }, extra = ["cli"], marker = "extra == 'extra-8-agentdac-art'" },
+    { name = "huggingface-hub", version = "0.36.2", source = { registry = "https://pypi.org/simple" }, extra = ["cli"], marker = "extra == 'extra-8-agentdac-art' or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "numpy" },
-    { name = "openpipe-art", extra = ["backend"], marker = "extra == 'extra-8-agentdac-art'" },
+    { name = "openpipe-art", extra = ["backend"], marker = "extra == 'extra-8-agentdac-art' or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "peft", version = "0.18.1", source = { registry = "https://pypi.org/simple" } },
     { name = "vllm", version = "0.17.0", source = { registry = "https://pypi.org/simple" } },
 ]
@@ -121,16 +125,24 @@ experiments = [
 verl = [
     { name = "datasets" },
     { name = "flash-attn" },
-    { name = "huggingface-hub", version = "1.21.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-8-agentdac-verl'" },
+    { name = "huggingface-hub", version = "1.21.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-8-agentdac-verl' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
     { name = "liger-kernel" },
     { name = "numpy" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
     { name = "transferqueue" },
     { name = "transformers", version = "5.12.1", source = { registry = "https://pypi.org/simple" } },
     { name = "trl", version = "1.7.0", source = { registry = "https://pypi.org/simple" } },
     { name = "verl" },
     { name = "vllm", version = "0.19.1", source = { registry = "https://pypi.org/simple" } },
+]
+vllm = [
+    { name = "datasets" },
+    { name = "huggingface-hub", version = "1.21.0", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra != 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "numpy" },
+    { name = "openai", version = "2.44.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "vllm", version = "0.19.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "wandb", version = "0.28.0", source = { registry = "https://pypi.org/simple" } },
 ]
 
 [package.dev-dependencies]
@@ -145,17 +157,22 @@ requires-dist = [
     { name = "chess", marker = "extra == 'experiments'", specifier = ">=1.11.2" },
     { name = "datasets", marker = "extra == 'art'", specifier = "==4.3.0" },
     { name = "datasets", marker = "extra == 'verl'", specifier = "==4.3.0" },
+    { name = "datasets", marker = "extra == 'vllm'", specifier = "==4.3.0" },
     { name = "flash-attn", marker = "extra == 'verl'", url = "https://github.com/lesj0610/flash-attention/releases/download/v2.8.3-cu12-torch2.10-cp312/flash_attn-2.8.3%2Bcu12torch2.10cxx11abiTRUE-cp312-cp312-linux_x86_64.whl" },
     { name = "huggingface-hub", extras = ["cli"], marker = "extra == 'art'", specifier = ">=0.36.2,<1.0" },
     { name = "huggingface-hub", extras = ["cli"], marker = "extra == 'verl'", specifier = ">=1.3.0" },
+    { name = "huggingface-hub", extras = ["cli"], marker = "extra == 'vllm'", specifier = ">=1.3.0" },
     { name = "json-repair", specifier = ">=0.59.10" },
     { name = "liger-kernel", marker = "extra == 'verl'", specifier = ">=0.8.0" },
     { name = "math-verify", marker = "extra == 'experiments'", specifier = ">=0.9.0" },
     { name = "numpy", marker = "extra == 'art'", specifier = ">=2" },
     { name = "numpy", marker = "extra == 'verl'", specifier = ">=2" },
+    { name = "numpy", marker = "extra == 'vllm'", specifier = ">=2" },
+    { name = "openai", marker = "extra == 'vllm'", specifier = ">=2.24.0" },
     { name = "openpipe-art", extras = ["backend"], marker = "extra == 'art'", specifier = "==0.5.17" },
     { name = "peft", marker = "extra == 'art'", specifier = "==0.18.1" },
     { name = "python-dotenv", specifier = ">=1.0" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "regex", marker = "extra == 'experiments'", specifier = ">=2024.11.6" },
     { name = "sympy", marker = "extra == 'experiments'", specifier = ">=1.13" },
     { name = "torch", marker = "sys_platform == 'linux' and extra == 'verl'", specifier = "==2.10.0", index = "https://download.pytorch.org/whl/cu128" },
@@ -167,9 +184,11 @@ requires-dist = [
     { name = "verl", marker = "extra == 'verl'", specifier = "==0.8.0" },
     { name = "vllm", marker = "extra == 'art'", specifier = "==0.17.0" },
     { name = "vllm", marker = "extra == 'verl'", specifier = "==0.19.1" },
+    { name = "vllm", marker = "extra == 'vllm'", specifier = "==0.19.1" },
+    { name = "wandb", marker = "extra == 'vllm'", specifier = ">=0.25.0" },
     { name = "wrapt-timeout-decorator", marker = "extra == 'experiments'", specifier = ">=1.5.1" },
 ]
-provides-extras = ["verl", "art", "experiments"]
+provides-extras = ["verl", "art", "vllm", "experiments"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -467,8 +486,8 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
     { name = "packaging" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8b/6c/b3c2a6b05e0fb06c6258b675436b2b090192450d7f283826e6323471e270/bitsandbytes-0.50.0-py3-none-macosx_14_0_arm64.whl", hash = "sha256:c6f482df4dc18c7c150246577025de40dd0935031ea10a1e4122599a525b39bb", size = 123217, upload-time = "2026-07-24T19:48:51.724Z" },
@@ -569,7 +588,7 @@ name = "cffi"
 version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pycparser", marker = "implementation_name != 'PyPy' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "pycparser", marker = "implementation_name != 'PyPy' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/eb/56/b1ba7935a17738ae8453301356628e8147c79dbb825bcbc73dc7401f9846/cffi-2.0.0.tar.gz", hash = "sha256:44d1b5909021139fe36001ae048dbdde8214afa20200eda0f64c068cac5d5529", size = 523588, upload-time = "2025-09-08T23:24:04.541Z" }
 wheels = [
@@ -660,7 +679,7 @@ name = "click"
 version = "8.4.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/76/d4/81420972a676e8ffea40450d8c8c92943e7218a78fe9b64359836cc9876b/click-8.4.2.tar.gz", hash = "sha256:9a6cea6e60b17ebe0a44c5cc636d94f09bd66142c1cd7d8b4cd731c4917a15f6", size = 338000, upload-time = "2026-06-24T17:45:15.148Z" }
 wheels = [
@@ -727,8 +746,8 @@ resolution-markers = [
 dependencies = [
     { name = "loguru" },
     { name = "pydantic" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "transformers", version = "4.57.3", source = { registry = "https://pypi.org/simple" } },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/fc/65/88dd1c58fb9d0ded51b5c86471b937a1525f91fad2211a6f051dc1ea822d/compressed_tensors-0.13.0.tar.gz", hash = "sha256:23893824d3498ea3f1a829f14a8fa85f9a5e76a34c711a038b8d7c619ca9a67c", size = 200995, upload-time = "2025-12-16T16:03:55.397Z" }
@@ -741,15 +760,17 @@ name = "compressed-tensors"
 version = "0.15.0.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "sys_platform == 'linux'",
-    "sys_platform != 'linux' and sys_platform != 'win32'",
-    "sys_platform == 'win32'",
+    "sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm'",
+    "sys_platform == 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm'",
+    "sys_platform == 'linux' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform != 'linux' and sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform == 'win32' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
 ]
 dependencies = [
     { name = "loguru" },
     { name = "pydantic" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
     { name = "transformers", version = "5.12.1", source = { registry = "https://pypi.org/simple" } },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/41/1b/c3c4a98ec5f2727656336f07a0c35862195c310d8eb0b2fa5b4be6848680/compressed_tensors-0.15.0.1.tar.gz", hash = "sha256:a8e93054e8a5ec49c980b09ed36c4c1249b4a8ee167920a8e461c4da26e78d99", size = 229412, upload-time = "2026-04-10T14:23:54.708Z" }
@@ -845,8 +866,8 @@ name = "cut-cross-entropy"
 version = "25.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "triton", marker = "sys_platform == 'linux'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7e/97/45ff09cfcda7b200389204daa0125168e6544fba257adbbcdf728501d4f9/cut_cross_entropy-25.1.1.tar.gz", hash = "sha256:5fe5924509248b1aea5c890f8887c6a7759f7c8b1ebc0490e42c247c4f7c1e34", size = 22972, upload-time = "2025-01-07T12:21:53.896Z" }
@@ -861,10 +882,10 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dill" },
     { name = "filelock" },
-    { name = "fsspec", extra = ["http"], marker = "extra == 'extra-8-agentdac-art' or extra == 'extra-8-agentdac-verl'" },
+    { name = "fsspec", extra = ["http"], marker = "extra == 'extra-8-agentdac-art' or extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
     { name = "httpx" },
-    { name = "huggingface-hub", version = "0.36.2", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-8-agentdac-art'" },
-    { name = "huggingface-hub", version = "1.21.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-8-agentdac-verl'" },
+    { name = "huggingface-hub", version = "0.36.2", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-8-agentdac-art' or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "huggingface-hub", version = "1.21.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
     { name = "multiprocess" },
     { name = "numpy" },
     { name = "packaging" },
@@ -1090,14 +1111,14 @@ wheels = [
 [package.optional-dependencies]
 standard = [
     { name = "email-validator" },
-    { name = "fastapi-cli", extra = ["standard"], marker = "extra == 'extra-8-agentdac-art' or extra == 'extra-8-agentdac-verl'" },
+    { name = "fastapi-cli", extra = ["standard"], marker = "extra == 'extra-8-agentdac-art' or extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
     { name = "fastar" },
     { name = "httpx" },
     { name = "jinja2" },
     { name = "pydantic-extra-types" },
     { name = "pydantic-settings" },
     { name = "python-multipart" },
-    { name = "uvicorn", extra = ["standard"], marker = "extra == 'extra-8-agentdac-art' or extra == 'extra-8-agentdac-verl'" },
+    { name = "uvicorn", extra = ["standard"], marker = "extra == 'extra-8-agentdac-art' or extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
 ]
 
 [[package]]
@@ -1107,7 +1128,7 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "rich-toolkit" },
     { name = "typer" },
-    { name = "uvicorn", extra = ["standard"], marker = "extra == 'extra-8-agentdac-art' or extra == 'extra-8-agentdac-verl'" },
+    { name = "uvicorn", extra = ["standard"], marker = "extra == 'extra-8-agentdac-art' or extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/37/d0/ee5678346811967b8d096d5d5604e71b50d6bf5a2abfbdb331157e2bbaa9/fastapi_cli-0.0.27.tar.gz", hash = "sha256:1dffb1e40c0c88f2e0171a8a252a2b615c1e63ff8c05626649e4badd6a84336a", size = 23630, upload-time = "2026-06-18T14:48:43.421Z" }
 wheels = [
@@ -1117,7 +1138,7 @@ wheels = [
 [package.optional-dependencies]
 standard = [
     { name = "fastapi-cloud-cli" },
-    { name = "uvicorn", extra = ["standard"], marker = "extra == 'extra-8-agentdac-art' or extra == 'extra-8-agentdac-verl'" },
+    { name = "uvicorn", extra = ["standard"], marker = "extra == 'extra-8-agentdac-art' or extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
 ]
 
 [[package]]
@@ -1128,12 +1149,12 @@ dependencies = [
     { name = "detect-installer" },
     { name = "fastar" },
     { name = "httpx" },
-    { name = "pydantic", extra = ["email"], marker = "extra == 'extra-8-agentdac-art' or extra == 'extra-8-agentdac-verl'" },
+    { name = "pydantic", extra = ["email"], marker = "extra == 'extra-8-agentdac-art' or extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
     { name = "rich-toolkit" },
     { name = "rignore" },
     { name = "sentry-sdk" },
     { name = "typer" },
-    { name = "uvicorn", extra = ["standard"], marker = "extra == 'extra-8-agentdac-art' or extra == 'extra-8-agentdac-verl'" },
+    { name = "uvicorn", extra = ["standard"], marker = "extra == 'extra-8-agentdac-art' or extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/60/c3/5cd0b824ca4b4fd073ce998321881ed68b8e0b85d441653eb1bd997c6fc0/fastapi_cloud_cli-0.21.0.tar.gz", hash = "sha256:463350dcbdcbb9b3baa32a99a3db0610f34a3ae143dd1d35a71173aec5dd245d", size = 93804, upload-time = "2026-06-24T15:23:07.554Z" }
 wheels = [
@@ -1216,8 +1237,8 @@ version = "2.8.3"
 source = { url = "https://github.com/lesj0610/flash-attention/releases/download/v2.8.3-cu12-torch2.10-cp312/flash_attn-2.8.3%2Bcu12torch2.10cxx11abiTRUE-cp312-cp312-linux_x86_64.whl" }
 dependencies = [
     { name = "einops" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
 ]
 wheels = [
     { url = "https://github.com/lesj0610/flash-attention/releases/download/v2.8.3-cu12-torch2.10-cp312/flash_attn-2.8.3%2Bcu12torch2.10cxx11abiTRUE-cp312-cp312-linux_x86_64.whl", hash = "sha256:d4a497a7bd837bf47f7a8f6a7aa6887695f2ea819fa597f307552552018ee9d7" },
@@ -1258,8 +1279,8 @@ dependencies = [
     { name = "packaging" },
     { name = "requests" },
     { name = "tabulate" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "tqdm" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/77/45/15645d2a4ee81d08206f3e132a77323e48312f510462415d7cd1122eba43/flashinfer_python-0.6.4.tar.gz", hash = "sha256:e6ab798bd1030e5ff7a3bc6952f36386c406928f60b79cf964a6db7aa7ccde75", size = 5337134, upload-time = "2026-02-19T07:33:36.647Z" }
@@ -1272,9 +1293,11 @@ name = "flashinfer-python"
 version = "0.6.6"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "sys_platform == 'linux'",
-    "sys_platform != 'linux' and sys_platform != 'win32'",
-    "sys_platform == 'win32'",
+    "sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm'",
+    "sys_platform == 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm'",
+    "sys_platform == 'linux' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform != 'linux' and sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform == 'win32' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
 ]
 dependencies = [
     { name = "apache-tvm-ffi" },
@@ -1288,8 +1311,8 @@ dependencies = [
     { name = "packaging" },
     { name = "requests" },
     { name = "tabulate" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
     { name = "tqdm" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/03/70/c5a235297351021f5d3d3233523a85f5a6468495587489ad2f257e8eafe2/flashinfer_python-0.6.6.tar.gz", hash = "sha256:0730ba7c7aad332961933bcebc5119762797161ede57d955f6fd199818ed1d92", size = 5344156, upload-time = "2026-03-11T01:36:21.434Z" }
@@ -1418,8 +1441,8 @@ name = "googleapis-common-protos"
 version = "1.75.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "protobuf", version = "6.33.6", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-8-agentdac-art'" },
-    { name = "protobuf", version = "7.35.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-8-agentdac-verl'" },
+    { name = "protobuf", version = "6.33.6", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-8-agentdac-art' or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "protobuf", version = "7.35.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b5/c8/f439cffde755cffa462bfbb156278fa6f9d09119719af9814b858fd4f81f/googleapis_common_protos-1.75.0.tar.gz", hash = "sha256:53a062ff3c32552fbd62c11fe23768b78e4ddf0494d5e5fd97d3f4689c75fbbd", size = 151035, upload-time = "2026-05-07T08:04:49.423Z" }
 wheels = [
@@ -1606,14 +1629,14 @@ resolution-markers = [
     "sys_platform == 'win32'",
 ]
 dependencies = [
-    { name = "filelock", marker = "extra == 'extra-8-agentdac-art'" },
-    { name = "fsspec", marker = "extra == 'extra-8-agentdac-art'" },
-    { name = "hf-xet", marker = "(platform_machine == 'aarch64' and extra == 'extra-8-agentdac-art') or (platform_machine == 'amd64' and extra == 'extra-8-agentdac-art') or (platform_machine == 'arm64' and extra == 'extra-8-agentdac-art') or (platform_machine == 'x86_64' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "packaging", marker = "extra == 'extra-8-agentdac-art'" },
-    { name = "pyyaml", marker = "extra == 'extra-8-agentdac-art'" },
-    { name = "requests", marker = "extra == 'extra-8-agentdac-art'" },
-    { name = "tqdm", marker = "extra == 'extra-8-agentdac-art'" },
-    { name = "typing-extensions", marker = "extra == 'extra-8-agentdac-art'" },
+    { name = "filelock", marker = "extra == 'extra-8-agentdac-art' or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "fsspec", marker = "extra == 'extra-8-agentdac-art' or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "hf-xet", marker = "(platform_machine == 'aarch64' and extra == 'extra-8-agentdac-art') or (platform_machine == 'amd64' and extra == 'extra-8-agentdac-art') or (platform_machine == 'arm64' and extra == 'extra-8-agentdac-art') or (platform_machine == 'x86_64' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "packaging", marker = "extra == 'extra-8-agentdac-art' or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "pyyaml", marker = "extra == 'extra-8-agentdac-art' or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "requests", marker = "extra == 'extra-8-agentdac-art' or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "tqdm", marker = "extra == 'extra-8-agentdac-art' or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "typing-extensions", marker = "extra == 'extra-8-agentdac-art' or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7c/b7/8cb61d2eece5fb05a83271da168186721c450eb74e3c31f7ef3169fa475b/huggingface_hub-0.36.2.tar.gz", hash = "sha256:1934304d2fb224f8afa3b87007d58501acfda9215b334eed53072dd5e815ff7a", size = 649782, upload-time = "2026-02-06T09:24:13.098Z" }
 wheels = [
@@ -1630,21 +1653,23 @@ name = "huggingface-hub"
 version = "1.21.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "sys_platform == 'linux'",
-    "sys_platform != 'linux' and sys_platform != 'win32'",
-    "sys_platform == 'win32'",
+    "sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm'",
+    "sys_platform == 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm'",
+    "sys_platform == 'linux' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform != 'linux' and sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform == 'win32' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
 ]
 dependencies = [
-    { name = "click", marker = "extra == 'extra-8-agentdac-verl'" },
-    { name = "filelock", marker = "extra == 'extra-8-agentdac-verl'" },
-    { name = "fsspec", marker = "extra == 'extra-8-agentdac-verl'" },
-    { name = "hf-xet", marker = "(platform_machine == 'AMD64' and extra == 'extra-8-agentdac-verl') or (platform_machine == 'aarch64' and extra == 'extra-8-agentdac-verl') or (platform_machine == 'amd64' and extra == 'extra-8-agentdac-verl') or (platform_machine == 'arm64' and extra == 'extra-8-agentdac-verl') or (platform_machine == 'x86_64' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "httpx", marker = "extra == 'extra-8-agentdac-verl'" },
-    { name = "packaging", marker = "extra == 'extra-8-agentdac-verl'" },
-    { name = "pyyaml", marker = "extra == 'extra-8-agentdac-verl'" },
-    { name = "tqdm", marker = "extra == 'extra-8-agentdac-verl'" },
-    { name = "typer", marker = "extra == 'extra-8-agentdac-verl'" },
-    { name = "typing-extensions", marker = "extra == 'extra-8-agentdac-verl'" },
+    { name = "click", marker = "extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
+    { name = "filelock", marker = "extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
+    { name = "fsspec", marker = "extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
+    { name = "hf-xet", marker = "(platform_machine == 'AMD64' and extra == 'extra-8-agentdac-verl') or (platform_machine == 'AMD64' and extra == 'extra-8-agentdac-vllm') or (platform_machine == 'aarch64' and extra == 'extra-8-agentdac-verl') or (platform_machine == 'aarch64' and extra == 'extra-8-agentdac-vllm') or (platform_machine == 'amd64' and extra == 'extra-8-agentdac-verl') or (platform_machine == 'amd64' and extra == 'extra-8-agentdac-vllm') or (platform_machine == 'arm64' and extra == 'extra-8-agentdac-verl') or (platform_machine == 'arm64' and extra == 'extra-8-agentdac-vllm') or (platform_machine == 'x86_64' and extra == 'extra-8-agentdac-verl') or (platform_machine == 'x86_64' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "httpx", marker = "extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
+    { name = "packaging", marker = "extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
+    { name = "pyyaml", marker = "extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
+    { name = "tqdm", marker = "extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
+    { name = "typer", marker = "extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
+    { name = "typing-extensions", marker = "extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8f/77/ce3331f40cb2d021fe9b24c46c41e72faf74493621138e5eddac12bf5e1c/huggingface_hub-1.21.0.tar.gz", hash = "sha256:a44f222cd8f2f7c2eade30b5e7a04cac984a3235fa61ea87a0a5a31db77d561f", size = 861572, upload-time = "2026-06-25T13:09:26.356Z" }
 wheels = [
@@ -1753,7 +1778,7 @@ name = "ipykernel"
 version = "7.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "appnope", marker = "sys_platform == 'darwin' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "appnope", marker = "sys_platform == 'darwin' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "comm" },
     { name = "debugpy" },
     { name = "ipython" },
@@ -1777,14 +1802,14 @@ name = "ipython"
 version = "9.15.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "decorator" },
     { name = "ipython-pygments-lexers" },
     { name = "jedi" },
     { name = "matplotlib-inline" },
-    { name = "pexpect", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32') or (sys_platform == 'emscripten' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "pexpect", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32') or (sys_platform == 'emscripten' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'emscripten' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'emscripten' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "prompt-toolkit" },
-    { name = "psutil", marker = "(sys_platform != 'cygwin' and sys_platform != 'emscripten') or (sys_platform == 'cygwin' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'emscripten' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "psutil", marker = "(sys_platform != 'cygwin' and sys_platform != 'emscripten') or (sys_platform == 'cygwin' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'cygwin' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'cygwin' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'emscripten' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'emscripten' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'emscripten' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "pygments" },
     { name = "stack-data" },
     { name = "traitlets" },
@@ -2086,7 +2111,7 @@ dependencies = [
     { name = "nbformat" },
     { name = "packaging" },
     { name = "prometheus-client" },
-    { name = "pywinpty", marker = "(os_name == 'nt' and sys_platform != 'linux') or (os_name != 'nt' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (os_name == 'nt' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "pywinpty", marker = "(os_name == 'nt' and sys_platform != 'linux') or (os_name != 'nt' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (os_name != 'nt' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (os_name != 'nt' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (os_name == 'nt' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "pyzmq" },
     { name = "send2trash" },
     { name = "terminado" },
@@ -2104,7 +2129,7 @@ name = "jupyter-server-terminals"
 version = "0.5.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pywinpty", marker = "(os_name == 'nt' and sys_platform != 'linux') or (os_name != 'nt' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (os_name == 'nt' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "pywinpty", marker = "(os_name == 'nt' and sys_platform != 'linux') or (os_name != 'nt' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (os_name != 'nt' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (os_name != 'nt' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (os_name == 'nt' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "terminado" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f4/a7/bcd0a9b0cbba88986fe944aaaf91bfda603e5a50bda8ed15123f381a3b2f/jupyter_server_terminals-0.5.4.tar.gz", hash = "sha256:bbda128ed41d0be9020349f9f1f2a4ab9952a73ed5f5ac9f1419794761fb87f5", size = 31770, upload-time = "2026-01-14T16:53:20.213Z" }
@@ -2234,8 +2259,8 @@ name = "liger-kernel"
 version = "0.8.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
     { name = "triton" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/41/d6/85f032b40fc30c969e817f9f3527f987b508171b46d9958befd0868855fd/liger_kernel-0.8.0.tar.gz", hash = "sha256:f98b94faf018814a0757e7b72bb8ebaaf12a78782cd09b157732acca2791e72c", size = 3989670, upload-time = "2026-04-30T23:02:15.183Z" }
@@ -2397,7 +2422,7 @@ dependencies = [
     { name = "jsonschema" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
-    { name = "pyjwt", extra = ["crypto"], marker = "extra == 'extra-8-agentdac-art' or extra == 'extra-8-agentdac-verl'" },
+    { name = "pyjwt", extra = ["crypto"], marker = "extra == 'extra-8-agentdac-art' or extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
     { name = "python-multipart" },
     { name = "pywin32", marker = "sys_platform == 'win32'" },
     { name = "sse-starlette" },
@@ -2429,7 +2454,7 @@ dependencies = [
     { name = "numpy" },
     { name = "pillow" },
     { name = "pydantic" },
-    { name = "pydantic-extra-types", extra = ["pycountry"], marker = "extra == 'extra-8-agentdac-art' or extra == 'extra-8-agentdac-verl'" },
+    { name = "pydantic-extra-types", extra = ["pycountry"], marker = "extra == 'extra-8-agentdac-art' or extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
     { name = "requests" },
     { name = "tiktoken" },
     { name = "typing-extensions" },
@@ -2837,7 +2862,7 @@ name = "nvidia-cudnn-cu12"
 version = "9.10.2.21"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas-cu12", marker = "sys_platform == 'linux'" },
+    { name = "nvidia-cublas-cu12", marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fa/41/e79269ce215c857c935fd86bcfe91a451a584dfc27f1e068f568b9ad1ab7/nvidia_cudnn_cu12-9.10.2.21-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:c9132cc3f8958447b4910a1720036d9eff5928cc3179b0a51fb6d167c6cc87d8", size = 705026878, upload-time = "2025-06-06T21:52:51.348Z" },
@@ -2860,7 +2885,7 @@ name = "nvidia-cufft-cu12"
 version = "11.3.3.83"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-nvjitlink-cu12", marker = "sys_platform == 'linux'" },
+    { name = "nvidia-nvjitlink-cu12", marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/60/bc/7771846d3a0272026c416fbb7e5f4c1f146d6d80704534d0b187dd6f4800/nvidia_cufft_cu12-11.3.3.83-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:848ef7224d6305cdb2a4df928759dca7b1201874787083b6e7550dd6765ce69a", size = 193109211, upload-time = "2025-03-07T01:44:56.873Z" },
@@ -2892,9 +2917,9 @@ name = "nvidia-cusolver-cu12"
 version = "11.7.3.90"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas-cu12", marker = "sys_platform == 'linux'" },
-    { name = "nvidia-cusparse-cu12", marker = "sys_platform == 'linux'" },
-    { name = "nvidia-nvjitlink-cu12", marker = "sys_platform == 'linux'" },
+    { name = "nvidia-cublas-cu12", marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "nvidia-cusparse-cu12", marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "nvidia-nvjitlink-cu12", marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c8/32/f7cd6ce8a7690544d084ea21c26e910a97e077c9b7f07bf5de623ee19981/nvidia_cusolver_cu12-11.7.3.90-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:db9ed69dbef9715071232caa9b69c52ac7de3a95773c2db65bdba85916e4e5c0", size = 267229841, upload-time = "2025-03-07T01:46:54.356Z" },
@@ -2907,7 +2932,7 @@ name = "nvidia-cusparse-cu12"
 version = "12.5.8.93"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-nvjitlink-cu12", marker = "sys_platform == 'linux'" },
+    { name = "nvidia-nvjitlink-cu12", marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bc/f7/cd777c4109681367721b00a106f491e0d0d15cfa1fd59672ce580ce42a97/nvidia_cusparse_cu12-12.5.8.93-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:9b6c161cb130be1a07a27ea6923df8141f3c295852f4b260c65f18f3e0a091dc", size = 288117129, upload-time = "2025-03-07T01:47:40.407Z" },
@@ -3039,9 +3064,11 @@ name = "openai"
 version = "2.44.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "sys_platform == 'linux'",
-    "sys_platform != 'linux' and sys_platform != 'win32'",
-    "sys_platform == 'win32'",
+    "sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm'",
+    "sys_platform == 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm'",
+    "sys_platform == 'linux' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform != 'linux' and sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform == 'win32' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
 ]
 dependencies = [
     { name = "anyio" },
@@ -3155,8 +3182,8 @@ backend = [
     { name = "pyarrow" },
     { name = "pytest" },
     { name = "setuptools" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "torchao" },
     { name = "transformers", version = "4.57.3", source = { registry = "https://pypi.org/simple" } },
     { name = "trl", version = "0.20.0", source = { registry = "https://pypi.org/simple" } },
@@ -3258,8 +3285,8 @@ name = "opentelemetry-proto"
 version = "1.43.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "protobuf", version = "6.33.6", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-8-agentdac-art'" },
-    { name = "protobuf", version = "7.35.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-8-agentdac-verl'" },
+    { name = "protobuf", version = "6.33.6", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-8-agentdac-art' or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "protobuf", version = "7.35.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/e0/b9/d357faefb40bda1d4799913e6af611171ff22a2dedcb93576bc92242d056/opentelemetry_proto-1.43.0.tar.gz", hash = "sha256:224778df17e1f3fafeaaa21d874236ca5f6ffc2f86e0899298ec7351aac27924", size = 46481, upload-time = "2026-06-24T15:20:07.625Z" }
 wheels = [
@@ -3432,8 +3459,8 @@ dependencies = [
     { name = "psutil" },
     { name = "pyyaml" },
     { name = "safetensors" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "tqdm" },
     { name = "transformers", version = "4.57.3", source = { registry = "https://pypi.org/simple" } },
 ]
@@ -3459,8 +3486,8 @@ dependencies = [
     { name = "psutil" },
     { name = "pyyaml" },
     { name = "safetensors" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
     { name = "tqdm" },
     { name = "transformers", version = "5.12.1", source = { registry = "https://pypi.org/simple" } },
 ]
@@ -3474,7 +3501,7 @@ name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ptyprocess", marker = "sys_platform != 'win32' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "ptyprocess", marker = "sys_platform != 'win32' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/42/92/cc564bf6381ff43ce1f4d06852fc19a2f11d180f23dc32d9588bee2f149d/pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f", size = 166450, upload-time = "2023-11-25T09:07:26.339Z" }
 wheels = [
@@ -3677,9 +3704,11 @@ name = "protobuf"
 version = "7.35.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "sys_platform == 'linux'",
-    "sys_platform != 'linux' and sys_platform != 'win32'",
-    "sys_platform == 'win32'",
+    "sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm'",
+    "sys_platform == 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm'",
+    "sys_platform == 'linux' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform != 'linux' and sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform == 'win32' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/da/01/9ef0afd7999eb9badb3a768b4aedd78c86d4c65cfaf1958ab276199e76b4/protobuf-7.35.1.tar.gz", hash = "sha256:ce115a26fe0c39a2c29973d914d327e516a6455464489fe3cd1e51a1b354f81a", size = 458717, upload-time = "2026-06-11T21:55:40.257Z" }
 wheels = [
@@ -3970,7 +3999,7 @@ name = "pytest"
 version = "9.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "iniconfig" },
     { name = "packaging" },
     { name = "pluggy" },
@@ -4096,7 +4125,7 @@ name = "pyzmq"
 version = "27.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cffi", marker = "implementation_name == 'pypy' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "cffi", marker = "implementation_name == 'pypy' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/04/0b/3c9baedbdf613ecaa7aa07027780b8867f57b6293b6ee50de316c9f3222b/pyzmq-27.1.0.tar.gz", hash = "sha256:ac0765e3d44455adb6ddbf4417dcce460fc40a05978c08efdf2948072f6db540", size = 281750, upload-time = "2025-09-08T23:10:18.157Z" }
 wheels = [
@@ -4120,8 +4149,8 @@ dependencies = [
     { name = "apache-tvm-ffi" },
     { name = "einops" },
     { name = "nvidia-cutlass-dsl" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-art') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
     { name = "torch-c-dlpack-ext" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/e1/94/ee76e3a3dc74d986b7b24c5928f1d14b01bd5152375688c2ede369f6d19b/quack_kernels-0.5.0.tar.gz", hash = "sha256:c7c7338b67243397b6ca166e648bba161076e99f3858b532e1c877dcc6eaa03d", size = 366426, upload-time = "2026-05-29T05:00:25.985Z" }
@@ -4139,8 +4168,8 @@ dependencies = [
     { name = "jsonschema" },
     { name = "msgpack" },
     { name = "packaging" },
-    { name = "protobuf", version = "6.33.6", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-8-agentdac-art'" },
-    { name = "protobuf", version = "7.35.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-8-agentdac-verl'" },
+    { name = "protobuf", version = "6.33.6", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-8-agentdac-art' or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "protobuf", version = "7.35.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-8-agentdac-verl' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
     { name = "pyyaml" },
     { name = "requests" },
 ]
@@ -4277,7 +4306,7 @@ version = "1.9.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
-    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "rich" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f7/ea/21e4867ea0ef881ffd4c0550fc21a061435e50d6324bcd034396633cbc18/rich_click-1.9.8.tar.gz", hash = "sha256:4008f921da88b5d91646c134ec881c1500e5a6b3f093e90e8f29400e09608371", size = 75363, upload-time = "2026-05-28T19:54:59.144Z" }
@@ -4653,8 +4682,8 @@ dependencies = [
     { name = "orjson" },
     { name = "packaging" },
     { name = "pyvers" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e6/89/2914b6d2796bdbe64ba8d42b568bf02c25673f187079e8795fc668c609fa/tensordict-0.10.0-cp312-cp312-macosx_14_0_arm64.whl", hash = "sha256:f52321ddec5da5acb3b90785c68b4fd4cce805aab6eb700ec59352e9f9e6214f", size = 801519, upload-time = "2025-09-08T10:07:18.954Z" },
@@ -4668,8 +4697,8 @@ name = "terminado"
 version = "0.18.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ptyprocess", marker = "os_name != 'nt' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "pywinpty", marker = "(os_name == 'nt' and sys_platform != 'linux') or (os_name != 'nt' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (os_name == 'nt' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "ptyprocess", marker = "os_name != 'nt' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "pywinpty", marker = "(os_name == 'nt' and sys_platform != 'linux') or (os_name != 'nt' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (os_name != 'nt' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (os_name != 'nt' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (os_name == 'nt' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "tornado" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8a/11/965c6fd8e5cc254f1fe142d547387da17a8ebfd75a3455f637c663fb38a0/terminado-0.18.1.tar.gz", hash = "sha256:de09f2c4b85de4765f7714688fff57d3e75bad1f909b589fde880460c753fd2e", size = 32701, upload-time = "2024-03-12T14:34:39.026Z" }
@@ -4713,8 +4742,8 @@ name = "tokenizers"
 version = "0.22.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "huggingface-hub", version = "0.36.2", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-8-agentdac-art'" },
-    { name = "huggingface-hub", version = "1.21.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-8-agentdac-verl'" },
+    { name = "huggingface-hub", version = "0.36.2", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-8-agentdac-art' or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "huggingface-hub", version = "1.21.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/73/6f/f80cfef4a312e1fb34baf7d85c72d4411afde10978d4657f8cdd811d3ccc/tokenizers-0.22.2.tar.gz", hash = "sha256:473b83b915e547aa366d1eee11806deaf419e17be16310ac0a14077f1e28f917", size = 372115, upload-time = "2026-01-05T10:45:15.988Z" }
 wheels = [
@@ -4740,17 +4769,17 @@ name = "torch"
 version = "2.10.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "sys_platform != 'linux' and sys_platform != 'win32'",
     "sys_platform == 'win32'",
+    "sys_platform != 'linux' and sys_platform != 'win32'",
 ]
 dependencies = [
-    { name = "filelock", marker = "sys_platform != 'linux'" },
-    { name = "fsspec", marker = "sys_platform != 'linux'" },
-    { name = "jinja2", marker = "sys_platform != 'linux'" },
-    { name = "networkx", marker = "sys_platform != 'linux'" },
-    { name = "setuptools", marker = "sys_platform != 'linux'" },
-    { name = "sympy", marker = "sys_platform != 'linux'" },
-    { name = "typing-extensions", marker = "sys_platform != 'linux'" },
+    { name = "filelock", marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-art') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "fsspec", marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-art') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "jinja2", marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-art') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "networkx", marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-art') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "setuptools", marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-art') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "sympy", marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-art') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "typing-extensions", marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-art') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d3/54/a2ba279afcca44bbd320d4e73675b282fcee3d81400ea1b53934efca6462/torch-2.10.0-2-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:13ec4add8c3faaed8d13e0574f5cd4a323c11655546f91fbe6afa77b57423574", size = 79498202, upload-time = "2026-02-10T21:44:52.603Z" },
@@ -4766,14 +4795,16 @@ name = "torch"
 version = "2.10.0+cu128"
 source = { registry = "https://download.pytorch.org/whl/cu128" }
 resolution-markers = [
-    "sys_platform == 'linux'",
+    "sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm'",
+    "sys_platform == 'linux' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform == 'linux' and extra == 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
 ]
 dependencies = [
     { name = "cuda-bindings", marker = "sys_platform == 'linux'" },
-    { name = "filelock", marker = "sys_platform == 'linux'" },
-    { name = "fsspec", marker = "sys_platform == 'linux'" },
-    { name = "jinja2", marker = "sys_platform == 'linux'" },
-    { name = "networkx", marker = "sys_platform == 'linux'" },
+    { name = "filelock", marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "fsspec", marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "jinja2", marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "networkx", marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
     { name = "nvidia-cublas-cu12", marker = "sys_platform == 'linux'" },
     { name = "nvidia-cuda-cupti-cu12", marker = "sys_platform == 'linux'" },
     { name = "nvidia-cuda-nvrtc-cu12", marker = "sys_platform == 'linux'" },
@@ -4789,10 +4820,10 @@ dependencies = [
     { name = "nvidia-nvjitlink-cu12", marker = "sys_platform == 'linux'" },
     { name = "nvidia-nvshmem-cu12", marker = "sys_platform == 'linux'" },
     { name = "nvidia-nvtx-cu12", marker = "sys_platform == 'linux'" },
-    { name = "setuptools", marker = "sys_platform == 'linux'" },
-    { name = "sympy", marker = "sys_platform == 'linux'" },
+    { name = "setuptools", marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "sympy", marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
     { name = "triton", marker = "sys_platform == 'linux'" },
-    { name = "typing-extensions", marker = "sys_platform == 'linux'" },
+    { name = "typing-extensions", marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
 ]
 wheels = [
     { url = "https://download-r2.pytorch.org/whl/cu128/torch-2.10.0%2Bcu128-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:6f09cdf2415516be028ae82e6b985bcfc3eac37bc52ab401142689f6224516ca", upload-time = "2026-01-21T15:22:03Z" },
@@ -4805,8 +4836,8 @@ name = "torch-c-dlpack-ext"
 version = "0.1.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-art') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/37/de/921b6491efce5c389a5ef9bbed3d2d6660005840dae488124173180859ab/torch_c_dlpack_ext-0.1.5.tar.gz", hash = "sha256:d06f0357d575d22a168cc77acb9020fc4bae30968ceb6718a055dcbe92bacabe", size = 12913, upload-time = "2026-01-12T11:25:08.484Z" }
 wheels = [
@@ -4830,8 +4861,8 @@ name = "torchaudio"
 version = "2.10.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-art') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0f/36/28a6f3e857616cf7576bdbf8170e483b8c5d0a1f8d349ecb2b75921236aa/torchaudio-2.10.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:9d0fbdbfd2f621c51d28571050d6d0c7287791034e5c7303b31480af1258f33f", size = 737144, upload-time = "2026-01-21T16:28:44.189Z" },
@@ -4846,8 +4877,8 @@ version = "0.11.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "requests" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
     { name = "urllib3" },
 ]
 wheels = [
@@ -4861,8 +4892,8 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
     { name = "pillow" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-art') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/56/3a/6ea0d73f49a9bef38a1b3a92e8dd455cea58470985d25635beab93841748/torchvision-0.25.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:c2abe430c90b1d5e552680037d68da4eb80a5852ebb1c811b2b89d299b10573b", size = 1874920, upload-time = "2026-01-21T16:27:45.348Z" },
@@ -4893,7 +4924,7 @@ name = "tqdm"
 version = "4.68.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/87/d7/0535a28b1f5f24f6612fb3ff1e89fb1a8d160fee0f976e0aa6803862134b/tqdm-4.68.3.tar.gz", hash = "sha256:00dfa48452b6b6cfae3dd9885636c23d3422d1ec97c66d96818cbd5e0821d482", size = 170596, upload-time = "2026-06-17T07:36:52.105Z" }
 wheels = [
@@ -4921,7 +4952,7 @@ dependencies = [
     { name = "prometheus-client" },
     { name = "psutil" },
     { name = "pyzmq" },
-    { name = "ray", extra = ["default"], marker = "extra == 'extra-8-agentdac-verl'" },
+    { name = "ray", extra = ["default"], marker = "extra == 'extra-8-agentdac-verl' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
     { name = "tensordict" },
 ]
 wheels = [
@@ -4959,9 +4990,11 @@ name = "transformers"
 version = "5.12.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "sys_platform == 'linux'",
-    "sys_platform != 'linux' and sys_platform != 'win32'",
-    "sys_platform == 'win32'",
+    "sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm'",
+    "sys_platform == 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm'",
+    "sys_platform == 'linux' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform != 'linux' and sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform == 'win32' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
 ]
 dependencies = [
     { name = "huggingface-hub", version = "1.21.0", source = { registry = "https://pypi.org/simple" } },
@@ -5117,8 +5150,8 @@ dependencies = [
     { name = "protobuf", version = "6.33.6", source = { registry = "https://pypi.org/simple" } },
     { name = "psutil" },
     { name = "sentencepiece" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "torchvision" },
     { name = "tqdm" },
     { name = "transformers", version = "4.57.3", source = { registry = "https://pypi.org/simple" } },
@@ -5155,8 +5188,8 @@ dependencies = [
     { name = "psutil" },
     { name = "regex" },
     { name = "sentencepiece" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "torchao" },
     { name = "tqdm" },
     { name = "transformers", version = "4.57.3", source = { registry = "https://pypi.org/simple" } },
@@ -5244,7 +5277,7 @@ dependencies = [
     { name = "pyarrow" },
     { name = "pybind11" },
     { name = "pylatexenc" },
-    { name = "ray", extra = ["default"], marker = "extra == 'extra-8-agentdac-verl'" },
+    { name = "ray", extra = ["default"], marker = "extra == 'extra-8-agentdac-verl' or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
     { name = "tensorboard" },
     { name = "tensordict" },
     { name = "torchdata" },
@@ -5291,7 +5324,7 @@ dependencies = [
     { name = "depyf" },
     { name = "diskcache" },
     { name = "einops" },
-    { name = "fastapi", extra = ["standard"], marker = "extra == 'extra-8-agentdac-art'" },
+    { name = "fastapi", extra = ["standard"], marker = "extra == 'extra-8-agentdac-art' or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "filelock" },
     { name = "flashinfer-python", version = "0.6.4", source = { registry = "https://pypi.org/simple" } },
     { name = "gguf" },
@@ -5303,7 +5336,7 @@ dependencies = [
     { name = "llguidance", marker = "platform_machine == 'aarch64' or platform_machine == 'arm64' or platform_machine == 'ppc64le' or platform_machine == 's390x' or platform_machine == 'x86_64'" },
     { name = "lm-format-enforcer" },
     { name = "mcp" },
-    { name = "mistral-common", extra = ["image"], marker = "extra == 'extra-8-agentdac-art'" },
+    { name = "mistral-common", extra = ["image"], marker = "extra == 'extra-8-agentdac-art' or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "model-hosting-container-standards" },
     { name = "msgspec" },
     { name = "ninja" },
@@ -5331,7 +5364,7 @@ dependencies = [
     { name = "pyyaml" },
     { name = "pyzmq" },
     { name = "quack-kernels" },
-    { name = "ray", extra = ["cgraph"], marker = "extra == 'extra-8-agentdac-art'" },
+    { name = "ray", extra = ["cgraph"], marker = "extra == 'extra-8-agentdac-art' or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "regex" },
     { name = "requests" },
     { name = "sentencepiece" },
@@ -5340,8 +5373,8 @@ dependencies = [
     { name = "six" },
     { name = "tiktoken" },
     { name = "tokenizers" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "torchaudio" },
     { name = "torchvision" },
     { name = "tqdm" },
@@ -5361,9 +5394,11 @@ name = "vllm"
 version = "0.19.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "sys_platform == 'linux'",
-    "sys_platform != 'linux' and sys_platform != 'win32'",
-    "sys_platform == 'win32'",
+    "sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm'",
+    "sys_platform == 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm'",
+    "sys_platform == 'linux' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform != 'linux' and sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform == 'win32' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
 ]
 dependencies = [
     { name = "aiohttp" },
@@ -5376,7 +5411,7 @@ dependencies = [
     { name = "depyf" },
     { name = "diskcache" },
     { name = "einops" },
-    { name = "fastapi", extra = ["standard"], marker = "extra == 'extra-8-agentdac-verl'" },
+    { name = "fastapi", extra = ["standard"], marker = "extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
     { name = "filelock" },
     { name = "flashinfer-cubin" },
     { name = "flashinfer-python", version = "0.6.6", source = { registry = "https://pypi.org/simple" } },
@@ -5386,7 +5421,7 @@ dependencies = [
     { name = "llguidance", marker = "platform_machine == 'aarch64' or platform_machine == 'arm64' or platform_machine == 'ppc64le' or platform_machine == 's390x' or platform_machine == 'x86_64'" },
     { name = "lm-format-enforcer" },
     { name = "mcp" },
-    { name = "mistral-common", extra = ["image"], marker = "extra == 'extra-8-agentdac-verl'" },
+    { name = "mistral-common", extra = ["image"], marker = "extra == 'extra-8-agentdac-verl' or extra == 'extra-8-agentdac-vllm'" },
     { name = "model-hosting-container-standards" },
     { name = "msgspec" },
     { name = "ninja" },
@@ -5423,8 +5458,8 @@ dependencies = [
     { name = "six" },
     { name = "tiktoken" },
     { name = "tokenizers" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
     { name = "torchaudio" },
     { name = "torchvision" },
     { name = "tqdm" },
@@ -5478,9 +5513,11 @@ name = "wandb"
 version = "0.28.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "sys_platform == 'linux'",
-    "sys_platform != 'linux' and sys_platform != 'win32'",
-    "sys_platform == 'win32'",
+    "sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm'",
+    "sys_platform == 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm'",
+    "sys_platform == 'linux' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform != 'linux' and sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform == 'win32' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
 ]
 dependencies = [
     { name = "click" },
@@ -5549,7 +5586,7 @@ dependencies = [
     { name = "cachetools" },
     { name = "click" },
     { name = "diskcache-weave" },
-    { name = "gql", extra = ["httpx"], marker = "extra == 'extra-8-agentdac-art'" },
+    { name = "gql", extra = ["httpx"], marker = "extra == 'extra-8-agentdac-art' or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "jsonschema" },
     { name = "opentelemetry-api" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
@@ -5698,8 +5735,8 @@ version = "0.0.35"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/de/5a/6e27734bd793adc44d0b8d294e67cfacf4ec590572c1aef51d683fc7a791/xformers-0.0.35.tar.gz", hash = "sha256:f7fc183a58e4bf0e2ae339a18fb1b1d4a37854c0f2545b4f360fef001646ab76", size = 4258182, upload-time = "2026-02-20T20:33:05.417Z" }
 wheels = [
@@ -5720,8 +5757,8 @@ dependencies = [
     { name = "mlx-lm", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'" },
     { name = "numpy" },
     { name = "pydantic" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-art') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
     { name = "transformers", version = "4.57.3", source = { registry = "https://pypi.org/simple" } },
     { name = "triton", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "typing-extensions" },
@@ -5740,16 +5777,18 @@ name = "xgrammar"
 version = "0.2.3"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "sys_platform == 'linux'",
-    "sys_platform != 'linux' and sys_platform != 'win32'",
-    "sys_platform == 'win32'",
+    "sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm'",
+    "sys_platform == 'win32' and extra != 'extra-8-agentdac-art' and extra != 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm'",
+    "sys_platform == 'linux' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform != 'linux' and sys_platform != 'win32' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
+    "sys_platform == 'win32' and extra != 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl' and extra != 'extra-8-agentdac-vllm'",
 ]
 dependencies = [
     { name = "apache-tvm-ffi" },
     { name = "numpy" },
     { name = "pydantic" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl')" },
+    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm')" },
+    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-verl') or (sys_platform == 'linux' and extra == 'extra-8-agentdac-vllm') or (sys_platform == 'win32' and extra == 'extra-8-agentdac-verl' and extra == 'extra-8-agentdac-vllm') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-verl') or (extra == 'extra-8-agentdac-art' and extra == 'extra-8-agentdac-vllm')" },
     { name = "transformers", version = "5.12.1", source = { registry = "https://pypi.org/simple" } },
     { name = "triton", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "typing-extensions" },

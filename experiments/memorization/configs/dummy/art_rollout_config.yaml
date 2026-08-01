@@ -1,0 +1,7 @@
+kwargs:
+    extra_body:
+        chat_template_kwargs:
+            enable_thinking: false
+train_kwargs: {}
+val_kwargs: {}
+test_kwargs: {}

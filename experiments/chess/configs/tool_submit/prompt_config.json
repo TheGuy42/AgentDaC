@@ -1,7 +1,0 @@
-{
-    "mode": "path",
-    "system_root": "config_files/prompts/tool_submit/root.txt",
-    "system_inter": "config_files/prompts/tool_submit/root.txt",
-    "system_leaf": "config_files/prompts/tool_submit/leaf.txt",
-    "tasks_depleted": null
-}

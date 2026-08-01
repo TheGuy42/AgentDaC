@@ -34,12 +34,12 @@ class VerlBackend(Backend):
 
     def load_configs(self, config_dir: pathlib.Path) -> dict[str, Any]:
         return {
-            "data_config": DataConfig.load_from_path(config_dir / "data_config.json", do_raise=True),
-            "prompt_config": PromptConfig.load_from_path(config_dir / "prompt_config.json", do_raise=True),
-            "decomp_config": DecompConfig.load_from_path(config_dir / "decomp_config.json", do_raise=True),
-            "rollout_config": RolloutConfig.load_from_path(config_dir / "verl_rollout_config.json", do_raise=True),
-            "verl_config": load_object(config_dir / "verl_config.json", do_raise=True),  # OVERRIDES onto verl defaults
-            "extra_config": load_object(config_dir / "extra_config.json", do_raise=False) or {},
+            "data_config": DataConfig.load_from_path(config_dir / "data_config.yaml", do_raise=True),
+            "prompt_config": PromptConfig.load_from_path(config_dir / "prompt_config.yaml", do_raise=True),
+            "decomp_config": DecompConfig.load_from_path(config_dir / "decomp_config.yaml", do_raise=True),
+            "rollout_config": RolloutConfig.load_from_path(config_dir / "verl_rollout_config.yaml", do_raise=True),
+            "verl_config": load_object(config_dir / "verl_config.yaml", do_raise=True),  # OVERRIDES onto verl defaults
+            "extra_config": load_object(config_dir / "extra_config.yaml", do_raise=False) or {},
         }
 
     def launch(self, configs: dict[str, Any]) -> None:
@@ -64,7 +64,7 @@ class VerlBackend(Backend):
     def _verl_default_config(self) -> Any:
         """The complete flattened verl `ppo_trainer` default config (our merge base).
 
-        `main_ppo_sync` reads the whole schema, so a partial `verl_config.json` is not enough.
+        `main_ppo_sync` reads the whole schema, so a partial `verl_config.yaml` is not enough.
         We load verl's shipped flattened default and merge the experiment overrides onto it.
         (Equivalent canonical form: `hydra.compose(config_name="ppo_trainer")`.)
         """
@@ -79,7 +79,7 @@ class VerlBackend(Backend):
         omega_conf = OmegaConf.merge(self._verl_default_config(), OmegaConf.create(overrides))
         OmegaConf.set_struct(omega_conf, False)
 
-        # Naming and seed. Resume is set natively in verl_config.json, via
+        # Naming and seed. Resume is set natively in verl_config.yaml, via
         # `trainer.resume_mode` / `trainer.resume_from_path`.
         omega_conf.trainer.project_name = args.project
         omega_conf.trainer.experiment_name = exp_name
@@ -90,7 +90,7 @@ class VerlBackend(Backend):
 
         # Dataset: verl builds it in-worker via `data.custom_cls` (no parquet on disk).
         # `train_files`/`val_files` are split markers the dataset class branches on;
-        # `custom_dataset` is the whole `data_config.json` (sizes, dataset seed, load params),
+        # `custom_dataset` is the whole `data_config.yaml` (sizes, dataset seed, load params),
         # which is what the dataset reads as `TaskDataset.params`.
         dataset_cls = self.args.dataset_cls
         omega_conf.data.custom_cls = {"path": "pkg://src.backends.verl.dataset", "name": "VerlDataset"}

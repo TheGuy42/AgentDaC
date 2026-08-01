@@ -1,0 +1,87 @@
+algorithm:
+    adv_estimator: grpo_vectorized
+    use_kl_in_reward: false
+trainer:
+    nnodes: 1
+    n_gpus_per_node: 1
+    val_before_train: true
+    critic_warmup: 0
+    test_freq: 5
+    save_freq: 1
+    total_epochs: 20
+    max_actor_ckpt_to_keep: 1
+    max_critic_ckpt_to_keep: 1
+    logger:
+    - console
+    - wandb
+data:
+    train_batch_size: 10
+    max_prompt_length: 2048
+    max_response_length: 12288
+    truncation: error
+    shuffle: true
+    apply_chat_template_kwargs:
+        enable_thinking: true
+actor_rollout_ref:
+    rollout:
+        n: 16
+        do_sample: true
+        temperature: 1.0
+        top_p: 0.95
+        top_k: 20
+        val_kwargs:
+            n: 1
+            do_sample: false
+            temperature: 1.0
+            top_p: 0.95
+            top_k: 20
+        tensor_model_parallel_size: 1
+        log_prob_micro_batch_size_per_gpu: 10
+        name: vllm
+        dtype: bfloat16
+        load_format: safetensors
+        gpu_memory_utilization: 0.75
+        engine_kwargs:
+            vllm:
+                generation_config: auto
+                max_lora_rank: 16
+                reasoning_parser: qwen3
+                additional_config:
+                    gdn_prefill_backend: triton
+                reasoning-config:
+                    reasoning_start_str: <think>
+                    reasoning_end_str: </think>
+        agent:
+            num_workers: 8
+        multi_turn:
+            enable: true
+            format: qwen3_xml
+    actor:
+        ppo_mini_batch_size: 10
+        ppo_micro_batch_size_per_gpu: 5
+        optim:
+            lr: 5.0e-06
+        policy_loss:
+            loss_mode: vanilla
+        use_kl_loss: false
+        kl_loss_coef: 0.0
+        entropy_coeff: 0
+        clip_ratio_low: 0.2
+        clip_ratio_high: 0.3
+        strategy: fsdp2
+        fsdp_config:
+            param_offload: false
+            optimizer_offload: false
+            model_dtype: bfloat16
+    model:
+        path: Qwen/Qwen3.5-4B
+        use_remove_padding: true
+        use_liger: false
+        use_fused_kernels: false
+        enable_gradient_checkpointing: true
+        lora_rank: 16
+        lora_alpha: 32
+        target_modules: all-linear
+        custom_chat_template: config_files/templates/Qwen3.5.jinja
+        override_config:
+            attn_implementation: flash_attention_2
