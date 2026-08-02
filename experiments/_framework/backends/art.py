@@ -8,6 +8,7 @@ os.environ["IMPORT_PEFT"] = "1"
 
 import asyncio
 from typing import Any
+import json
 
 from src.backends.art.config import ArtConfig
 from src.backends.art.loaders import load_art_model
@@ -88,9 +89,17 @@ class ArtBackend(Backend):
             writer=writer,
         )
 
+        # Initialize wandb and log files
         if trainer.wandb_run is not None:
             for root in ("src", "experiments"):
                 trainer.wandb_run.log_code(root=root, name=root)
+
+        # Print configs
+        for config_name, config in configs.items():
+            if hasattr(config, "model_dump_json"):
+                logger.info(f"{config_name}: {config.model_dump_json(indent=2)}")
+            else:
+                logger.info(f"{config_name}: {json.dumps(config, indent=2)}")
 
         try:
             logger.info("Starting training...")

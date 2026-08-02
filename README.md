@@ -216,7 +216,7 @@ Common options include:
 | `--run` | Set the run name. |
 | `--traj_dir` | Enable full trajectory JSON logging below this directory. |
 | `--seed` | Set the experiment seed. |
-| `--silent` | Reduce console logging. |
+| `--log_level` | Set logging level. |
 | `--test_run` | Apply small backend-specific smoke-run settings. |
 
 Passing `--backend` explicitly is recommended when an environment exposes more than one

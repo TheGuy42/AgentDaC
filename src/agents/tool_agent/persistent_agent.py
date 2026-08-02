@@ -97,7 +97,12 @@ class ToolPersistentAgent(BaseAgent):
 
     async def call(self, messages: list[Message], **kwargs) -> InferenceResponse:
         kwargs = self.client.update_kwargs(kwargs, include_stop_str_in_output=True)
-        return await super().call(messages, tools=list(self.tool_map.values()) or None, stop=self.tool_parser.stop_tag, **kwargs)
+        return await super().call(
+            messages,
+            tools=list(self.tool_map.values()) or None,
+            stop=self.tool_parser.stop_tag,
+            **kwargs,
+        )
 
     def create_subagent(self) -> ToolPersistentAgent:
         agent = ToolPersistentAgent(

@@ -1,0 +1,36 @@
+model:
+    base_model: Qwen/Qwen3-14B
+    tool_parser: hermes
+    reasoning_parser: null
+    internal_config:
+        init_args:
+            load_in_4bit: false
+            gpu_memory_utilization: 0.75
+            max_lora_rank: 16
+        engine_args:
+            max_model_len: 12288
+            gpu_memory_utilization: 0.75
+            generation_config: vllm
+            max_lora_rank: 16
+            logits_processors:
+            - src.backends.utils.thinking_budget:ThinkingBudgetLogitsProcessor
+        peft_args:
+            r: 16
+    openai_config:
+        server_args:
+            chat_template: config_files/templates/Qwen3.preserving.jinja
+            enable_auto_tool_choice: true
+            tool_call_parser: hermes
+train:
+    epochs: 1000
+    num_groups: 16
+    group_size: 8
+    val_log_steps: 10
+    train_episodes: false
+    delete_checkpoints: true
+    checkpoint_metric: reward
+    max_exceptions: 5
+    verbose: false
+    train_params:
+        learning_rate: 5.0e-05
+        kl_penalty_coef: 0.02

@@ -22,6 +22,7 @@ STOP_TAGS = {
     "seed_oss": "</seed:tool_call>",
     "glm45": "</tool_call>",
     "glm47": "</tool_call>",
+    "hermes": "</tool_call>",
 }
 
 # Escape-free (tag-delimited) tool parsers we support
@@ -111,7 +112,7 @@ def build_tool_parser(
     reasoning_parser: str | None = None,
     **kwargs,
 ) -> NativeParser:
-    """Build the parser for the escape-free tool format `tool_parser`.
+    """Build the parser for the tool format `tool_parser`.
 
     Args:
         tool_parser (str): `multi_turn.format` / vLLM tool-parser name.
@@ -120,8 +121,7 @@ def build_tool_parser(
         **kwargs: additional keyword arguments for the tokenizer initialization (if `tokenizer` is a string).
 
     Raises:
-        ValueError: if `tool_parser` is not an escape-free format (JSON/escaping formats such
-            as ``"hermes"`` are intentionally unsupported).
+        ValueError: if `tool_parser` is not supported.
     """
 
     if isinstance(tokenizer, str):

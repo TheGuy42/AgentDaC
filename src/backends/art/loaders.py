@@ -33,7 +33,6 @@ async def load_art_model(
         logger.info(f"Found free port for ART server: {port}")
 
     model_config = model_config.initialize(output_dir=path_config.model_output_dir, port=port, seed=seed)
-    logger.info(f"ART Model Config: {model_config.model_dump_json(indent=2)}")
 
     model = art.TrainableModel(
         name=path_config.run_name,

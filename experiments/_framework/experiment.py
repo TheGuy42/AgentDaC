@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import argparse
 import logging
 import os
@@ -9,11 +8,10 @@ import sys
 from typing import Any, Sequence
 
 import torch
-
 from src.running.dataset import TaskDataset
 from src.running.rollout import RolloutTask
 from src.utils.env import prepare_environment, set_seed
-from src.utils.logging import create_logger, setup_logging
+from src.utils.logging import create_logger, setup_logging, parse_log_level
 from experiments._framework.backends.backend import BackendArgs
 from experiments._framework.backends.registry import BackendName, create_backend
 
@@ -111,9 +109,11 @@ class Experiment:
         )
 
         parser.add_argument(
-            "--silent",
-            action="store_true",
-            help="Disable verbose outputs.",
+            "--log_level",
+            type=str,
+            choices=logging.getLevelNamesMapping().keys(),
+            default="INFO",
+            help="Logging level.",
         )
 
         parser.add_argument(
@@ -145,7 +145,7 @@ class Experiment:
 
             # Prepare the environment
             prepare_environment()
-            setup_logging(level=logging.WARNING if args.silent else logging.INFO)
+            setup_logging(level=parse_log_level(args.log_level))
             set_seed(args.seed)
             os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, args.gpus))
 

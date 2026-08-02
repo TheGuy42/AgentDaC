@@ -60,8 +60,6 @@ def _patch_local_backend(local_backend: LocalBackend, art_config: ArtConfig) -> 
     """
     Patch the local backend (tokenizers, image processors) with the chat template from the ART config.
     This is necessary because ART does not automatically apply the chat template to its own training tokenizers.
-
-    - This method also populates the `trainer.backend._tokenizers` for the current model
     """
     model_name = art_config.model.base_model
     chat_template = (art_config.model.openai_config or {}).get("server_args", {}).get("chat_template")
