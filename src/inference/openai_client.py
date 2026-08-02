@@ -52,6 +52,7 @@ class OAIClient(InferenceClient):
     ):
         self.client = client or openai.AsyncOpenAI(base_url=base_url, api_key=api_key, **kwargs)
         self.model_name = model_name
+        self._owns_client = client is None
 
     async def list_models(self) -> list[openai.types.Model]:
         page = await self.client.models.list()
@@ -337,3 +338,9 @@ class OAIClient(InferenceClient):
         )
 
         return OAIResponse(openai_response)
+    
+    async def aclose(self) -> None:
+        """Close the client and any resources it holds."""
+        if self._owns_client and self.client is not None:
+            await self.client.close()
+            self.client = None

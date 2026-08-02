@@ -92,10 +92,12 @@ class VllmRunner:
             self._wandb_run = wandb.init(project=self.config.wandb_project, name=self.run_name, job_type="eval")
         return self._wandb_run
 
-    def close(self) -> None:
+    async def aclose(self) -> None:
         if self._wandb_run is not None:
             self._wandb_run.finish()
             self._wandb_run = None
+
+        await self.client.aclose()
 
     def log_hparams(self, d: dict) -> dict:
         if (run := self.wandb_run) is not None:

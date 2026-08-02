@@ -7,7 +7,7 @@ kwargs:
         chat_template_kwargs:
             enable_thinking: true
         vllm_xargs:
-            thinking_token_budget: 2048
+            thinking_token_budget: 1024
             thinking_start_str: <think>
             thinking_end_str: "\n</think>"
 train_kwargs: {}

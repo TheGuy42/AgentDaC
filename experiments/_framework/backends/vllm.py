@@ -82,4 +82,4 @@ class VllmBackend(Backend):
         try:
             await runner.evaluate(datasets, step=0)
         finally:
-            runner.close()
+            await runner.aclose()

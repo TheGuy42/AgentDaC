@@ -176,5 +176,5 @@ class Experiment:
             backend.launch(configs)
 
         except KeyboardInterrupt:
-            logger.info("Training interrupted by user.")
-            sys.exit(0)
+            logger.info("Interrupted by user.")
+            sys.exit(130)  # SIGINT

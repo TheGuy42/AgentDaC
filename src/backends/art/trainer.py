@@ -111,6 +111,24 @@ class ArtTrainer:
         # NOTE: Temp solution to address ART bug.
         _patch_local_backend(self.backend, art_config=config)
 
+    def _init_tokenizer(self, backend: LocalBackend) -> None:
+        """
+        Initialize tokenizers and image processors for the model.
+        NOTE: logic must match ART's `LocalBackend._get_tokenizer` lazy-initialization code.
+        """
+        model_name = self.model.base_model
+
+        if model_name not in backend._tokenizers:
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+            backend._tokenizers[model_name] = tokenizer
+
+        if model_name not in backend._image_processors:
+            try:
+                image_processor = AutoImageProcessor.from_pretrained(model_name, use_fast=True)
+                backend._image_processors[model_name] = image_processor
+            except Exception:
+                backend._image_processors[model_name] = None
+
     @property
     def wandb_run(self) -> WandbRun | None:
         try:
@@ -122,20 +140,7 @@ class ArtTrainer:
     @property
     def backend(self) -> LocalBackend:
         backend: LocalBackend = self.model.backend()  # type: ignore[return-value]
-
-        # populate tokenizer in advance since we count on it for agent context
-        # NOTE: logic must match ART's `LocalBackend._get_tokenizer` lazy-initialization code
-        if self.model.base_model not in backend._tokenizers:
-            tokenizer = AutoTokenizer.from_pretrained(self.model.base_model)
-            backend._tokenizers[self.model.base_model] = tokenizer
-
-        if self.model.base_model not in backend._image_processors:
-            try:
-                image_processor = AutoImageProcessor.from_pretrained(self.model.base_model, use_fast=True)
-                backend._image_processors[self.model.base_model] = image_processor
-            except Exception:
-                backend._image_processors[self.model.base_model] = None
-
+        self._init_tokenizer(backend)  # populate tokenizer in advance since we count on it for agent context
         return backend
 
     def log_hparams(self, d: dict) -> None:
@@ -145,18 +150,15 @@ class ArtTrainer:
             return
         run.config.update(d, allow_val_change=True)
 
-    async def close(self) -> None:
+    async def aclose(self) -> None:
         try:
-            run = self.wandb_run
-            if run is not None:
+            if (run := self.wandb_run) is not None:
                 run.finish()
         except Exception as e:
             logger.error(f"Failed to finish wandb run: {e}")
 
         try:
-            backend = self.model._backend
-            if backend is not None:
-                await backend.close()
+            await self.backend.close()
         except Exception as e:
             logger.error(f"Failed to close model backend: {e}")
 

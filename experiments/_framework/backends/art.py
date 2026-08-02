@@ -116,7 +116,7 @@ class ArtBackend(Backend):
                     await trainer.model.log(groups, split=stage.value)
 
         finally:
-            await trainer.close()
+            await trainer.aclose()
 
     def _patch_test_run(self, art_config: ArtConfig, data_config: DataConfig) -> None:
         logger.info("Test run: overriding ART config for a quick run.")
