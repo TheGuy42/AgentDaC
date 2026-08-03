@@ -1,0 +1,42 @@
+tools:
+  create_new_sub_agent:
+    name: create_new_sub_agent
+    description: >-
+      Create a fresh sub-agent (discarding any previous one) and give it this sub-task.
+      The sub-agent starts with NO memory or context of this conversation, so the `text` must
+      be fully self-contained: restate the complete position and everything needed to solve it.
+
+    arguments:
+      text:
+        type: string
+        description: >-
+          A clear, fully self-contained description of the sub-task, including the complete
+          position/board and the exact answer format required.
+        required: true
+
+  send_message_to_current_sub_agent:
+    name: send_message_to_current_sub_agent
+    description: >-
+      Continue with the current sub-agent (which remembers its earlier work) on a follow-up
+      sub-task. Phrase it in terms of what it has already done.
+
+    arguments:
+      text:
+        type: string
+        description: >-
+          A clear description of the follow-up sub-task for the current sub-agent.
+        required: true
+
+  submit_answer:
+    name: submit_answer
+    description: >-
+      Submit your final answer and finish the task. Call this exactly once,
+      when you are done. The `answer` must be the final answer only, with no
+      extra commentary, in the exact format the task requests.
+
+    arguments:
+      answer:
+        type: string
+        description: >-
+          The final answer only, in the exact requested format (e.g. a single UCI move like e2e4).
+        required: true

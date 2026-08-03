@@ -157,10 +157,8 @@ class ArtTrainer:
         except Exception as e:
             logger.error(f"Failed to finish wandb run: {e}")
 
-        try:
-            await self.backend.close()
-        except Exception as e:
-            logger.error(f"Failed to close model backend: {e}")
+        await self.backend.close()
+        await self.task.aclose()
 
     def _decomp_config(self, stage: RolloutStage) -> DecompConfig:
         dc = self.decomp_config

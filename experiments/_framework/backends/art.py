@@ -97,9 +97,9 @@ class ArtBackend(Backend):
         # Print configs
         for config_name, config in configs.items():
             if hasattr(config, "model_dump_json"):
-                logger.info(f"{config_name}: {config.model_dump_json(indent=2)}")
+                print(f"{config_name}: {config.model_dump_json(indent=2)}")
             else:
-                logger.info(f"{config_name}: {json.dumps(config, indent=2)}")
+                print(f"{config_name}: {json.dumps(config, indent=2)}")
 
         try:
             logger.info("Starting training...")

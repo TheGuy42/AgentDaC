@@ -28,10 +28,12 @@ class RolloutTask(ABC):
 
     @abstractmethod
     def format_prompt(self, sample: dict[str, Any]) -> str: ...
+
     """Format prompt text from raw sample data."""
 
     @abstractmethod
     async def score_trajectory(self, sample: dict[str, Any], trajectory: Trajectory, stage: RolloutStage, agent: BaseAgent) -> Trajectory: ...
+
     """Score the trajectory, updating its `reward` / `metrics` / `metadata`."""
 
     async def rollout(
@@ -68,3 +70,6 @@ class RolloutTask(ABC):
             agent.trajectory.error(kind="critical", message=f"Rollout failed: {e}")
             trajectory = agent.trajectory.finish()
             raise RolloutError(str(e), trajectory) from e
+
+    async def aclose(self) -> None:
+        pass

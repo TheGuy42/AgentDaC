@@ -62,6 +62,7 @@ class MoveEvaluator:
         `config` wins for the lifetime of the process.
         """
         if cls._process_instance is None:
+            logger.debug("Starting process-local MoveEvaluator engine...")
             cls._process_instance = cls(engine_config)
             cls._process_config = engine_config
             atexit.register(cls._process_instance.close)
@@ -71,6 +72,14 @@ class MoveEvaluator:
             )
 
         return cls._process_instance
+
+    @classmethod
+    def close_process(cls) -> None:
+        """Close the process-local evaluator and its engine."""
+        if cls._process_instance is not None:
+            cls._process_instance.close()
+            cls._process_instance = None
+            cls._process_config = None
 
     async def score(self, board: chess.Board, move: chess.Move | None, config: ChessConfig) -> MoveResult:
         """

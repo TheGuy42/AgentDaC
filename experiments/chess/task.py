@@ -64,3 +64,10 @@ class ChessTask(RolloutTask):
         )
 
         return trajectory
+
+    async def aclose(self):
+        """
+        Cleans process-local resources, including the chess engine.
+        Should be called only when all rollouts on the process are finished and the engine is no longer needed.
+        """
+        MoveEvaluator.close_process()

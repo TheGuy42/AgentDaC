@@ -2,6 +2,7 @@ from __future__ import annotations
 import asyncio
 import pathlib
 from typing import Any
+import json
 
 from src.backends.vllm.config import VllmConfig
 from src.backends.vllm.runner import VllmRunner
@@ -52,6 +53,13 @@ class VllmBackend(Backend):
 
         exp_name = args.run or self.default_run_name(vllm_config.server.model_name)
         writer_config = self.traj_writer_config(exp_name)
+
+        # Print configs
+        for config_name, config in configs.items():
+            if hasattr(config, "model_dump_json"):
+                print(f"{config_name}: {config.model_dump_json(indent=2)}")
+            else:
+                print(f"{config_name}: {json.dumps(config, indent=2)}")
 
         runner = VllmRunner(
             config=vllm_config,

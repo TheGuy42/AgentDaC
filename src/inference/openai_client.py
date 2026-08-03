@@ -54,8 +54,8 @@ class OAIClient(InferenceClient):
         self.model_name = model_name
         self._owns_client = client is None
 
-    async def list_models(self) -> list[openai.types.Model]:
-        page = await self.client.models.list()
+    async def list_models(self, timeout: float = 5.0) -> list[openai.types.Model]:
+        page = await self.client.models.list(timeout=timeout)
         return page.data
 
     def update_kwargs(
@@ -338,9 +338,7 @@ class OAIClient(InferenceClient):
         )
 
         return OAIResponse(openai_response)
-    
+
     async def aclose(self) -> None:
-        """Close the client and any resources it holds."""
-        if self._owns_client and self.client is not None:
+        if self._owns_client:
             await self.client.close()
-            self.client = None

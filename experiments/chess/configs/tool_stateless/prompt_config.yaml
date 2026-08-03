@@ -1,4 +1,5 @@
 mode: path
-system_root: config_files/prompts/tool/root.txt
-system_inter: config_files/prompts/tool/root.txt
-system_leaf: config_files/prompts/tool/leaf.txt
+system_root: config_files/prompts/tool/v1_root.txt
+system_inter: config_files/prompts/tool/v1_root.txt
+system_leaf: config_files/prompts/tool/v1_leaf.txt
+tools: config_files/prompts/tool/v1_tools.yaml

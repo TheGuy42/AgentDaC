@@ -4,6 +4,7 @@ import asyncio
 from typing import Any
 
 from tqdm.asyncio import tqdm_asyncio
+from transformers import AutoTokenizer
 
 from src.agents.registry import AgentContext, create_agent
 from src.backends.vllm.config import VllmConfig
@@ -40,7 +41,6 @@ def aggregate_metrics(results: list[Trajectory | RolloutError]) -> dict[str, flo
             add(key, value)
 
     metrics = {key: total / counts[key] for key, total in sums.items()}
-    metrics["n"] = float(len(results))
     return metrics
 
 
@@ -77,6 +77,7 @@ class VllmRunner:
 
         self._wandb_run = None
         self._semaphore = asyncio.Semaphore(config.inference.max_concurrency)
+        self._tokenizer = AutoTokenizer.from_pretrained(self.config.agent.tokenizer or self.config.server.model_name)
 
     @property
     def wandb_run(self):
@@ -98,6 +99,21 @@ class VllmRunner:
             self._wandb_run = None
 
         await self.client.aclose()
+        await self.task.aclose()
+
+    async def ping(self, timeout: float = 5.0) -> None:
+        try:
+            # verify the model exists on the server
+            models = await self.client.list_models(timeout=timeout)
+            available_models = {model.id for model in models}
+
+            model_name = self.config.server.model_name
+            if model_name not in available_models:
+                raise RuntimeError(f"Configured model {model_name!r} is not available. Server models: {sorted(available_models)}")
+
+        except Exception as e:
+            logger.error("Failed to connect to server: %s", e, exc_info=True)
+            raise
 
     def log_hparams(self, d: dict) -> dict:
         if (run := self.wandb_run) is not None:
@@ -134,7 +150,7 @@ class VllmRunner:
             extra_config=self.extra_config,
             tool_parser=self.config.agent.tool_parser,
             reasoning_parser=self.config.agent.reasoning_parser,
-            tokenizer=self.config.agent.tokenizer or self.config.server.model_name,
+            tokenizer=self._tokenizer,
         )
 
     def _chat_kwargs(self, stage: RolloutStage) -> dict[str, Any]:
@@ -189,6 +205,8 @@ class VllmRunner:
         step: int = 0,
     ) -> dict[RolloutStage, list[Trajectory | RolloutError]]:
         """Roll out every stage and report each one as it finishes."""
+
+        await self.ping(timeout=5.0)
 
         # Log hyperparameters
         self.log_hparams(

@@ -1,0 +1,73 @@
+tools:
+  create_new_sub_agent:
+    name: create_new_sub_agent
+    description: >-
+      Start a new blank-slate sub-agent and assign it one focused reasoning task.
+      Starting a new sub-agent replaces the currently active sub-agent.
+
+      Use this tool to investigate a distinct subproblem, derive an intermediate result, try an alternative approach,
+      critique a conclusion, check edge cases, or independently verify a proposed answer.
+
+      The sub-agent has no access to the conversation, the original task, previous results, or your reasoning.
+      The `text` argument must therefore contain all context, data, constraints,
+      and state required to complete the delegated work.
+
+      Do not use the sub-agent as a replacement for your own reasoning.
+      Do not merely forward the entire task and copy its response.
+      Asking for an independent complete solution is allowed when used as a cross-check that you will evaluate yourself.
+
+    arguments:
+      text:
+        type: string
+        description: >-
+          A complete, self-contained assignment for one coherent helper task.
+          State the precise objective, provide all necessary context and structured state,
+          and specify exactly what the sub-agent must return.
+
+          Explicitly request any explanation, derivation, evidence, assumptions, uncertainty analysis, critique,
+          alternatives, or verification that you will need to evaluate and use the result.
+          Do not assume these will be included unless requested. Define the required response format clearly.
+        required: true
+
+  send_message_to_current_sub_agent:
+    name: send_message_to_current_sub_agent
+    description: >-
+      Send a follow-up request to the currently active sub-agent.
+      The current sub-agent remembers its earlier assignment, reasoning, and response.
+
+      Use this tool to ask it to clarify, extend, correct, verify, challenge, or continue its existing work.
+      The follow-up should explicitly refer to the relevant earlier result and state what additional work is required.
+
+      Use this only when the new request depends on the current sub-agent's previous work.
+      To investigate an unrelated subtask, obtain an independent opinion,
+      or start a different reasoning approach, use `create_new_sub_agent`.
+
+    arguments:
+      text:
+        type: string
+        description: >-
+          A clear follow-up instruction that builds on the active sub-agent's previous work.
+          Identify the relevant earlier result and specify exactly what additional work or output is required,
+          such as a clarification, explanation, derivation, correction, verification,
+          edge-case analysis, or reformatted answer.
+        required: true
+
+  submit_answer:
+    name: submit_answer
+    description: >-
+      Submit the final answer for the task assigned to you and end the trajectory.
+
+      Call this tool exactly once, only after you have completed your own reasoning,
+      evaluated any sub-agent results, resolved important uncertainties,
+      and checked that the answer satisfies the original task.
+
+      This is the only valid way to finish. Do not output the final answer as ordinary assistant text.
+
+    arguments:
+      answer:
+        type: string
+        description: >-
+          The complete final answer only, in the exact format requested by the task.
+          Include no surrounding commentary, labels, or explanation unless the task explicitly requires them.
+          For example, when a single UCI move is requested, provide only a value such as `e2e4`.
+        required: true

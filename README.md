@@ -395,8 +395,6 @@ AgentDaC/
   config_files/
     prompts/                 reusable agent prompts
     templates/               chat-template overrides
-  tests/                     regression tests
-  notebooks/                 data preparation and analysis
   pyproject.toml
 ```
 

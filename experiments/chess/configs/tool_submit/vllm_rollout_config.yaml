@@ -1,8 +1,15 @@
 kwargs:
+    temperature: 1.0
+    top_p: 1.0
+    tool_choice: none
     extra_body:
         min_tokens: 5
         chat_template_kwargs:
             enable_thinking: true
+        vllm_xargs:
+            thinking_token_budget: 1024
+            thinking_start_str: <think>
+            thinking_end_str: "\n</think>"
 train_kwargs: {}
 val_kwargs: {}
 test_kwargs: {}

@@ -1,14 +1,14 @@
 server:
-    base_url: http://localhost:8000/v1
+    base_url: http://0.0.0.0:8000/v1
     api_key: EMPTY
-    model_name: Qwen/Qwen3.5-4B
+    model_name: Qwen/Qwen3-14B
 inference:
     splits:
-    - test
+    - val
     group_size: 1
-    max_concurrency: 32
+    max_concurrency: 256
 agent:
-    tool_parser: qwen3_xml
-    reasoning_parser: qwen3
+    tool_parser: hermes
+    reasoning_parser: null
     tokenizer: null
 wandb_project: null
