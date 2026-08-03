@@ -70,11 +70,12 @@ def _rating_suffix(min_rating: int | None, max_rating: int | None) -> str:
     return f"_r{min_rating if min_rating is not None else 'min'}-{max_rating if max_rating is not None else 'max'}"
 
 
-def _build_and_cache(rows: list[dict], cache_path: pathlib.Path) -> Dataset:
+def _build_and_cache(rows: list[dict], cache_path: pathlib.Path, save_cache: bool = True) -> Dataset:
     """Wrap materialized rows in a `Dataset`, save it to `cache_path`, and return it."""
     ds = Dataset.from_list(rows)
-    ds.save_to_disk(str(cache_path))
-    logger.info(f"Saved {len(ds)} positions to disk at {cache_path}")
+    if save_cache:
+        ds.save_to_disk(str(cache_path))
+        logger.info(f"Saved {len(ds)} positions to disk at {cache_path}")
     return ds
 
 
