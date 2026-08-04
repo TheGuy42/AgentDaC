@@ -1,3 +1,5 @@
+# pyright: reportMissingImports=false
+
 import socket
 from contextlib import closing
 

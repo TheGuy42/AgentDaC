@@ -1,3 +1,5 @@
+# pyright: reportMissingImports=false
+
 from datetime import datetime
 from art.utils import output_dirs
 from src.configs.base_config import BaseConfig

@@ -1,6 +1,4 @@
-"""custom-category metrics for the `main_ppo_sync` trainer.
-Per-sample metrics are written to `extra_fields["custom_metrics"]`.
-"""
+# pyright: reportMissingImports=false
 
 from __future__ import annotations
 
@@ -61,9 +59,9 @@ class CustomPPOTrainer(mps.PPOTrainer):
         mean_custom_metrics(non_padding_dicts, metrics, prefix="train-custom")
 
     def _validate(self) -> dict[str, float]:
-        # NOTE: Verbatim copy of verl `main_ppo_sync.PPOTrainer._validate` plus 
-        # the `CUSTOM` lines. Added custom-metrics logging to the validation metrics. 
-        
+        # NOTE: Verbatim copy of verl `main_ppo_sync.PPOTrainer._validate` plus
+        # the `CUSTOM` lines. Added custom-metrics logging to the validation metrics.
+
         sample_uids = []
         sample_inputs = []
         sample_outputs = []

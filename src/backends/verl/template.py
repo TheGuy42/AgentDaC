@@ -1,3 +1,5 @@
+# pyright: reportMissingImports=false
+
 from __future__ import annotations
 from transformers import AutoTokenizer
 from trl.chat_template_utils import get_training_chat_template, is_chat_template_prefix_preserving

@@ -1,3 +1,5 @@
+# pyright: reportMissingImports=false
+
 from art.trajectories import Trajectory as ArtTrajectory, History as ArtHistory
 from src.trajectory import Trajectory, TrajectoryError, get_messages
 from src.inference import OAIResponse, InferenceResponse
