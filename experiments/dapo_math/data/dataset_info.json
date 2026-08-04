@@ -1,0 +1,20 @@
+{
+  "citation": "",
+  "description": "",
+  "features": {
+    "data_source": {
+      "dtype": "large_string",
+      "_type": "Value"
+    },
+    "question": {
+      "dtype": "large_string",
+      "_type": "Value"
+    },
+    "ref_answer": {
+      "dtype": "large_string",
+      "_type": "Value"
+    }
+  },
+  "homepage": "",
+  "license": ""
+}

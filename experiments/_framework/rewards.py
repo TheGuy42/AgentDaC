@@ -71,7 +71,7 @@ def format_reward(agent: BaseAgent, trajectory: Trajectory) -> float:
 
     num_turns = len([m for m in trajectory.messages_and_responses if isinstance(m, InferenceResponse)])
     num_turns = max(num_turns, 1)  # avoid division by zero
-    return -1.0 * len(trajectory.errors) / (num_turns or 1)
+    return -1.0 * len(trajectory.errors) / num_turns
 
 
 def behavior_reward(agent: BaseAgent, trajectory: Trajectory) -> float:

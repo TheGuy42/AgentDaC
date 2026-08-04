@@ -11,6 +11,5 @@ class BbehDataset(TaskDataset):
         data: Dataset = load_dataset(path="BBEH/bbeh", split="train")  # type: ignore
         data = data.map(lambda sample: {"task": sample["task"].replace(" ", "_")})
         data = data.filter(lambda sample: sample["task"] in self.params["tasks"])
-
-        split_dict = data.train_test_split(test_size=0.25, seed=0)
-        return {RolloutStage.TRAIN: split_dict["train"], RolloutStage.VAL: split_dict["test"]}
+        train_ds, val_ds = self._split_data(data, ratios=[0.75, 0.25], seed=self.params["seed"])
+        return {RolloutStage.TRAIN: train_ds, RolloutStage.VAL: val_ds}

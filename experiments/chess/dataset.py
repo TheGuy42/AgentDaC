@@ -18,7 +18,7 @@ class ChessPerstDataset(TaskDataset):
                 "budget to bound the streaming pull."
             )
 
-        train, val = load_dataset(
+        train_ds, val_ds = load_dataset(
             list(self.params["datasets"]),
             num_train=train_size,
             num_val=val_size,
@@ -26,4 +26,4 @@ class ChessPerstDataset(TaskDataset):
             min_rating=self.params["min_rating"],
             max_rating=self.params["max_rating"],
         )
-        return {RolloutStage.TRAIN: train, RolloutStage.VAL: val}
+        return {RolloutStage.TRAIN: train_ds, RolloutStage.VAL: val_ds}

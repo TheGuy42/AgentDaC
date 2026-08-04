@@ -1,0 +1,9 @@
+kwargs:
+    temperature: 1.0
+    top_p: 1.0
+    tool_choice: none
+    extra_body:
+        min_tokens: 5
+train_kwargs: {}
+val_kwargs: {}
+test_kwargs: {}

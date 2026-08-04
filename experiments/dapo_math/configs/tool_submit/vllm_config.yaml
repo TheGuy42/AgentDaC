@@ -1,0 +1,14 @@
+server:
+    base_url: http://0.0.0.0:8000/v1
+    api_key: EMPTY
+    model_name: Qwen/Qwen2.5-7B-Instruct
+inference:
+    splits:
+    - val
+    group_size: 1
+    max_concurrency: 32
+agent:
+    tool_parser: hermes
+    reasoning_parser: null
+    tokenizer: null
+wandb_project: null

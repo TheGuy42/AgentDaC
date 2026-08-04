@@ -17,6 +17,27 @@ class TaskDataset(ABC):
     def __init__(self, params: dict[str, Any] | None = None) -> None:
         self.params: dict[str, Any] = dict(params or {})
 
+    def _split_data(self, data: datasets.Dataset, ratios: list[float], seed: int = 0) -> list[datasets.Dataset]:
+        """Split a dataset into multiple datasets according to the given ratios."""
+        if not ratios or any(r <= 0 for r in ratios):
+            raise ValueError("Ratios must be a non-empty list of positive numbers.")
+        total = sum(ratios)
+        ratios = [r / total for r in ratios]
+
+        # compute split sizes based on the ratios
+        sizes = [int(len(data) * r) for r in ratios]
+        sizes[-1] = len(data) - sum(sizes[:-1])  # Adjust the last size to account for rounding errors
+
+        data = data.shuffle(seed=seed)
+
+        results = []
+        for size in sizes[:-1]:
+            results.append(data.select(range(size)))
+            data = data.select(range(size, len(data)))
+
+        results.append(data)  # Add the remaining dataset as the last split
+        return results
+
     @abstractmethod
     def load(self) -> Mapping[RolloutStage, datasets.Dataset]:
         """Read the source once and return the rows of every stage it provides.
