@@ -405,7 +405,7 @@ AgentDaC/
 1. Implement a `TaskDataset` that returns the available `RolloutStage` splits.
 2. Implement a `RolloutTask` that formats samples and scores trajectories.
 3. Add task-specific formatting and reward functions.
-4. Create an experiment entry point declaring its supported agents.
+4. Create an experiment entry point via `Experiment` class.
 5. Add shared configuration and the required files for each supported backend.
 
 ### Add an agent protocol
