@@ -9,7 +9,6 @@ module_dir = pathlib.Path(__file__).parent.parent.parent.resolve()
 if str(module_dir) not in sys.path:
     sys.path.append(str(module_dir))
 
-from src.agents.registry import AgentKey
 from experiments._framework.experiment import Experiment
 from experiments.chess.dataset import ChessPerstDataset
 from experiments.chess.task import ChessTask
@@ -28,14 +27,6 @@ class ChessExperiment(Experiment):
 if __name__ == "__main__":
     ChessExperiment(
         task_name="chess",
-        supported_agents=[
-            AgentKey.MARKER,
-            AgentKey.PERST,
-            AgentKey.NATIVE_PERST,
-            AgentKey.TOOL_STATELESS,
-            AgentKey.TOOL_PERSISTENT,
-            AgentKey.TOOL_SUBMIT,
-        ],
         task_cls=ChessTask,
         dataset_cls=ChessPerstDataset,
     ).run()

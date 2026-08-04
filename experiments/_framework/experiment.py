@@ -5,7 +5,7 @@ import os
 import pathlib
 import random
 import sys
-from typing import Any, Sequence
+from typing import Any
 
 import torch
 from src.running.dataset import TaskDataset
@@ -14,6 +14,8 @@ from src.utils.env import prepare_environment, set_seed
 from src.utils.logging import create_logger, setup_logging, parse_log_level
 from experiments._framework.backends.backend import BackendArgs
 from experiments._framework.backends.registry import BackendName, create_backend
+from src.agents.registry import AgentKey
+
 
 logger = create_logger(__name__)
 
@@ -24,12 +26,10 @@ class Experiment:
     def __init__(
         self,
         task_name: str,
-        supported_agents: Sequence[str],
         task_cls: type[RolloutTask],
         dataset_cls: type[TaskDataset],
     ) -> None:
         self.task_name = task_name
-        self.supported_agents = list(supported_agents)
         self.task_cls = task_cls
         self.dataset_cls = dataset_cls
 
@@ -51,7 +51,7 @@ class Experiment:
             type=str,
             required=True,
             help="The agent kind to run",
-            choices=self.supported_agents,
+            choices=[key.value for key in AgentKey],
         )
 
         parser.add_argument(
