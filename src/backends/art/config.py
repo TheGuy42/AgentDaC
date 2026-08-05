@@ -7,7 +7,6 @@ from typing import Literal
 from pydantic import Field
 from art.dev import EngineArgs, InternalModelConfig, OpenAIServerConfig, ServerArgs
 from art.dev.get_model_config import get_model_config
-from art.dev.openai_server import get_openai_server_config  # TODO: maybe we should apply it here as well?
 
 from src.configs.base_config import BaseConfig
 from src.utils.logging import create_logger

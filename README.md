@@ -325,7 +325,7 @@ The selected stage dictionary overrides duplicate keys from `kwargs`.
 ## Trajectories and outputs
 
 `Trajectory` is the canonical rollout record. It retains messages and model responses,
-tool schemas and calls, optional nested histories, reward, metrics, metadata, logs,
+tool schemas and calls, optional nested histories (sub-agent trajectories), reward, metrics, metadata, logs,
 structured errors, and timing.
 
 Model responses remain distinct from controller-created messages, allowing backend
@@ -381,3 +381,7 @@ and sometimes incompatible versions.
 
 Use `--test_run` to validate a selected experiment, agent, and backend pipeline before
 launching a full experiment.
+
+## License
+
+This framework is released under the MIT License. See [LICENSE](LICENSE) for details.

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 from transformers import AutoTokenizer
-from trl.chat_template_utils import get_training_chat_template, is_chat_template_prefix_preserving
+from trl.chat_template_utils import get_training_chat_template
+from src.backends.utils.prefix_preserving import is_chat_template_prefix_preserving
 from src.utils.logging import create_logger
 
 
@@ -42,9 +43,9 @@ def resolve_chat_template(
         # not only when the template is not prefix-preserving. So we don't raise here, but we do check below.
         pass
 
+    # NOTE: checked after patching rather than before: TRL's patcher also rewrites templates for
+    # reasons unrelated to prefix preservation, so it is not a reliable signal of whether we need it.
     if not is_chat_template_prefix_preserving(tokenizer):
-        # NOTE: `is_chat_template_prefix_preserving` is not always accurate,
-        # so it should't be relied as a guard to check whether patching is needed or not.
-        raise ValueError(f"TRL: Could not patch chat template from {source} to be prefix-preserving. Please provide a manual override.")
+        raise ValueError(f"Could not patch chat template from {source} to be prefix-preserving. Please provide a manual override.")
 
     return tokenizer.chat_template

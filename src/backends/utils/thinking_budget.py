@@ -97,6 +97,10 @@ class _ThinkingBudget:
 
 
 class ThinkingBudgetLogitsProcessor(AdapterLogitsProcessor):
+    """
+    A logits processor that enforces a budget on the number of tokens generated during reasoning.
+    """
+    
     def __init__(
         self,
         vllm_config: VllmConfig,

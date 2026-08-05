@@ -23,6 +23,7 @@ class MarkerErrors(StrEnum):
     CLIENT_ERROR = "client_error"
     PARSE_ERROR = "parse_error"
     ILLEGAL_ACTION = "illegal_action"
+    INSUFFICIENT_TASKS = "insufficient_tasks"
 
 
 class MarkerAgent(BaseAgent):
@@ -164,8 +165,18 @@ class MarkerAgent(BaseAgent):
                     self.decomp_config.update_round(num_tasks=0)
                     continue
 
+                # Check if the number of tasks exceeds the remaining allowed tasks
+                remaining_tasks = self.decomp_config.max_tasks - self.decomp_config.total_tasks
+                if len(turn.tasks) > remaining_tasks:
+                    message = f"Too many tasks requested: remaining tasks allowed: {remaining_tasks}, but got {len(turn.tasks)}."
+                    self.trajectory.error(kind=MarkerErrors.INSUFFICIENT_TASKS, message=message)
+                    if not self.decomp_config.has_rounds():
+                        return self.trajectory.finish()
+                    self.append_message(UserMessage(role="user", content=f"[error] {message}"))
+                    self.decomp_config.update_round(num_tasks=0)
+                    continue
+
                 # The direct tasks issued by this agent
-                # TODO: handle case when multiple tasks are issued but we have less available tasks in the decomp_config
                 tasks_answers = await asyncio_tasks.gather(*[self._subagent_forward(task, **kwargs) for task in turn.tasks])
 
                 for prefix in METRIC_PREFIXES:

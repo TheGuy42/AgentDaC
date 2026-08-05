@@ -142,8 +142,13 @@ class ArtTrainer:
     @property
     def backend(self) -> LocalBackend:
         backend: LocalBackend = self.model.backend()  # type: ignore[return-value]
-        self._init_tokenizer(backend)  # populate tokenizer in advance since we count on it for agent context
         return backend
+
+    @property
+    def tokenizer(self):
+        backend = self.backend
+        self._init_tokenizer(backend)
+        return backend._tokenizers[self.model.base_model]
 
     def log_hparams(self, d: dict) -> None:
         run = self.wandb_run
@@ -184,7 +189,7 @@ class ArtTrainer:
             extra_config=self.extra_config,
             tool_parser=self.config.model.tool_parser,
             reasoning_parser=self.config.model.reasoning_parser,
-            tokenizer=self.backend._tokenizers[self.model.base_model],
+            tokenizer=self.tokenizer,
         )
 
     def _chat_kwargs(self, stage: RolloutStage) -> dict[str, Any]:

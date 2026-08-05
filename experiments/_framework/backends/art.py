@@ -16,6 +16,7 @@ from src.backends.art.config import ArtConfig
 from src.backends.art.loaders import load_art_model
 from src.backends.art.paths import PathConfig
 from src.backends.art.trainer import ArtTrainer
+from src.backends.utils.prefix_preserving import is_chat_template_prefix_preserving
 from src.configs import DataConfig, RolloutConfig, PromptConfig, DecompConfig
 from src.running.stage import RolloutStage
 from src.utils.io import load_object
@@ -90,6 +91,14 @@ class ArtBackend(Backend):
             extra_config=configs["extra_config"],
             writer=writer,
         )
+
+        if not art_config.train.train_episodes:
+            is_preserving = is_chat_template_prefix_preserving(trainer.tokenizer)
+            if not is_preserving:
+                logger.warning(
+                    "The chat template is not prefix-preserving, but train_episodes=False. "
+                    "Either provide a manual prefix-preserving chat template, or set `train_episodes=True`"
+                )
 
         # Initialize wandb and log files
         if trainer.wandb_run is not None:
